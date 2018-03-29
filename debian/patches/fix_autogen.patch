@@ -1,0 +1,58 @@
+Description: Fix autogen, cannot use both IT_PROG_INTLTOOL and AM_GNU_GETTEXT
+ Patch inspired from libpeas 1.8.1-2
+Author: Vincent Legout <vincent@legout.info>
+
+Index: libqalculate/configure.ac
+===================================================================
+--- libqalculate.orig/configure.ac
++++ libqalculate/configure.ac
+@@ -246,8 +246,6 @@ AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GET
+ 
+ dnl Please keep this in alphabetical order
+ ALL_LINGUAS="fr nl sv zh_CN"
+-AM_GNU_GETTEXT(external)
+-AM_GNU_GETTEXT_VERSION([0.19.8])
+ 
+ dnl AM_GLIB_GNU_GETTEXT sets $DATADIRNAME
+ AC_MSG_CHECKING(locale directory)
+Index: libqalculate/src/Makefile.am
+===================================================================
+--- libqalculate.orig/src/Makefile.am
++++ libqalculate/src/Makefile.am
+@@ -19,7 +19,6 @@ qalc_LDADD = \
+ 	@LIBCURL_LIBS@ \
+ 	@ICU_LIBS@ \
+ 	@READLINE_LIBS@ \
+-	@LTLIBINTL@ \
+ 	@LTLIBICONV@ \
+ 	../libqalculate/libqalculate.la
+ 
+@@ -29,7 +28,6 @@ defs2doc_LDADD = \
+ 	@LIBXML_LIBS@ \
+ 	@LIBCURL_LIBS@ \
+ 	@ICU_LIBS@ \
+-	@LTLIBINTL@ \
+ 	@LTLIBICONV@ \
+ 	../libqalculate/libqalculate.la
+ 
+@@ -39,7 +37,6 @@ test_LDADD = \
+ 	@LIBXML_LIBS@ \
+ 	@LIBCURL_LIBS@ \
+ 	@ICU_LIBS@ \
+-	@LTLIBINTL@ \
+ 	@LTLIBICONV@ \
+ 	../libqalculate/libqalculate.la
+ 
+Index: libqalculate/libqalculate/Makefile.am
+===================================================================
+--- libqalculate.orig/libqalculate/Makefile.am
++++ libqalculate/libqalculate/Makefile.am
+@@ -21,7 +21,7 @@ libqalculateinclude_HEADERS = \
+ libqalculate_la_LDFLAGS = -version-info $(QALCULATE_CURRENT):$(QALCULATE_REVISION):$(QALCULATE_AGE) -no-undefined
+ 
+ libqalculate_la_LIBADD = \
+-	@LIBCURL_LIBS@ @LIBXML_LIBS@ @ICU_LIBS@ @LTLIBINTL@ @LTLIBICONV@
++	@LIBCURL_LIBS@ @LIBXML_LIBS@ @ICU_LIBS@ @LTLIBICONV@
+ 
+ AM_CPPFLAGS = \
+ 	-I$(top_srcdir) \

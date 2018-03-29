@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+override_dh_auto_test:
+
+override_dh_installdocs:
+	dh_installdocs
+	dh_installdocs --doc-main-package=libqalculate-doc -plibqalculate-doc
+	rm -rf debian/libqalculate-doc/usr/share/doc/libqalculate-dev/

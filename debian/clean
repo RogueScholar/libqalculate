@@ -1,0 +1,6 @@
+intltool-extract
+intltool-merge
+intltool-update
+po-defs/.intltool-merge-cache
+data/currencies.xml
+data/units.xml

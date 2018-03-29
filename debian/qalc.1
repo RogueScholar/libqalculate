@@ -1,0 +1,34 @@
+.\" Manual Page for qalc, copyright (c) 2005 Thijs Kinkhorst
+.\" <thijs@kinkhorst.com> licenced under the GNU General
+.\" Public Licence.
+.TH QALC 1 "17 November 2005"
+.SH NAME
+qalc \- Powerful and easy to use command line calculator
+.SH SYNOPSIS
+.B qalc
+[options] [expression]
+.SH DESCRIPTION
+Qalculate! is a small and simple to use calculator but with much power and
+versatility underneath. Features include customizable functions, units,
+arbitrary precision using a one-line fault-tolerant expression entry.
+\fBqalc\fP is the command line version of Qalculate!.
+.SH OPTIONS
+.PP
+.TP 8
+.B +u8
+turn unicode support on
+.TP 8
+.B \-u8
+turn unicode support off
+.PP
+.TP 8
+.B \-set \(dq\fIoption\fP \fIvalue\fP\(dq
+Set options within the calculator.
+.PP
+When invoked with no expression specified, the program will start in
+interactive mode. Type \fIhelp\fP in interactive mode to get more
+information about available commands.
+.SH AUTHORS
+Hanna Knutsson <hanna.knutsson@protonmail.com>. This manual page was
+originally written by Thijs Kinkhorst <thijs@kinkhorst.com>,
+for the Debian system (but may be used by others).
