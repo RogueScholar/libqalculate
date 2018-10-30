@@ -382,6 +382,7 @@
         <title xml:lang="zh_CN">弧度</title>
         <names>ar:rad,radian,p:radians</names>
         <names xml:lang="nl">a:rad,radiaal,p:radialen</names>
+        <use_with_prefixes>false</use_with_prefixes>
         <base>
           <unit>m_p_m</unit>
           <relation>1</relation>
@@ -397,6 +398,7 @@
         <names>ar:deg,au:&#xB0;,degree,p:degrees</names>
         <names xml:lang="nl">a:grd,au:&#xB0;,graad,p:graden</names>
         <names xml:lang="sv">a:deg,au:&#xB0;,grad,p:grader</names>
+        <use_with_prefixes>false</use_with_prefixes>
         <base>
           <unit>rad</unit>
           <relation>pi/180</relation>
@@ -409,6 +411,7 @@
         <title xml:lang="sv">Gradient (Gon)</title>
         <names>ar:gra,gradian,p:gradians,gon,p:gons</names>
         <names xml:lang="nl">a:gra,grad,p:grads,gon,p:gons</names>
+        <use_with_prefixes>false</use_with_prefixes>
         <base>
           <unit>rad</unit>
           <relation>pi/200</relation>
@@ -418,9 +421,11 @@
       <unit type="alias">
         <title>Arcminute</title>
         <title xml:lang="nl">Boogminuut</title>
+        <title xml:lang="sv">Bågminut</title>
         <title xml:lang="zh_CN">弧分</title>
-        <names>r:arcminute,p:arcminutes</names>
+        <names>ar:arcmin,arcminute,p:arcminutes</names>
         <names xml:lang="nl">boogminuut,p:boogminuten</names>
+        <names xml:lang="sv">bågminut,p:bågminuter</names>
         <base>
           <unit>deg</unit>
           <relation>1/60</relation>
@@ -430,11 +435,13 @@
       <unit type="alias">
         <title>Arcsecond</title>
         <title xml:lang="nl">Boogseconde</title>
+        <title xml:lang="sv">Bågsekund</title>
         <title xml:lang="zh_CN">弧秒</title>
-        <names>r:arcsecond,p:arcseconds</names>
+        <names>ar:arcsec,arcsecond,p:arcseconds</names>
         <names xml:lang="nl">boogseconde,p:boogseconden</names>
+        <names xml:lang="sv">bågsekund,p:bågsekunder</names>
         <base>
-          <unit>arcminute</unit>
+          <unit>arcmin</unit>
           <relation>1/60</relation>
           <exponent>1</exponent>
         </base>
@@ -975,7 +982,7 @@
       <names>ar:d,day,p:days</names>
       <names xml:lang="fr">jour,p:jours</names>
       <names xml:lang="nl">a:d,dag,p:dagen</names>
-      <names xml:lang="sv">a:d,dag,p:dagar</names>
+      <names xml:lang="sv">a:d,dag,day,p:dagar,days</names>
       <base>
         <unit>h</unit>
         <relation>24</relation>
@@ -1021,6 +1028,20 @@
         <relation>365.25</relation>
         <exponent>1</exponent>
         <mix>2</mix>
+      </base>
+    </unit>
+    <unit type="alias">
+      <title>Month</title>
+      <title xml:lang="fr">Mois</title>
+      <title xml:lang="nl">Maand</title>
+      <title xml:lang="sv">Månad</title>
+      <title xml:lang="zh_CN">月份</title>
+      <names>r:month,p:months</names>
+      <names xml:lang="sv">a:månad,p:månader</names>
+      <base>
+        <unit>d</unit>
+        <relation>30.4375</relation>
+        <exponent>1</exponent>
       </base>
     </unit>
     <category>

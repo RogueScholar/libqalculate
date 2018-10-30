@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<QALCULATE version="2.2.0">
+<QALCULATE version="2.6.0">
   <category>
     <title>Matrices &amp; Vectors</title>
     <title xml:lang="fr">Matrices &amp; Vecteurs</title>
@@ -697,6 +697,55 @@
         <title xml:lang="zh_CN">分隔符</title>
       </argument>
     </builtin_function>
+    <builtin_function name="magnitude">
+      <title>Magnitude</title>
+      <title xml:lang="sv">Magnitud</title>
+      <names>r:magnitude</names>
+      <names xml:lang="sv">magnutud</names>
+      <description>Calculates the magnitude of a value. This function returns the same value as abs() for all values except vectors.</description>
+      <description xml:lang="sv">Beräknar magnituden av ett värde. Funktionen returnerar samma värde som abs() för alla värden utom vektorer.</description>
+      <argument index="1">
+        <title>Value</title>
+        <title xml:lang="fr">Valeur</title>
+        <title xml:lang="nl">Waarde</title>
+        <title xml:lang="sv">Värde</title>
+        <title xml:lang="zh_CN">值</title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="hadamard">
+      <title>Hadamard Product</title>
+      <title xml:lang="sv">Hadamardprodukt</title>
+      <names>r:hadamard</names>
+      <description>Mulitplies each separate element in matrix 1 with the corresponding element in matrix 2.</description>
+      <description xml:lang="sv">Multiplicerar varje separat element i matris 1 med motsvarande element i matrix 2.</description>
+      <argument index="1">
+        <title>Matrix 1</title>
+        <title xml:lang="sv">Matris 1</title>
+      </argument>
+      <argument index="2">
+        <title>Matrix 2</title>
+        <title xml:lang="sv">Matris 2</title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="entrywise">
+      <title>Entrywise Function</title>
+      <title xml:lang="sv">Komponentvis funktion</title>
+      <names>r:entrywise</names>
+      <description>Calculates a new matrix or vector using each separate element in matrix/vector 1 and the corresponding (in the same row and column) elements in matrix/vector 2. An unlimited number of matrices/vectors can be specified, with each matrix/vector argument followed by the corresponding variable used in the function argument.</description>
+      <description xml:lang="sv">Beräknar en ny matris eller vektor utifrån varje separat element i matris/vektor 1 och motsvarande (i samma rad och kolumnen) element i matris/vektor 2. Ett obegränsat antal matriser/vektorer kan anges, med varje matris-/vektorparameter följd av motsvarande variabel used in the functionsparametern.</description>
+      <example>$name(x / y, [4, 10, 12], x, [2, 2, 4], y) = [2, 5, 3]</example>
+      <argument index="1">
+        <title>Function</title>
+        <title xml:lang="fr">Fonction</title>
+        <title xml:lang="nl">Functie</title>
+        <title xml:lang="sv">Funktion</title>
+        <title xml:lang="zh_CN">函数</title>
+      </argument>
+      <argument index="2">
+        <title>Matrices/vectors and variables</title>
+        <title xml:lang="sv">Matriser/vektorer och variabler</title>
+      </argument>
+    </builtin_function>
     <function>
       <title>Norm (length)</title>
       <title xml:lang="fr">Norme (longueur)</title>
@@ -923,6 +972,7 @@
         <title xml:lang="nl">Objecten</title>
         <title xml:lang="sv">Objekt</title>
         <title xml:lang="zh_CN">对象个数</title>
+        <handle_vector>true</handle_vector>
       </argument>
       <argument type="free" index="2">
         <title>Size</title>
@@ -930,6 +980,7 @@
         <title xml:lang="nl">Grootte</title>
         <title xml:lang="sv">Storlek</title>
         <title xml:lang="zh_CN">大小</title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -953,6 +1004,7 @@
         <title xml:lang="nl">Objecten</title>
         <title xml:lang="sv">Objekt</title>
         <title xml:lang="zh_CN">对象个数</title>
+        <handle_vector>true</handle_vector>
       </argument>
       <argument type="free" index="2">
         <title>Size</title>
@@ -960,6 +1012,7 @@
         <title xml:lang="nl">Grootte</title>
         <title xml:lang="sv">Storlek</title>
         <title xml:lang="zh_CN">大小</title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -971,10 +1024,10 @@
       <names>r:derangements</names>
       <names xml:lang="nl">derangementen</names>
       <names xml:lang="sv">derangemang</names>
-      <description>Returns the number of possible rearrangements of an ordered list, of a certain size, where none of the objects are on their original position. If the original list is [1, 2, 3], the possible derangements is [2, 3, 1] and [3, 1, 2], and thus the number of derangements is 2.</description>
+      <description>Returns the number of possible rearrangements of an ordered list, of a certain size, where none of the objects are on their original position. If the original list is [1, 2, 3], the possible derangements are [2, 3, 1] and [3, 1, 2], and thus the number of derangements is 2.</description>
       <description xml:lang="fr">Retourne le nombre de réarrangements possibles d'une liste non ordonnée, d'une certaine taille, où aucun des objets n'est à sa position initiale. Si la liste de départ est [1, 2, 3], les réarrangements possibles sont [2, 3, 1] et [3, 1, 2]; le nombre de réarrangements est donc 2.</description>
       <description xml:lang="nl">Retourneert op hoeveel manieren een geordende lijst van objecten zo kan worden herschikt dat geen der objecten op zijn oorspronkelijke posite terecht komt. Indien de oorspronkelijke lijst [1, 2, 3] is, zijn de mogelijke herschikkingen [2, 3, 1] en [3, 1, 2], en is het aantal mogelijke herschikkingen dus 2.</description>
-      <description xml:lang="sv">Returnerar antalet möjliga omarrangemang av en ordnad lista, med en viss storlek, där inget av objekten är på sin ursprungliga position. Om den ursprungliga listan är [1, 2, 3], då är de möjliga omarrangemangent [2, 3, 1] och [3, 1, 2], och därmed returneras 2.</description>
+      <description xml:lang="sv">Returnerar antalet möjliga omarrangemang av en ordnad lista, med en viss storlek, där inget av objekten är på sin ursprungliga position. Om den ursprungliga listan är [1, 2, 3], då är de möjliga omarrangemangen [2, 3, 1] och [3, 1, 2], och därmed returneras 2.</description>
       <description xml:lang="zh_CN">返回重排数，即对给定列表中的元素重新排列，并且限定每个元素都不能在原来的位置 上，所得的列表数量。例如，如果原始列表为[1,2,3]，则可能的重排列表为[2, 3, 1]和[3, 1, 2]。因此重排数为2。</description>
       <expression>factorial(\x)*sum(((-1)^"i")/factorial("i"),0,\x,"i")</expression>
       <argument type="integer" index="1">
@@ -1026,6 +1079,9 @@
           <title xml:lang="nl">Nummer</title>
           <title xml:lang="sv">Nummer</title>
           <title xml:lang="zh_CN">数字</title>
+        </argument>
+        <argument index="2">
+          <title>Value for zero</title>
         </argument>
       </builtin_function>
       <builtin_function name="numerator">
@@ -1140,6 +1196,7 @@
           <title xml:lang="nl">Waarde</title>
           <title xml:lang="sv">Värde</title>
           <title xml:lang="zh_CN">值</title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1237,12 +1294,14 @@
           <title xml:lang="nl">Grondtal</title>
           <title xml:lang="sv">Bas</title>
           <title xml:lang="zh_CN">基/底</title>
+          <handle_vector>true</handle_vector>
         </argument>
         <argument type="free" index="2">
           <title>Exponent</title>
           <title xml:lang="fr">Exposant</title>
           <title xml:lang="sv">Exponent</title>
           <title xml:lang="zh_CN">指数</title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
     </category>
@@ -1598,22 +1657,19 @@
       <title>Number Bases</title>
       <title xml:lang="fr">Bases Numériques</title>
       <title xml:lang="nl">Grondtallen voor talstelsels</title>
-      <title xml:lang="sv">Nummerbaser</title>
+      <title xml:lang="sv">Talbaser</title>
       <title xml:lang="zh_CN">数字进制</title>
       <builtin_function name="base">
         <title>Number Base</title>
         <title xml:lang="fr">Base Numérique</title>
         <title xml:lang="nl">Grondtal talstelsel</title>
-        <title xml:lang="sv">Nummerbas</title>
+        <title xml:lang="sv">Talbas</title>
         <title xml:lang="zh_CN">数字进制</title>
         <names>r:base</names>
         <names xml:lang="nl">grondtal</names>
         <names xml:lang="sv">bas</names>
-        <description>Returns an integer from a number of specified base between 2 and 36</description>
-        <description xml:lang="fr">Retourne un entier à partir d'un nombre dans une base spécifiée entre 2 et 36</description>
-        <description xml:lang="nl">Converteert een getal in een opgegeven basis tussen 2 en 36 naar een geheel getal</description>
-        <description xml:lang="sv">Returnerar ett heltal från ett tal med en angiven bas mellan 2 och 36.</description>
-        <description xml:lang="zh_CN">返回一个指定进制(2-36之间)数字的值</description>
+        <description>Returns an value from an expression using a specified base between 2 and 36</description>
+        <description xml:lang="sv">Returnerar ett värde från ett uttryck med angiven bas mellan 2 och 36.</description>
         <argument index="1">
           <title>Number</title>
           <title xml:lang="fr">Nombre</title>
@@ -1635,17 +1691,18 @@
         <title xml:lang="sv">Binär</title>
         <title xml:lang="zh_CN">二进制</title>
         <names>r:bin</names>
-        <description>Returns an integer from a binary number</description>
-        <description xml:lang="fr">Retourne un entier à partir d'un nombre binaire</description>
-        <description xml:lang="nl">Converteert een binair getal naar een geheel getal</description>
-        <description xml:lang="sv">Returnerar ett heltal från ett binärt tal</description>
-        <description xml:lang="zh_CN">返回一个二进制数字表示的整数值。</description>
+        <description>Returns a value from a binary expression. If two's complement is true, numbers beginning with '1' is interpreted as negative binary numbers using two's complement.</description>
+        <description xml:lang="sv">Returnerar ett värde från ett binärt uttryck. Om tvåkomplementsform är sant, kommer tal som börjar med '1' att tolkas som negative binära tal som använder tvåkomplementsform.</description>
         <argument index="1">
           <title>Binary number</title>
           <title xml:lang="fr">Nombre binaire</title>
           <title xml:lang="nl">Binair getal</title>
           <title xml:lang="sv">Binärt nummer</title>
           <title xml:lang="zh_CN">二进制数</title>
+        </argument>
+        <argument index="2">
+          <title>Two's complement</title>
+          <title xml:lang="sv">Tvåkomplementsform</title>
         </argument>
       </builtin_function>
       <builtin_function name="oct">
@@ -1655,11 +1712,8 @@
         <title xml:lang="zh_CN">八进制</title>
         <names>r:oct</names>
         <names xml:lang="sv">okt</names>
-        <description>Returns an integer from an octal number</description>
-        <description xml:lang="fr">Retourne un entier à partir d'un nombre octal</description>
-        <description xml:lang="nl">Converteert een octaal getal naar een geheel getal</description>
-        <description xml:lang="sv">Returnerar ett heltal från ett oktalt tal</description>
-        <description xml:lang="zh_CN">返回一个八进制数字表示的整数值。</description>
+        <description>Returns a value from an octal expression.</description>
+        <description xml:lang="sv">Returnerar ett värde från ett oktalt uttryck.</description>
         <argument index="1">
           <title>Octal number</title>
           <title xml:lang="fr">Nombre octal</title>
@@ -1675,11 +1729,8 @@
         <title xml:lang="sv">Hexadecimal</title>
         <title xml:lang="zh_CN">十六进制</title>
         <names>r:hex</names>
-        <description>Returns a value from a hexadecimal number</description>
-        <description xml:lang="fr">Retourne une valeur à partir d'un nombre hexadécimal</description>
-        <description xml:lang="nl">Converteert een hexadecimaal getal naar een getal</description>
-        <description xml:lang="sv">Returnerar ett värde från ett hexadecimalt tal</description>
-        <description xml:lang="zh_CN">返回一个十六进制数字表示的数值</description>
+        <description>Returns a value from a hexadecimal expression.</description>
+        <description xml:lang="sv">Returnerar ett värde från ett hexadecimalt uttryck.</description>
         <argument index="1">
           <title>Hexadecimal number</title>
           <title xml:lang="fr">Nombre hexadécimal</title>
@@ -1736,27 +1787,24 @@
     <title xml:lang="nl">Stapfuncties</title>
     <title xml:lang="sv">Språngfunktioner</title>
     <title xml:lang="zh_CN">阶梯函数</title>
-    <function>
+    <builtin_function name="heaviside">
       <title>Heaviside Step Function</title>
       <title xml:lang="nl">Heaviside stapfunctie</title>
       <title xml:lang="sv">Heavisides stegfunktion</title>
       <title xml:lang="zh_CN">Heaviside阶梯函数</title>
-      <names>r:heaviside</names>
+      <names>r:heaviside,au:&#x03B8;</names>
       <description>Discontinuous function also known as "unit step function". Returns 0 if x &lt; 0, 1 if x &gt; 0, and 1/2 if x = 0.</description>
       <description xml:lang="nl">Discontinue functie die ook bekend staat als de "eenheids stapfunctie". Retourneert 0 indien x &lt; 0, 1 indien x ;gt; 0, en 1/2 indien x=0.</description>
       <description xml:lang="sv">Stegfunktion även kallad "enhetsstegfunktion". Returnerar 0 om x &lt; 0, 1 om x &gt; 0, och 1/2 om x = 0.</description>
       <description xml:lang="zh_CN">间断函数也被称作是" 单位阶跃函数"。当 x &lt; 0时值为0, x &gt; 0时值为1,  x = 0时则为1/2。</description>
-      <expression>(1/2)*(1+sgn(\x))</expression>
-      <argument type="number" index="1">
-        <title>Value</title>
-        <title xml:lang="fr">Valeur</title>
-        <title xml:lang="nl">Waarde</title>
-        <title xml:lang="sv">Värde</title>
-        <title xml:lang="zh_CN">值</title>
-	<complex_allowed>false</complex_allowed>
-        <test>false</test>
-      </argument>
-    </function>
+    </builtin_function>
+    <builtin_function name="dirac">
+      <title>Dirac Delta Function</title>
+      <title xml:lang="sv">Diracs deltafunktion</title>
+      <names>r:dirac,au:&#x3B4;</names>
+      <description>Returns 0 if x is non-zero, and infinity if x is zero.</description>
+      <description xml:lang="sv">Returnerar 0 om x inte är noĺl, och oändlighet om x är noll.</description>
+    </builtin_function>
     <function>
       <title>Ramp Function</title>
       <title xml:lang="nl">Rampfunctie</title>
@@ -1770,7 +1818,7 @@
         <title xml:lang="nl">Waarde</title>
         <title xml:lang="sv">Värde</title>
         <title xml:lang="zh_CN">值</title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
     </function>
@@ -1789,7 +1837,7 @@
         <title xml:lang="nl">Waarde</title>
         <title xml:lang="sv">Värde</title>
         <title xml:lang="zh_CN">值</title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
     </function>
@@ -1840,7 +1888,7 @@
         <title xml:lang="nl">Waarde</title>
         <title xml:lang="sv">Värde</title>
         <title xml:lang="zh_CN">值</title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
     </function>
@@ -1878,6 +1926,21 @@
       <title>Complementary Error Function</title>
       <title xml:lang="sv">Komplementära felfunktionen</title>
       <names>r:erfc</names>
+    </builtin_function>
+    <builtin_function name="Li">
+      <title>Polylogarithm</title>
+      <title xml:lang="sv">Polylogaritm</title>
+      <names>rc:Li,polylog</names>
+      <argument index="1">
+        <title>Order</title>
+        <title xml:lang="fr">Ordre</title>
+        <title xml:lang="nl">Orde</title>
+        <title xml:lang="sv">Ordning</title>
+        <title xml:lang="zh_CN">次数</title>
+      </argument>
+      <argument index="2">
+        <title>Argument</title>
+      </argument>
     </builtin_function>
     <builtin_function name="airy">
       <title>Airy Function</title>
@@ -1945,7 +2008,7 @@
         <title xml:lang="nl">Waarde 1 (i)</title>
         <title xml:lang="sv">Värde 1 (i)</title>
         <title xml:lang="zh_CN">值1(i)</title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
       <argument type="number" index="2">
@@ -1954,7 +2017,7 @@
         <title xml:lang="nl">Waarde 2 (j)</title>
         <title xml:lang="sv">Värde 2 (j)</title>
         <title xml:lang="zh_CN">值2(i)</title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
     </function>
@@ -2157,16 +2220,18 @@
       <title xml:lang="zh_CN">Lambert W函数(&#x3c9;函数, Product Log)</title>
       <names>r:lambertw,productlog</names>
       <names xml:lang="zh_CN">r:lambertw,productlog</names>
-      <description>Returns the inverse function for mx*e^x as ln() does for e^x.</description>
-      <description xml:lang="nl">Retourneert de inverse functie van mx*e^x (zoals ln(x) de inverse functie is van e^x).</description>
-      <description xml:lang="sv">Returnerar den inverterade funktionen för mx*e^x såsom ln() gör för e^x.</description>
-      <description xml:lang="zh_CN">返回函数mx*e^x的逆函数。</description>
+      <description>Returns the inverse function for mx*e^x as ln() does for e^x. Only the principal branch and real valued results are currently supported.</description>
+      <description xml:lang="sv">Returnerar den inverterade funktionen för mx*e^x såsom ln() gör för e^x. Enbart principalgrenen och värden som ger reeala result stöds för närvarande. </description>
       <argument index="1">
         <title>Value</title>
         <title xml:lang="fr">Valeur</title>
         <title xml:lang="nl">Waarde</title>
         <title xml:lang="sv">Värde</title>
         <title xml:lang="zh_CN">值</title>
+      </argument>
+      <argument index="2">
+        <title>Branch</title>
+        <title xml:lang="sv">Gren</title>
       </argument>
     </builtin_function>
     <function>
@@ -2228,10 +2293,11 @@
         <title xml:lang="fr">Exposant</title>
         <title xml:lang="sv">Exponent</title>
         <title xml:lang="zh_CN">指数</title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
-      <title>2 raised the to power X</title>
+      <title>2 raised to the power X</title>
       <title xml:lang="fr">2 élevé à la puissance X</title>
       <title xml:lang="nl">2 tot de macht X</title>
       <title xml:lang="sv">2 upphöjt med X</title>
@@ -2243,10 +2309,11 @@
         <title xml:lang="fr">Exposant</title>
         <title xml:lang="sv">Exponent</title>
         <title xml:lang="zh_CN">指数</title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
-      <title>10 raised the to power X</title>
+      <title>10 raised to the power X</title>
       <title xml:lang="fr">10 élevé à la puissance X</title>
       <title xml:lang="nl">10 tot de macht X</title>
       <title xml:lang="sv">10 upphöjt med X</title>
@@ -2258,6 +2325,7 @@
         <title xml:lang="fr">Exposant</title>
         <title xml:lang="sv">Exponent</title>
         <title xml:lang="zh_CN">指数</title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -2275,12 +2343,14 @@
         <title xml:lang="nl">Grondtal</title>
         <title xml:lang="sv">Bas</title>
         <title xml:lang="zh_CN">基/底</title>
+        <handle_vector>true</handle_vector>
       </argument>
       <argument type="free" index="2">
         <title>Exponent</title>
         <title xml:lang="fr">Exposant</title>
         <title xml:lang="sv">Exponent</title>
         <title xml:lang="zh_CN">指数</title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -2482,6 +2552,7 @@
         <title xml:lang="sv">Vinkel</title>
         <title xml:lang="zh_CN">角度</title>
         <test>false</test>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -2498,6 +2569,7 @@
         <title xml:lang="sv">Vinkel</title>
         <title xml:lang="zh_CN">角度</title>
         <test>false</test>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -2514,6 +2586,7 @@
         <title xml:lang="sv">Vinkel</title>
         <title xml:lang="zh_CN">角度</title>
         <test>false</test>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -2524,6 +2597,9 @@
       <title xml:lang="zh_CN">双曲正切</title>
       <names>r:sech</names>
       <expression>1/cosh(\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <title>Hyperbolic Cosecant</title>
@@ -2533,6 +2609,9 @@
       <title xml:lang="zh_CN">双曲余割</title>
       <names>r:csch</names>
       <expression>1/sinh(\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <title>Hyperbolic Cotangent</title>
@@ -2542,6 +2621,9 @@
       <title xml:lang="zh_CN">双曲余切</title>
       <names>r:coth</names>
       <expression>1/tanh(\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <title>Inverse Secant</title>
@@ -2551,6 +2633,9 @@
       <title xml:lang="zh_CN">反正割</title>
       <names>r:asec</names>
       <expression>radtodef(0.5pi+i*ln(sqrt(1-1\x^2)+i/\x))</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <title>Inverse Cosecant</title>
@@ -2560,6 +2645,9 @@
       <title xml:lang="zh_CN">反余割</title>
       <names>r:acsc</names>
       <expression>radtodef(-i*ln(sqrt(1-1\x^2)+i/\x))</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <title>Inverse Cotangent</title>
@@ -2569,6 +2657,9 @@
       <title xml:lang="zh_CN">反余切</title>
       <names>r:acot</names>
       <expression>radtodef(i/2*(ln((\x-i)/\x)-ln((\x+i)/\x)))</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <title>Inverse Hyperbolic Secant</title>
@@ -2578,6 +2669,9 @@
       <title xml:lang="zh_CN">反双曲正割</title>
       <names>r:asech</names>
       <expression>ln(sqrt(1/\x-1)*sqrt(1/\x+1)+1/\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <title>Inverse Hyperbolic Cosecant</title>
@@ -2587,6 +2681,9 @@
       <title xml:lang="zh_CN">反双曲余割</title>
       <names>r:acsch</names>
       <expression>ln(sqrt(1+1/\x^2)+1/\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <title>Inverse Hyperbolic Cotangent</title>
@@ -2596,6 +2693,9 @@
       <title xml:lang="zh_CN">反双曲余切</title>
       <names>r:acoth</names>
       <expression>(ln(1+1/\x)-ln(1-1/\x))/2</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
   </category>
   <category>
@@ -2623,6 +2723,7 @@
         <title xml:lang="nl">Gewicht</title>
         <title xml:lang="sv">Vikt</title>
         <title xml:lang="zh_CN">重量</title>
+        <handle_vector>true</handle_vector>
       </argument>
       <argument type="free" index="2">
         <title>Length</title>
@@ -2630,6 +2731,7 @@
         <title xml:lang="nl">Lengte</title>
         <title xml:lang="sv">Längd</title>
         <title xml:lang="zh_CN">长度</title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <builtin_function name="roman">
@@ -3052,6 +3154,7 @@
           <title xml:lang="nl">Getrimd percentage (aan beide kanten)</title>
           <title xml:lang="sv">Trimmad procent (i båda ändarna)</title>
           <title xml:lang="zh_CN">截尾百分比(在每一端)</title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -3077,6 +3180,7 @@
           <title xml:lang="nl">Gewinsoriseerd percentage (aan beide kanten)</title>
           <title xml:lang="sv">Winsorprocent (i båda ändarna)</title>
           <title xml:lang="zh_CN">Winsorized百分比(在每一端)</title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -3545,6 +3649,85 @@
     <title xml:lang="nl">Datum &amp; Tijd</title>
     <title xml:lang="sv">Datum &amp; Tid</title>
     <title xml:lang="zh_CN">日期与时间</title>
+    <builtin_function name="date">
+      <title>Construct Date</title>
+      <title xml:lang="sv">Skapa datum</title>
+      <names>r:date</names>
+      <names xml:lang="sv">datum</names>
+      <description>Returns a date. Available calendars gregorian (1), hebrew (2), islamic (3), persian (4), indian (5), chinese (6), julian (7), milankovic (8), coptic (9), ethiopian (10), egyptian (11). The Chinese year uses an epoch of 2697 BEC and chinese leap months are indicated by adding 12 to the month number (e.g. leap month 4 = 16).</description>
+      <description xml:lang="sv">Returnerar ett datum. Tillgängliga kalendrar är grekorinsk (1), hebreisk (2), muslimsk(3), persisk(4), indisk (5), kinesisk (6), juliansk (7), milnkovic (8), koptisk (9), etiopisk (10), egyptisk (11). Det kinesiska året använder en epok som börjar 2697 f.Kr. och kinesiska skottmånader indikeras genom att addera 12 till månadens nummer (t.ex. skottmånad 4 = 16).</description>
+      <argument index="1">
+        <title>Year</title>
+        <title xml:lang="fr">Année</title>
+        <title xml:lang="nl">Jaar</title>
+        <title xml:lang="sv">År</title>
+        <title xml:lang="zh_CN">年</title>
+      </argument>
+      <argument index="2">
+        <title>Month</title>
+        <title xml:lang="fr">Mois</title>
+        <title xml:lang="nl">Maand</title>
+        <title xml:lang="sv">Månad</title>
+        <title xml:lang="zh_CN">月份</title>
+      </argument>
+      <argument index="3">
+        <title>Day</title>
+        <title xml:lang="fr">Jour</title>
+        <title xml:lang="nl">Dag</title>
+        <title xml:lang="sv">Dag</title>
+        <title xml:lang="zh_CN">日</title>
+      </argument>
+      <argument index="4">
+        <title>Calendar</title>
+        <title xml:lang="sv">Kalender</title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="datetime">
+      <title>Construct Date and Time</title>
+      <title xml:lang="sv">Skapa datum och tid</title>
+      <names>r:datetime</names>
+      <argument index="1">
+        <title>Year</title>
+        <title xml:lang="fr">Année</title>
+        <title xml:lang="nl">Jaar</title>
+        <title xml:lang="sv">År</title>
+        <title xml:lang="zh_CN">年</title>
+      </argument>
+      <argument index="2">
+        <title>Month</title>
+        <title xml:lang="fr">Mois</title>
+        <title xml:lang="nl">Maand</title>
+        <title xml:lang="sv">Månad</title>
+        <title xml:lang="zh_CN">月份</title>
+      </argument>
+      <argument index="3">
+        <title>Day</title>
+        <title xml:lang="fr">Jour</title>
+        <title xml:lang="nl">Dag</title>
+        <title xml:lang="sv">Dag</title>
+        <title xml:lang="zh_CN">日</title>
+      </argument>
+      <argument index="4">
+        <title>Hour</title>
+        <title xml:lang="fr">Heure</title>
+        <title xml:lang="nl">Uur</title>
+        <title xml:lang="sv">Timme</title>
+        <title xml:lang="zh_CN">小时</title>
+      </argument>
+      <argument index="5">
+        <title>Minute</title>
+        <title xml:lang="nl">Minuut</title>
+        <title xml:lang="sv">Minut</title>
+        <title xml:lang="zh_CN">分</title>
+      </argument>
+      <argument index="6">
+        <title>Second</title>
+        <title xml:lang="fr">Seconde</title>
+        <title xml:lang="nl">Seconde</title>
+        <title xml:lang="sv">Sekund</title>
+        <title xml:lang="zh_CN">秒</title>
+      </argument>
+    </builtin_function>
     <builtin_function name="days">
       <title>Days between two dates</title>
       <title xml:lang="fr">Jours entre deux dates</title>
@@ -3592,7 +3775,7 @@
       <title>Years between two dates</title>
       <title xml:lang="fr">Années entre deux dates</title>
       <title xml:lang="nl">Jaren tussen twee data</title>
-      <title xml:lang="sv">Antal är mellan två datum</title>
+      <title xml:lang="sv">Antal år mellan två datum</title>
       <title xml:lang="zh_CN">两个日期之间相隔的年数</title>
       <names>r:yearfrac</names>
       <names xml:lang="nl">jaarfrac</names>
@@ -3750,30 +3933,13 @@
       <names xml:lang="nl">tijd</names>
       <names xml:lang="sv">tid</names>
     </builtin_function>
-    <builtin_function name="isodate">
-      <title>Standard Date Format</title>
-      <title xml:lang="fr">Format de Date Standard</title>
-      <title xml:lang="nl">Standaardnotatie voor datum</title>
-      <title xml:lang="sv">Standard-datumformat</title>
-      <title xml:lang="zh_CN">标准日期格式</title>
-      <names>r:isodate</names>
-      <names xml:lang="sv">isodatum</names>
-      <argument index="1">
-        <title>Date</title>
-        <title xml:lang="nl">Datum</title>
-        <title xml:lang="sv">Datum</title>
-        <title xml:lang="zh_CN">日期</title>
-      </argument>
-    </builtin_function>
-    <builtin_function name="localdate">
-      <title>Local Date Format</title>
-      <title xml:lang="fr">Format de Date Local</title>
-      <title xml:lang="nl">Lokale datumnotatie</title>
-      <title xml:lang="sv">Lokalt datumformat</title>
-      <title xml:lang="zh_CN">本地日期格式</title>
-      <names>r:localdate</names>
-      <names xml:lang="nl">lokaledatum</names>
-      <names xml:lang="sv">lokalt_datum</names>
+    <builtin_function name="timevalue">
+      <title>Time Value</title>
+      <title xml:lang="sv">Tidsvärde</title>
+      <names>r:timevalue</names>
+      <names xml:lang="sv">tidsvärde</names>
+      <description>Returns the time part, in fractional hours, of a date and time value.</description>
+      <description xml:lang="sv">Returnerar tidsdelen, i timmar, för ett datum och tid-värde.</description>
       <argument index="1">
         <title>Date</title>
         <title xml:lang="nl">Datum</title>
@@ -3800,8 +3966,9 @@
       <title xml:lang="nl">Unix Timestamp naar datum</title>
       <title xml:lang="sv">Unixtid till datum</title>
       <title xml:lang="zh_CN">Unix时间戳转换为日期</title>
-      <names>r:stamptodate</names>
-      <names xml:lang="nl">stampnaardatum</names>
+      <names>r:stamptodate,unix2date</names>
+      <description>Returns the local date and time represented by the specified Unix timestamp (seconds, excluding leap seconds, since 1970-01-01). Supports time units.</description>
+      <description xml:lang="sv">Returnerar det lokala datum och tid som representeras av den angivna Unixtiden (sekunderar, exklusive skottsekunders, sedan 1970-01-01). Tidsenheter stöds.</description>
       <argument index="1">
         <title>Timestamp</title>
         <title xml:lang="nl">Timestamp</title>
@@ -3885,7 +4052,7 @@
       <description xml:lang="nl">Telt een tijdswaarde op bij een datum. Deze waarde kan zowel positief zijn als negatief, maar moet in een eenheid zijn uitgedrukt die op seconden is gebaseerd (zoals dag of jaar). Fracties van dagen worden afgekapt tot hele dagen.</description>
       <description xml:lang="sv">Adderar ett tidsvärde till ett datum. Värdet kan vara positivt eller negativt, men måste använda en enhet baserad på sekunder (såsom dag och år). Delar av dagar avrundas mot noll.</description>
       <description xml:lang="zh_CN">将一个时间间隔值加到日期中。该值可正可负，但其单位必须基于秒(如日或者年)。日期的分数部分会被截取掉。</description>
-      <expression>addDays(\x,trunc(\y/d))</expression>
+      <expression>\x+\y</expression>
       <argument type="date" index="1">
         <title>Date</title>
         <title xml:lang="nl">Datum</title>
@@ -3898,9 +4065,39 @@
         <title xml:lang="nl">Tijd</title>
         <title xml:lang="sv">Tid</title>
         <title xml:lang="zh_CN">时间</title>
-	<condition>isNumber(\x/d)</condition>
+        <condition>isNumber(\x/s)</condition>
       </argument>
     </function>
+    <builtin_function name="lunarphase">
+      <title>Lunar Phase</title>
+      <title xml:lang="sv">Månfas</title>
+      <names>r:lunarphase</names>
+      <names xml:lang="sv">månfas</names>
+      <description>Returns the lunar phase, as a number between 0 and 1, for the specified date. 0 represents new moon, 0.5 full moon, and 0.25 and 0.75 quarter moons.</description>
+      <description xml:lang="sv">Returnerar månfasen, som ett nummer mellan 0 och 1, för det angivna datumet. 0 representerar nymåne, 0,5 fullmånar, och 0,25 samt 0,75 kvartsmånar.</description>
+      <argument type="date" index="1">
+        <title>Date</title>
+        <title xml:lang="nl">Datum</title>
+        <title xml:lang="sv">Datum</title>
+        <title xml:lang="zh_CN">日期</title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="nextlunarphase">
+      <title>Find Lunar Phase</title>
+      <title xml:lang="sv">Hitta månfas</title>
+      <names>r:nextlunarphase</names>
+      <names xml:lang="sv">nästamånfas</names>
+      <description>Returns the date when the specified lunar phase occurs. The function searches forward beginning at the specified date. The lunar phase are specified as a number between 0 and 1, where 0 represents new moon, 0.5 full moon, and 0.25 and 0.75 quarter moons.</description>
+      <description xml:lang="sv">Returnerar datumet när den angivna månfasen inträffar. Funktion söker framåt med början på angivet datum. Månfasen anges som ett nummer mellan 0 och 1, där 0 representerar nymåne, 0,5 fullmånar, och 0,25 samt 0,75 kvartsmånar.</description>
+      <argument type="date" index="1">
+        <title>Lunar Phase</title>
+        <title xml:lang="sv">Månfas</title>
+      </argument>
+      <argument index="2">
+        <title>Start Date</title>
+        <title xml:lang="sv">Startdatum</title>
+      </argument>
+    </builtin_function>
   </category>
   <category>
     <title>Utilities</title>
@@ -4741,6 +4938,22 @@
         <title xml:lang="zh_CN">比特</title>
       </argument>
     </builtin_function>
+    <builtin_function name="bitcmp">
+      <title>Bitwise Complement (Not)</title>
+      <names>r:bitcmp</names>
+      <argument index="1">
+        <title>Number</title>
+        <title xml:lang="fr">Nombre</title>
+        <title xml:lang="nl">Nummer</title>
+        <title xml:lang="sv">Nummer</title>
+        <title xml:lang="zh_CN">数字</title>
+      </argument>
+      <argument index="2">
+        <title>Bits</title>
+        <title xml:lang="nl">Bits</title>
+        <title xml:lang="zh_CN">比特</title>
+      </argument>
+    </builtin_function>
   </category>
   <category>
     <title>Algebra</title>
@@ -4787,6 +5000,7 @@
     </builtin_function>
     <builtin_function name="product">
       <title>Product of a sequence</title>
+      <title xml:lang="sv">Produkt av en serie</title>
       <names>au:&#x3A0;,r:product</names>
       <names xml:lang="sv">au:&#x3A0;,produkt</names>
       <description>Corresponds to the product symbol. Multiplies factors for each x ranging from the lower to the upper limit.</description>
@@ -4870,6 +5084,29 @@
         <title xml:lang="sv">Med avseende på</title>
         <title xml:lang="zh_CN">关于</title>
       </argument>
+    </builtin_function>
+    <builtin_function name="dsolve">
+      <title>Solve differential equation</title>
+      <title xml:lang="sv">Lös differentialekvation</title>
+      <names>r:dsolve</names>
+      <argument index="1">
+        <title>Equation</title>
+        <title xml:lang="fr">Équation</title>
+        <title xml:lang="nl">Vergelijking</title>
+        <title xml:lang="sv">Ekvation</title>
+        <title xml:lang="zh_CN">方程</title>
+      </argument>
+      <argument index="2">
+        <title>Initial condition: function value (y)</title>
+        <title xml:lang="sv">Initialt villkor: funktionsvärde (y)</title>
+      </argument>
+      <argument index="3">
+        <title>Initial condition: argument value (x)</title>
+        <title xml:lang="sv">Initialt villkor: parametervärde (x)</title>
+      </argument>
+      <description>Solves a differential equation and returns the value of y(x). The derivative in the equation should be in the format diff(y, x). Only first-order differential equations are currently supported.</description>
+      <description xml:lang="sv">Löser en differentialekvation och returnerar värdet på y(x). Derivatan i ekvation måste vara i formatet diff(y; x). Enbart  första ordningens differentialekvationer stöds för nuvarande.</description>
+      <example>$name(2 * diff(y, x) - y = 4x, 5, 2) = 21e^(x/2) / e - 4x - 8</example>
     </builtin_function>
     <function>
       <title>Solve for two variables</title>
@@ -5013,6 +5250,34 @@
         <title xml:lang="zh_CN">上限</title>
       </argument>
     </builtin_function>
+    <builtin_function name="limit">
+      <title>Limit</title>
+      <title xml:lang="sv">Gränsvärde</title>
+      <description>Returns the two-sided limit of the function if direction is zero, limit from left (below) if direction is -1, or limit from right (above) if direction is +1.</description>
+      <description xml:lang="sv">Returnerar det två-sidiga gränsvärdet för funktionen om riktning är noll, gränsvärdet från vänster (underifrån) om riktning är -1 eller gränsvärdet frpn höger (ovanifrån) om riktning är +1.</description>
+      <names>r:limit</names>
+      <argument index="1">
+        <title>Function</title>
+        <title xml:lang="fr">Fonction</title>
+        <title xml:lang="nl">Functie</title>
+        <title xml:lang="sv">Funktion</title>
+        <title xml:lang="zh_CN">函数</title>
+      </argument>
+      <argument index="2">
+        <title>Value to approach</title>
+        <title xml:lang="sv">Värde att närma</title>
+      </argument>
+      <argument index="3">
+        <title>Variable</title>
+        <title xml:lang="nl">Variabele</title>
+        <title xml:lang="sv">Variabel</title>
+        <title xml:lang="zh_CN">变量</title>
+      </argument>
+      <argument index="4">
+        <title>Direction</title>
+        <title xml:lang="sv">Riktning</title>
+      </argument>
+    </builtin_function>
     <function>
       <title>Extreme Values</title>
       <title xml:lang="fr">Valeurs extrêmes</title>
@@ -5036,6 +5301,75 @@
         <title xml:lang="zh_CN">关于</title>
       </argument>
     </function>
+    <category>
+      <title>Named Integrals</title>
+      <title xml:lang="sv">Namngivna integraler</title>
+      <builtin_function name="li">
+        <title>Logarithmic Integral</title>
+        <title xml:lang="sv">Logaritmisk integral</title>
+        <names>rc:li,logint</names>
+        <description>The integral of 1/ln(x).</description>
+        <description xml:lang="sv">Integralen av 1/ln(x).</description>
+      </builtin_function>
+      <builtin_function name="Ei">
+        <title>Exponential Integral</title>
+        <title xml:lang="sv">Exponentiell integral</title>
+        <names>rc:Ei,expint</names>
+        <description>The integral of e^x/x.</description>
+        <description xml:lang="sv">Integralen av e^x/x.</description>
+      </builtin_function>
+      <builtin_function name="Si">
+        <title>Sine Integral</title>
+        <title xml:lang="sv">Sineintegral</title>
+        <names>rc:Si,sinint</names>
+        <argument index="1">
+          <title>Angle</title>
+          <title xml:lang="nl">Hoek</title>
+          <title xml:lang="sv">Vinkel</title>
+          <title xml:lang="zh_CN">角度</title>
+        </argument>
+        <description>The integral of sin(x)/x.</description>
+        <description xml:lang="sv">Integralen av sin(x)/x</description>
+      </builtin_function>
+      <builtin_function name="Ci">
+        <title>Cosine Integral</title>
+        <title xml:lang="sv">Cosineintegral</title>
+        <names>rc:Ci,cosint</names>
+        <argument index="1">
+          <title>Angle</title>
+          <title xml:lang="nl">Hoek</title>
+          <title xml:lang="sv">Vinkel</title>
+          <title xml:lang="zh_CN">角度</title>
+        </argument>
+        <description>The integral of cos(x)/x.</description>
+        <description xml:lang="sv">Integralen av cos(x)/x.</description>
+      </builtin_function>
+      <builtin_function name="Shi">
+        <title>Hyperbolic Sine Integral</title>
+        <title xml:lang="sv">Sinus hyperbolicus-integral</title>
+        <names>rc:Shi,sinhint</names>
+        <description>The integral of sinh(x)/x.</description>
+        <description xml:lang="sv">Integralen av sinh(x)/x.</description>
+      </builtin_function>
+      <builtin_function name="Chi">
+        <title>Hyperbolic Cosine Integral</title>
+        <title xml:lang="sv">Cosinus hyperbolicus-integral</title>
+        <names>rc:Chi,coshint</names>
+        <description>The integral of cosh(x)/x.</description>
+        <description xml:lang="sv">Integralen av cosh(x)/x.</description>
+      </builtin_function>
+      <builtin_function name="igamma">
+        <title>Upper Incomplete Gamma Function</title>
+        <title xml:lang="sv">Övre ofullständig gammafunktion</title>
+        <names>r:igamma</names>
+      </builtin_function>
+      <function>
+        <title>Lower Incomplete Gamma Function</title>
+        <title xml:lang="sv">Undre ofullständig gammafunktion</title>
+        <names>r:gammainc</names>
+        <expression>1-igamma(\x,\y)/gamma(\x)</expression>
+      </function>
+    </category>
   </category>
   <category>
     <title>Geometry</title>
@@ -5879,10 +6213,10 @@
         <names xml:lang="fr">élasticité</names>
         <names xml:lang="nl">elasticiteit</names>
         <names xml:lang="sv">elasticitet</names>
-        <description>Calculates the demand elasticity. Also works for supply elasticity, income elasticity, cross-price elasticity, etc. Just replace demand, with supply, or price with income...&#10;&#10;eg. elasticity(100-x^2, 3) calculates the demand elasticity when the price is 3 for the function "Q = 100 - x^2" where x is the default price variable.</description>
+        <description>Calculates the demand elasticity. Also works for supply elasticity, income elasticity, cross-price elasticity, etc. Just replace demand with supply, or price with income...&#10;&#10;eg. elasticity(100-x^2, 3) calculates the demand elasticity when the price is 3 for the function "Q = 100 - x^2" where x is the default price variable.</description>
         <description xml:lang="fr">Calcule l'élasticité de la demande. Fonctionne également pour l'élasticité de l'offre, de revenu, de prix croisés, etc. Remplacez simplement demande par offre, ou prix par revenu...&#10;&#10;Ex. elasticity(100-x^2, 3) calcule l'élasticité de la demande quand le prix est 3 pour la fonction "Q = 100 - x^2" où x est la variable de prix par défaut.</description>
         <description xml:lang="nl">Berekent de vraagelasticiteit. Is ook toepasbaar op aanbodelasticiteit, inkomenselasticiteit, prijselasticiteit, enzovoorts. Vervang vraag door aanbod of prijs met inkomen...&#10;%#10; De formule elasticity(100-x^2, 3) bijvoorbeeld berekent de vraagelasticiteit als de prijs 3 is voor de functie "Q = 100 -x^2". waar x de standaard prijsvariabele is.</description>
-        <description xml:lang="sv">Beräknar efterfrågeelasticitet. Fungerar lika bra för tillgång- och inkomstelasticitet, etc. Ersätt bara efterfrågan, med tillgång, eller pris med inkomst...&#10;&#10;t ex elasticity(100-x^2, 3) beräknar efterfrågeelasticiteten när priset är 3 för functionen "Q = 100 - x^2" där x är den förvalda prisvariabeln.</description>
+        <description xml:lang="sv">Beräknar efterfrågeelasticitet. Fungerar lika bra för tillgång- och inkomstelasticitet, etc. Ersätt bara efterfrågan med tillgång, eller pris med inkomst...&#10;&#10;t ex elasticity(100-x^2, 3) beräknar efterfrågeelasticiteten när priset är 3 för functionen "Q = 100 - x^2" där x är den förvalda prisvariabeln.</description>
         <description xml:lang="zh_CN">计算需求弹性。将需求替换成供给、收入……等，也可以用它来计算供给弹性、收入弹性、交叉价格弹性等。 &#10;&#10;例如，表达式elasticity(100-x^2, 3)计算x为价格变量的函数"Q = 100 - x^2"，当价格为3时的 需求弹性。</description>
         <expression>replace(diff(\x,\Z{x}),\Z,\y,1)*\y/replace(\x,\Z,\y)</expression>
         <argument type="free" index="1">

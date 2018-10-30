@@ -232,7 +232,7 @@ int MathFunction::args(const string &argstr, MathStructure &vargs, const ParseOp
 	bool last_is_vctr = false, vctr_started = false;
 	if(maxargs() > 0) {
 		arg = getArgumentDefinition(maxargs());
-		last_is_vctr = (arg && arg->type() == ARGUMENT_TYPE_VECTOR);
+		last_is_vctr = arg && ((arg->type() == ARGUMENT_TYPE_VECTOR) || (maxargs() == 1 && arg->handlesVector()));
 	}
 	for(size_t str_index = 0; str_index < str.length(); str_index++) {
 		switch(str[str_index]) {
@@ -435,10 +435,10 @@ void MathFunction::setArgumentDefinition(size_t index, Argument *argdef) {
 }
 bool MathFunction::testArgumentCount(int itmp) {
 	if(itmp >= minargs()) {
-		if(itmp > maxargs() && maxargs() >= 0) {
+		if(itmp > maxargs() && maxargs() >= 0 && (maxargs() > 1 || !getArgumentDefinition(1) || !getArgumentDefinition(1)->handlesVector())) {
 			CALCULATOR->error(false, _("Additional arguments for function %s() was ignored. Function can only use %s argument(s)."), name().c_str(), i2s(maxargs()).c_str(), NULL);
 		}
-		return true;	
+		return true;
 	}
 	string str;
 	Argument *arg;
@@ -697,6 +697,7 @@ bool MathFunction::representsNonPositive(const MathStructure &vargs, bool allow_
 bool MathFunction::representsInteger(const MathStructure &vargs, bool allow_units) const {return representsBoolean(vargs) || representsEven(vargs, allow_units) || representsOdd(vargs, allow_units);}
 bool MathFunction::representsNumber(const MathStructure &vargs, bool allow_units) const {return representsReal(vargs, allow_units) || representsComplex(vargs, allow_units);}
 bool MathFunction::representsRational(const MathStructure &vargs, bool allow_units) const {return representsInteger(vargs, allow_units);}
+bool MathFunction::representsNonComplex(const MathStructure &vargs, bool allow_units) const {return representsReal(vargs, allow_units);}
 bool MathFunction::representsReal(const MathStructure &vargs, bool allow_units) const {return representsRational(vargs, allow_units);}
 bool MathFunction::representsComplex(const MathStructure&, bool) const {return false;}
 bool MathFunction::representsNonZero(const MathStructure &vargs, bool allow_units) const {return representsPositive(vargs, allow_units) || representsNegative(vargs, allow_units);}
@@ -704,8 +705,12 @@ bool MathFunction::representsEven(const MathStructure&, bool) const {return fals
 bool MathFunction::representsOdd(const MathStructure&, bool) const {return false;}
 bool MathFunction::representsUndefined(const MathStructure&) const {return false;}
 bool MathFunction::representsBoolean(const MathStructure&) const {return false;}
-bool MathFunction::representsNonMatrix(const MathStructure &vargs) const {return representsNumber(vargs, true);}
-bool MathFunction::representsScalar(const MathStructure &vargs) const {return representsNonMatrix(vargs);}
+bool MathFunction::representsNonMatrix(const MathStructure &vargs) const {
+	return representsNumber(vargs, true);
+}
+bool MathFunction::representsScalar(const MathStructure &vargs) const {
+	return representsNonMatrix(vargs);
+}
 
 UserFunction::UserFunction(string cat_, string name_, string formula_, bool is_local, int argc_, string title_, string descr_, int max_argc_, bool is_active) : MathFunction(name_, argc_, max_argc_, cat_, title_, descr_, is_active) {
 	b_local = is_local;
@@ -741,10 +746,55 @@ void UserFunction::set(const ExpressionItem *item) {
 int UserFunction::subtype() const {
 	return SUBTYPE_USER_FUNCTION;
 }
-
+extern string format_and_print(const MathStructure &mstruct);
+bool replace_intervals_f(MathStructure &mstruct) {
+	if(mstruct.isNumber() && (mstruct.number().isInterval(false) || (CALCULATOR->usesIntervalArithmetic() && mstruct.number().precision() >= 0))) {
+		Variable *v = new KnownVariable("", format_and_print(mstruct), mstruct);
+		v->ref();
+		mstruct.set(v, true);
+		v->destroy();
+		return true;
+	}
+	bool b = false;
+	for(size_t i = 0; i < mstruct.size(); i++) {
+		if(replace_intervals_f(mstruct[i])) {
+			mstruct.childUpdated(i + 1);
+			b = true;
+		}
+	}
+	return b;
+}
+extern bool create_interval(MathStructure &mstruct, const MathStructure &m1, const MathStructure &m2);
+bool replace_f_interval(MathStructure &mstruct, const EvaluationOptions &eo) {
+	if(mstruct.isFunction() && mstruct.function() == CALCULATOR->f_interval && mstruct.size() == 2) {
+		if(mstruct[0].isNumber() && mstruct[1].isNumber()) {
+			Number nr;
+			if(nr.setInterval(mstruct[0].number(), mstruct[1].number())) {
+				mstruct.set(nr, true);
+				return true;
+			}
+		} else {
+			MathStructure m1(mstruct[0]);
+			MathStructure m2(mstruct[1]);
+			if(create_interval(mstruct, m1, m2)) return true;
+			m1.eval(eo);
+			m2.eval(eo);
+			if(create_interval(mstruct, m1, m2)) return true;
+		}
+		return false;
+	}
+	bool b = false;
+	for(size_t i = 0; i < mstruct.size(); i++) {
+		if(replace_f_interval(mstruct[i], eo)) {
+			mstruct.childUpdated(i + 1);
+			b = true;
+		}
+	}
+	return b;
+}
 int UserFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
-
 	ParseOptions po;
+	if(b_local) po.angle_unit = eo.parse_options.angle_unit;
 	if(args() != 0) {
 		string stmp = sformula_calc;
 		string svar;
@@ -758,7 +808,14 @@ int UserFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, 
 		}
 		
 		for(int i = 0; i < i_args; i++) {
-			v_id.push_back(CALCULATOR->addId(new MathStructure(vargs[i]), true));
+			if(vargs[i].containsInterval(true) || vargs[i].containsFunction(CALCULATOR->f_interval, true)) {
+				MathStructure *mv = new MathStructure(vargs[i]);
+				replace_f_interval(*mv, eo);
+				replace_intervals_f(*mv);
+				v_id.push_back(CALCULATOR->addId(mv, true));
+			} else {
+				v_id.push_back(CALCULATOR->addId(new MathStructure(vargs[i]), true));
+			}
 			v_strs.push_back(LEFT_PARENTHESIS ID_WRAP_LEFT);
 			v_strs[i] += i2s(v_id[i]);
 			v_strs[i] += ID_WRAP_RIGHT RIGHT_PARENTHESIS;
@@ -1142,6 +1199,7 @@ Argument::Argument(string name_, bool does_test, bool does_error) {
 	b_error = does_error;
 	b_rational = false;
 	b_last = false;
+	b_handle_vector = false;
 }
 Argument::Argument(const Argument *arg) {
 	b_text = false;
@@ -1191,6 +1249,7 @@ void Argument::set(const Argument *arg) {
 	b_matrix = arg->matrixAllowed();
 	b_rational = arg->rationalPolynomial();
 	b_last = arg->isLastArgument();
+	b_handle_vector = arg->handlesVector();
 }
 bool Argument::test(MathStructure &value, int index, MathFunction *f, const EvaluationOptions &eo) const {
 	if(!b_test) {
@@ -1228,6 +1287,13 @@ bool Argument::test(MathStructure &value, int index, MathFunction *f, const Eval
 		gsub("\\x", ids, expression);
 		b = CALCULATOR->testCondition(expression);
 		CALCULATOR->delId(id);
+	}
+	if(!b && b_handle_vector) {
+		if(!evaled && !value.isVector()) {
+			value.eval(eo);
+			evaled = true;
+		}
+		if(value.isVector()) return false;
 	}
 	if(!b) {
 		if(b_error) {
@@ -1277,10 +1343,12 @@ void Argument::parse(MathStructure *mstruct, const string &str, const ParseOptio
 		if(str.length() >= 2 + pars * 2) {
 			if(str[pars] == ID_WRAP_LEFT_CH && str[str.length() - 1 - pars] == ID_WRAP_RIGHT_CH && str.find(ID_WRAP_RIGHT, pars + 1) == str.length() - 1 - pars) {
 				CALCULATOR->parse(mstruct, str.substr(pars, str.length() - pars * 2), po);
+				if(mstruct->isDateTime() && !mstruct->datetime()->parsed_string.empty()) mstruct->set(mstruct->datetime()->parsed_string, false, true);
 				return;
 			}
 			if(str[pars] == '\\' && str[str.length() - 1 - pars] == '\\') {
 				CALCULATOR->parse(mstruct, str.substr(1 + pars, str.length() - 2 - pars * 2), po);
+				if(mstruct->isDateTime() && !mstruct->datetime()->parsed_string.empty()) mstruct->set(mstruct->datetime()->parsed_string, false, true);
 				return;
 			}	
 			if((str[pars] == '\"' && str[str.length() - 1 - pars] == '\"') || (str[pars] == '\'' && str[str.length() - 1 - pars] == '\'')) {
@@ -1320,14 +1388,14 @@ void Argument::parse(MathStructure *mstruct, const string &str, const ParseOptio
 						str2.replace(i, i2 - i + 1, str3);
 						i += str3.length();
 					}
-					mstruct->set(str2);
+					mstruct->set(str2, false, true);
 					return;
 				}
 			}
 		}
 		size_t i = str.find(ID_WRAP_LEFT, pars);
 		if(i == string::npos || i >= str.length() - pars) {
-			mstruct->set(str.substr(pars, str.length() - pars * 2));
+			mstruct->set(str.substr(pars, str.length() - pars * 2), false, true);
 			return;
 		}
 		string str2 = str.substr(pars, str.length() - pars * 2);
@@ -1351,7 +1419,7 @@ void Argument::parse(MathStructure *mstruct, const string &str, const ParseOptio
 			str2.replace(i, i2 - i + 1, str3);
 			i += str3.length();
 		}
-		mstruct->set(str2);
+		mstruct->set(str2, false, true);
 		return;
 	} else {
 		CALCULATOR->parse(mstruct, str, po);
@@ -1402,6 +1470,8 @@ int Argument::type() const {
 }
 bool Argument::matrixAllowed() const {return b_matrix;}
 void Argument::setMatrixAllowed(bool allow_matrix) {b_matrix = allow_matrix;}
+bool Argument::handlesVector() const {return b_handle_vector;}
+void Argument::setHandleVector(bool handle_vector) {b_handle_vector = handle_vector;}
 bool Argument::isLastArgument() const {return b_last;}
 void Argument::setIsLastArgument(bool is_last) {b_last = is_last;}
 bool Argument::rationalPolynomial() const {return b_rational;}
@@ -1435,6 +1505,7 @@ NumberArgument::NumberArgument(string name_, ArgumentMinMaxPreDefinition minmax,
 		}
 		default: {}
 	}
+	b_handle_vector = does_test;
 }
 NumberArgument::NumberArgument(const NumberArgument *arg) {
 	fmin = NULL;
@@ -1622,7 +1693,8 @@ IntegerArgument::IntegerArgument(string name_, ArgumentMinMaxPreDefinition minma
 			break;
 		}	
 		default: {}	
-	}	
+	}
+	b_handle_vector = does_test;
 }
 IntegerArgument::IntegerArgument(const IntegerArgument *arg) {
 	imin = NULL;
@@ -1800,22 +1872,22 @@ string TextArgument::print() const {return _("text");}
 string TextArgument::subprintlong() const {return _("a text string");}
 bool TextArgument::suggestsQuotes() const {return false;}
 
-DateArgument::DateArgument(string name_, bool does_test, bool does_error) : Argument(name_, does_test, does_error) {b_text = true;}
-DateArgument::DateArgument(const DateArgument *arg) {set(arg); b_text = true;}
+DateArgument::DateArgument(string name_, bool does_test, bool does_error) : Argument(name_, does_test, does_error) {}
+DateArgument::DateArgument(const DateArgument *arg) {set(arg);}
 DateArgument::~DateArgument() {}
 void DateArgument::parse(MathStructure *mstruct, const string &str, const ParseOptions &po) const {
-	if(b_text && str.find_first_of(PARENTHESISS, 1) != string::npos) {
-		CALCULATOR->parse(mstruct, str, po);
+	QalculateDateTime dt_test;
+	if(dt_test.set(str)) {
+		mstruct->set(dt_test);
 	} else {
 		Argument::parse(mstruct, str, po);
 	}
 }
 bool DateArgument::subtest(MathStructure &value, const EvaluationOptions &eo) const {
-	if(!value.isSymbolic()) {
+	if(!value.isDateTime()) {
 		value.eval(eo);
 	}
-	QalculateDate date;
-	return value.isSymbolic() && date.set(value.symbol());
+	return value.isDateTime();
 }
 int DateArgument::type() const {return ARGUMENT_TYPE_DATE;}
 Argument *DateArgument::copy() const {return new DateArgument(this);}

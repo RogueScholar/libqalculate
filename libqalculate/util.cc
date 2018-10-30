@@ -38,6 +38,9 @@
 #	include <initguid.h>
 #	include <shlobj.h>
 #else
+#	ifdef HAVE_PIPE2
+#		include <fcntl.h>
+#	endif
 #	include <utime.h>
 #	include <unistd.h>
 #	include <pwd.h>
@@ -641,6 +644,28 @@ bool makeDir(string dirpath) {
 	return mkdir(dirpath.c_str(), S_IRWXU) == 0;
 #endif
 }
+
+bool recursiveMakeDir(string dirpath) {
+#ifdef WIN32
+	return _mkdir(dirpath.c_str()) == 0;
+#else
+	char tmp[256];
+	char *p = NULL;
+	size_t len;
+	snprintf(tmp, sizeof(tmp), "%s", dirpath.c_str());
+	len = strlen(tmp);
+	if(tmp[len - 1] == '/') tmp[len - 1] = 0;
+	for(p = tmp + 1; *p; p++) {
+		if(*p == '/') {
+			*p = 0;
+			if(!dirExists(tmp)) mkdir(tmp, S_IRWXU);
+			*p = '/';
+		}
+	}
+	return mkdir(tmp, S_IRWXU) == 0;
+#endif
+}
+
 bool removeDir(string dirpath) {
 #ifdef WIN32
 	return _rmdir(dirpath.c_str()) == 0;
@@ -834,7 +859,11 @@ bool Thread::cancel() {
 Thread::Thread() : running(false), m_pipe_r(NULL), m_pipe_w(NULL) {
 	pthread_attr_init(&m_thread_attr);
 	int pipe_wr[] = {0, 0};
+#ifdef HAVE_PIPE2
+	if(pipe2(pipe_wr, O_CLOEXEC) == 0) {
+#else
 	if(pipe(pipe_wr) == 0) {
+#endif
 		m_pipe_r = fdopen(pipe_wr[0], "r");
 		m_pipe_w = fdopen(pipe_wr[1], "w");
 	}

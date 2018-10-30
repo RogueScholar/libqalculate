@@ -1,28 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<QALCULATE version="2.2.1">
+<QALCULATE version="2.4.0">
   <category>
     <title>Small Numbers</title>
     <title xml:lang="nl">Kleine getallen</title>
     <title xml:lang="sv">Små tal</title>
     <title xml:lang="zh_CN">小数字</title>
-    <variable>
+    <builtin_variable name="permille">
       <title>Per Mille</title>
       <title xml:lang="nl">Per mille</title>
       <title xml:lang="sv">Promille</title>
       <title xml:lang="zh_CN">千分之一</title>
       <names>r:permille,au:&#x2030;</names>
       <names xml:lang="fr">pourmille,au:&#x2030;</names>
-      <value>1/1000</value>
-    </variable>
-    <variable>
+      <names xml:lang="sv">promille,au:&#x2030;</names>
+    </builtin_variable>
+    <builtin_variable name="permyriad">
       <title>Per Myriad</title>
       <title xml:lang="nl">Per myriad</title>
       <title xml:lang="sv">Permyriad</title>
       <title xml:lang="zh_CN">万分之一</title>
       <names>r:permyriad,au:&#x2031;</names>
-      <value>1/10000</value>
-    </variable>
-    <variable>
+    </builtin_variable>
+    <builtin_variable name="%">
       <title>Percent</title>
       <title xml:lang="nl">Procent</title>
       <title xml:lang="sv">Procent</title>
@@ -30,8 +29,7 @@
       <names>a:%,r:percent</names>
       <names xml:lang="fr">a:%,pourcent</names>
       <names xml:lang="sv">a:%,r:procent</names>
-      <value>1/100</value>
-    </variable>
+    </builtin_variable>
   </category>
   <category>
     <title>Large Numbers</title>
@@ -270,7 +268,7 @@
     <title>Physical Constants</title>
     <title xml:lang="fr">Constantes Physiques</title>
     <title xml:lang="nl">Natuurkundige constanten</title>
-    <title xml:lang="sv">Fysiska konstanter</title>
+    <title xml:lang="sv">Fysikaliska konstanter</title>
     <title xml:lang="zh_CN">物理常数</title>
     <category>
       <title>Universal Constants</title>
@@ -585,7 +583,7 @@
         <title xml:lang="sv">Avogadros konstant</title>
         <title xml:lang="zh_CN">阿佛加德罗常数</title>
         <names>r:avogadro,ais:N_A</names>
-        <value unit="mol^(-1)" uncertainty="7.4E25">6.022140857E23</value>
+        <value unit="mol^(-1)" uncertainty="7.4E15">6.022140857E23</value>
       </variable>
       <variable>
         <title>Boltzmann Constant</title>
@@ -799,5 +797,40 @@
     <unknown>
       <names>r:z</names>
     </unknown>
+    <builtin_variable name="n">
+      <title>n (integer)</title>
+      <title xml:lang="sv">n (heltal)</title>
+      <names>r:n</names>
+    </builtin_variable>
+  </category>
+  <category>
+    <title>Date &amp; Time</title>
+    <title xml:lang="fr">Date &amp; Heure</title>
+    <title xml:lang="nl">Datum &amp; Tijd</title>
+    <title xml:lang="sv">Datum &amp; Tid</title>
+    <title xml:lang="zh_CN">日期与时间</title>
+    <builtin_variable name="today">
+      <title>Today</title>
+      <title xml:lang="sv">Idag</title>
+      <names>r:today</names>
+      <names xml:lang="sv">idag</names>
+    </builtin_variable>
+    <builtin_variable name="tomorrow">
+      <title>Tomorrow</title>
+      <title xml:lang="sv">Imorgon</title>
+      <names>r:tomorrow</names>
+      <names xml:lang="sv">imorgon</names>
+    </builtin_variable>
+    <builtin_variable name="yesterday">
+      <title>Yesterday</title>
+      <title xml:lang="sv">Igår</title>
+      <names>r:yesterday</names>
+      <names xml:lang="sv">igår</names>
+    </builtin_variable>
+    <builtin_variable name="now">
+      <title>Now (date and time)</title>
+      <title xml:lang="sv">Nu (datum och tid)</title>
+      <names>r:now</names>
+    </builtin_variable>
   </category>
 </QALCULATE>

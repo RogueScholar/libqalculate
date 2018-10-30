@@ -17,7 +17,7 @@
 #include "MathStructure.h"
 #include "Number.h"
 
-Assumptions::Assumptions() : i_type(ASSUMPTION_TYPE_NONE), i_sign(ASSUMPTION_SIGN_UNKNOWN), fmin(NULL), fmax(NULL), b_incl_min(true), b_incl_max(true) {}
+Assumptions::Assumptions() : i_type(ASSUMPTION_TYPE_NUMBER), i_sign(ASSUMPTION_SIGN_UNKNOWN), fmin(NULL), fmax(NULL), b_incl_min(true), b_incl_max(true) {}
 Assumptions::~Assumptions() {}
 
 bool Assumptions::isPositive() {return i_sign == ASSUMPTION_SIGN_POSITIVE || (fmin && (fmin->isPositive() || (!b_incl_min && fmin->isNonNegative())));}
@@ -114,15 +114,20 @@ void Variable::set(const ExpressionItem *item) {
 UnknownVariable::UnknownVariable(string cat_, string name_, string title_, bool is_local, bool is_builtin, bool is_active) : Variable(cat_, name_, title_, is_local, is_builtin, is_active) {
 	setChanged(false);
 	o_assumption = NULL;
+	mstruct = NULL;
 }
 UnknownVariable::UnknownVariable() : Variable() {
 	o_assumption = NULL;
+	mstruct = NULL;
 }
 UnknownVariable::UnknownVariable(const UnknownVariable *variable) {
+	mstruct = NULL;
+	o_assumption = NULL;
 	set(variable);
 }
 UnknownVariable::~UnknownVariable() {
 	if(o_assumption) delete o_assumption;
+	if(mstruct) mstruct->unref();
 }
 ExpressionItem *UnknownVariable::copy() const {
 	return new UnknownVariable(this);
@@ -131,6 +136,13 @@ void UnknownVariable::set(const ExpressionItem *item) {
 	if(item->type() == TYPE_VARIABLE && item->subtype() == SUBTYPE_UNKNOWN_VARIABLE) {
 		if(o_assumption) delete o_assumption;
 		o_assumption = ((UnknownVariable*) item)->assumptions();
+		if(((UnknownVariable*) item)->interval().isUndefined()) {
+			if(mstruct) mstruct->unref();
+			mstruct = NULL;
+		} else {
+			if(mstruct) mstruct->set(((UnknownVariable*) item)->interval());
+			else mstruct = new MathStructure(((UnknownVariable*) item)->interval());
+		}
 	}
 	ExpressionItem::set(item);
 }
@@ -138,54 +150,101 @@ void UnknownVariable::setAssumptions(Assumptions *ass) {
 	if(o_assumption) delete o_assumption;
 	o_assumption = ass;
 }
+void UnknownVariable::setAssumptions(const MathStructure &mvar) {
+	Assumptions *ass = new Assumptions();
+	if(mvar.representsInteger(true)) ass->setType(ASSUMPTION_TYPE_INTEGER);
+	else if(mvar.representsRational(true)) ass->setType(ASSUMPTION_TYPE_RATIONAL);
+	else if(mvar.representsReal(true)) ass->setType(ASSUMPTION_TYPE_REAL);
+	else if(mvar.representsComplex(true)) ass->setType(ASSUMPTION_TYPE_COMPLEX);
+	else if(mvar.representsNumber(true)) ass->setType(ASSUMPTION_TYPE_NUMBER);
+	else if(mvar.representsNonMatrix()) ass->setType(ASSUMPTION_TYPE_NONMATRIX);
+	if(mvar.representsPositive(true)) ass->setSign(ASSUMPTION_SIGN_POSITIVE);
+	else if(mvar.representsNegative(true)) ass->setSign(ASSUMPTION_SIGN_NEGATIVE);
+	else if(mvar.representsNonPositive(true)) ass->setSign(ASSUMPTION_SIGN_NONPOSITIVE);
+	else if(mvar.representsNonNegative(true)) ass->setSign(ASSUMPTION_SIGN_NONNEGATIVE);
+	else if(mvar.representsNonZero(true)) ass->setSign(ASSUMPTION_SIGN_NONZERO);
+	if(o_assumption) delete o_assumption;
+	o_assumption = ass;
+}
 Assumptions *UnknownVariable::assumptions() {
 	return o_assumption;
 }
-bool UnknownVariable::representsPositive(bool) { 
+const MathStructure &UnknownVariable::interval() const {
+	if(mstruct) return *mstruct;
+	return m_undefined;
+}
+void UnknownVariable::setInterval(const MathStructure &o) {
+	setAssumptions(o);
+	if(o.isUndefined()) {
+		if(mstruct) mstruct->unref();
+		mstruct = NULL;
+	} else {
+		if(mstruct) mstruct->set(o);
+		else mstruct = new MathStructure(o);
+		if(!o_assumption->isReal() && (o.isNumber() && o.number().isInterval() && !o.number().lowerEndPoint().hasImaginaryPart() && !o.number().upperEndPoint().hasImaginaryPart())) o_assumption->setType(ASSUMPTION_TYPE_REAL);
+		else if(!o_assumption->isNumber() && o.isNumber() && o.number().isInterval()) o_assumption->setType(ASSUMPTION_TYPE_NUMBER);
+	}
+}
+bool UnknownVariable::representsPositive(bool b) {
+	if(!b && mstruct) return mstruct->representsPositive(false);
 	if(o_assumption) return o_assumption->isPositive();
 	return CALCULATOR->defaultAssumptions()->isPositive();
 }
-bool UnknownVariable::representsNegative(bool) { 
+bool UnknownVariable::representsNegative(bool b) {
+	if(!b && mstruct) return mstruct->representsNegative(false);
 	if(o_assumption) return o_assumption->isNegative();
 	return CALCULATOR->defaultAssumptions()->isNegative();
 }
-bool UnknownVariable::representsNonNegative(bool) { 
+bool UnknownVariable::representsNonNegative(bool b) {
+	if(!b && mstruct) return mstruct->representsNonNegative(false);
 	if(o_assumption) return o_assumption->isNonNegative();
 	return CALCULATOR->defaultAssumptions()->isNonNegative();
 }
-bool UnknownVariable::representsNonPositive(bool) { 
+bool UnknownVariable::representsNonPositive(bool b) {
+	if(!b && mstruct) return mstruct->representsNonPositive(false);
 	if(o_assumption) return o_assumption->isNonPositive();
 	return CALCULATOR->defaultAssumptions()->isNonPositive();
 }
-bool UnknownVariable::representsInteger(bool) { 
+bool UnknownVariable::representsInteger(bool b) {
+	if(!b && mstruct) return mstruct->representsInteger(false);
 	if(o_assumption) return o_assumption->isInteger();
 	return CALCULATOR->defaultAssumptions()->isInteger();
 }
-bool UnknownVariable::representsNumber(bool) { 
+bool UnknownVariable::representsNumber(bool b) {
+	if(!b && mstruct) return mstruct->representsNumber(false);
 	if(o_assumption) return o_assumption->isNumber();
 	return CALCULATOR->defaultAssumptions()->isNumber();
 }
-bool UnknownVariable::representsRational(bool) { 
+bool UnknownVariable::representsRational(bool b) {
+	if(!b && mstruct) return mstruct->representsRational(false);
 	if(o_assumption) return o_assumption->isRational();
 	return CALCULATOR->defaultAssumptions()->isRational();
 }
-bool UnknownVariable::representsReal(bool) { 
+bool UnknownVariable::representsReal(bool b) {
+	if(!b && mstruct) return mstruct->representsReal(false);
 	if(o_assumption) return o_assumption->isReal();
 	return CALCULATOR->defaultAssumptions()->isReal();
 }
-bool UnknownVariable::representsComplex(bool) { 
+bool UnknownVariable::representsNonComplex(bool b) {
+	if(mstruct && (!b || (!o_assumption->isReal() && !o_assumption->isComplex()))) return mstruct->representsNonComplex(b);
+	if(o_assumption) return o_assumption->isReal();
+	return CALCULATOR->defaultAssumptions()->isReal();
+}
+bool UnknownVariable::representsComplex(bool b) {
+	if(!b && mstruct) return mstruct->representsComplex(false);
 	if(o_assumption) return o_assumption->isComplex();
 	return CALCULATOR->defaultAssumptions()->isComplex();
 }
-bool UnknownVariable::representsNonZero(bool) { 
+bool UnknownVariable::representsNonZero(bool b) {
+	if(!b && mstruct) return mstruct->representsNonZero(false);
 	if(o_assumption) return o_assumption->isNonZero();
 	return CALCULATOR->defaultAssumptions()->isNonZero();
 }
-bool UnknownVariable::representsNonMatrix() { 
+bool UnknownVariable::representsNonMatrix() {
 	if(o_assumption) return o_assumption->isNonMatrix();
 	return CALCULATOR->defaultAssumptions()->isNonMatrix();
 }
-bool UnknownVariable::representsScalar() { 
+bool UnknownVariable::representsScalar() {
 	if(o_assumption) return o_assumption->isScalar();
 	return CALCULATOR->defaultAssumptions()->isScalar();
 }
@@ -326,6 +385,32 @@ bool set_precision_of_numbers(MathStructure &mstruct, int i_prec) {
 	}
 	return b;
 }
+extern bool create_interval(MathStructure &mstruct, const MathStructure &m1, const MathStructure &m2);
+bool replace_f_interval(MathStructure &mstruct) {
+	if(mstruct.isFunction() && mstruct.function() == CALCULATOR->f_interval && mstruct.size() == 2) {
+		if(mstruct[0].isNumber() && mstruct[1].isNumber()) {
+			Number nr;
+			if(nr.setInterval(mstruct[0].number(), mstruct[1].number())) {
+				mstruct.set(nr, true);
+				return true;
+			}
+		} else {
+			MathStructure m1(mstruct[0]);
+			MathStructure m2(mstruct[1]);
+			if(create_interval(mstruct, m1, m2)) return true;
+		}
+	} else {
+		bool b = false;
+		for(size_t i = 0; i < mstruct.size(); i++) {
+			if(replace_f_interval(mstruct[i])) {
+				mstruct.childUpdated(i + 1);
+				b = true;
+			}
+		}
+		return b;
+	}
+	return false;
+}
 const MathStructure &KnownVariable::get() {
 	if(b_expression && ((!mstruct || mstruct->isAborted()) || calculated_with_interval != CALCULATOR->usesIntervalArithmetic() || (!sunit.empty() && calculated_with_units != CALCULATOR->variableUnitsEnabled()))) {
 		if(mstruct) mstruct->unref();
@@ -363,6 +448,7 @@ const MathStructure &KnownVariable::get() {
 			CALCULATOR->parse(mstruct_unit, sunit, po);
 			mstruct->multiply_nocopy(mstruct_unit);
 		}
+		replace_f_interval(*mstruct);
 		calculated_with_interval = CALCULATOR->usesIntervalArithmetic();
 		calculated_with_units = CALCULATOR->variableUnitsEnabled();
 	}
@@ -382,6 +468,7 @@ bool KnownVariable::representsFraction(bool allow_units) {return get().represent
 bool KnownVariable::representsNumber(bool allow_units) {return get().representsNumber(allow_units);}
 bool KnownVariable::representsRational(bool allow_units) {return get().representsRational(allow_units);}
 bool KnownVariable::representsReal(bool allow_units) {return get().representsReal(allow_units);}
+bool KnownVariable::representsNonComplex(bool allow_units) {return get().representsNonComplex(allow_units);}
 bool KnownVariable::representsComplex(bool allow_units) {return get().representsComplex(allow_units);}
 bool KnownVariable::representsNonZero(bool allow_units) {return get().representsNonZero(allow_units);}
 bool KnownVariable::representsEven(bool allow_units) {return get().representsEven(allow_units);}
@@ -396,14 +483,16 @@ DynamicVariable::DynamicVariable(string cat_, string name_, string title_, bool 
 	calculated_precision = -1;
 	calculated_with_interval = false;
 	calculated_with_units = false;
+	always_recalculate = false;
 	setApproximate();
 	setChanged(false);
 }
 DynamicVariable::DynamicVariable(const DynamicVariable *variable) {
 	mstruct = NULL;
 	set(variable);
-	setApproximate();	
+	setApproximate();
 	setChanged(false);
+	always_recalculate = false;
 }
 DynamicVariable::DynamicVariable() : KnownVariable() {
 	mstruct = NULL;
@@ -412,6 +501,7 @@ DynamicVariable::DynamicVariable() : KnownVariable() {
 	calculated_with_units = false;
 	setApproximate();
 	setChanged(false);
+	always_recalculate = false;
 }
 DynamicVariable::~DynamicVariable() {
 	if(mstruct) delete mstruct;
@@ -422,7 +512,7 @@ void DynamicVariable::set(const ExpressionItem *item) {
 void DynamicVariable::set(const MathStructure&) {}
 void DynamicVariable::set(string) {}
 const MathStructure &DynamicVariable::get() {
-	if(calculated_with_interval != CALCULATOR->usesIntervalArithmetic() || calculated_precision != CALCULATOR->getPrecision() || !mstruct || mstruct->isAborted()) {
+	if(always_recalculate || calculated_with_interval != CALCULATOR->usesIntervalArithmetic() || calculated_precision != CALCULATOR->getPrecision() || !mstruct || mstruct->isAborted()) {
 		if(mstruct) mstruct->unref();
 		mstruct = new MathStructure();
 		mstruct->setAborted();
@@ -460,5 +550,44 @@ PrecisionVariable::PrecisionVariable() : DynamicVariable("", "precision") {
 }
 void PrecisionVariable::calculate() const {
 	mstruct->set(PRECISION, 1, 0);
+}
+
+TodayVariable::TodayVariable() : DynamicVariable("", "today") {
+	setApproximate(false);
+	always_recalculate = true;
+}
+void TodayVariable::calculate() const {
+	QalculateDateTime dt;
+	dt.setToCurrentDate();
+	mstruct->set(dt);
+}
+YesterdayVariable::YesterdayVariable() : DynamicVariable("", "yesterday") {
+	setApproximate(false);
+	always_recalculate = true;
+}
+void YesterdayVariable::calculate() const {
+	QalculateDateTime dt;
+	dt.setToCurrentDate();
+	dt.addDays(-1);
+	mstruct->set(dt);
+}
+TomorrowVariable::TomorrowVariable() : DynamicVariable("", "tomorrow") {
+	setApproximate(false);
+	always_recalculate = true;
+}
+void TomorrowVariable::calculate() const {
+	QalculateDateTime dt;
+	dt.setToCurrentDate();
+	dt.addDays(1);
+	mstruct->set(dt);
+}
+NowVariable::NowVariable() : DynamicVariable("", "now") {
+	setApproximate(false);
+	always_recalculate = true;
+}
+void NowVariable::calculate() const {
+	QalculateDateTime dt;
+	dt.setToCurrentTime();
+	mstruct->set(dt);
 }
 

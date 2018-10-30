@@ -12,11 +12,6 @@
 #ifndef INCLUDES_H
 #define INCLUDES_H
 
-//Fixes clang compilation on my system, but breaks others
-/*#if (defined(__clang__) && !defined char16_t)
-	typedef __CHAR16_TYPE__ char16_t;
-#endif*/
-
 /** @file */
 
 #include <vector>
@@ -36,7 +31,7 @@
 #include <stdint.h>
 
 #define QALCULATE_MAJOR_VERSION (2)
-#define QALCULATE_MINOR_VERSION (2)
+#define QALCULATE_MINOR_VERSION (6)
 #define QALCULATE_MICRO_VERSION (0)
 
 /// \cond
@@ -378,6 +373,17 @@ typedef enum {
 	DIGIT_GROUPING_LOCALE
 } DigitGrouping;
 
+typedef enum {
+	DATE_TIME_FORMAT_ISO,
+	DATE_TIME_FORMAT_LOCALE
+} DateTimeFormat;
+
+typedef enum {
+	TIME_ZONE_UTC,
+	TIME_ZONE_LOCAL,
+	TIME_ZONE_CUSTOM
+} TimeZone;
+
 /// Options for formatting and display of mathematical structures/results.
 static const struct PrintOptions {
 	int min_exp;
@@ -471,13 +477,23 @@ static const struct PrintOptions {
 	bool restrict_fraction_length;
 	/// Transform exponentiation positive base and unit fraction exponent (if denominator < 10) to root function. Default: false
 	bool exp_to_root;
-	/// Use the internal precision of each number instead of global precision
+	/// Use the internal precision of each number instead of global precision. Default: false
 	bool preserve_precision;
-	/// How number intervals will be displayed
+	/// How number intervals will be displayed. Default: INTERVAL_DISPLAY_INTERVAL
 	IntervalDisplay interval_display;
-	/// Digit grouping separator
+	/// Digit grouping separator. Default: DIGIT_GROUPING_NONE
 	DigitGrouping digit_grouping;
-	PrintOptions() : min_exp(EXP_PRECISION), base(BASE_DECIMAL), lower_case_numbers(false), lower_case_e(false), number_fraction_format(FRACTION_DECIMAL), indicate_infinite_series(false), show_ending_zeroes(false), abbreviate_names(true), use_reference_names(false), place_units_separately(true), use_unit_prefixes(true), use_prefixes_for_all_units(false), use_prefixes_for_currencies(false), use_all_prefixes(false), use_denominator_prefix(true), negative_exponents(false), short_multiplication(true), limit_implicit_multiplication(false), allow_non_usable(false), use_unicode_signs(false), multiplication_sign(MULTIPLICATION_SIGN_DOT), division_sign(DIVISION_SIGN_DIVISION_SLASH), spacious(true), excessive_parenthesis(false), halfexp_to_sqrt(true), min_decimals(0), max_decimals(-1), use_min_decimals(true), use_max_decimals(true), round_halfway_to_even(false), improve_division_multipliers(true), prefix(NULL), is_approximate(NULL), can_display_unicode_string_function(NULL), can_display_unicode_string_arg(NULL), hide_underscore_spaces(false), preserve_format(false), allow_factorization(false), spell_out_logical_operators(false), restrict_to_parent_precision(true), restrict_fraction_length(false), exp_to_root(false), preserve_precision(false), interval_display(INTERVAL_DISPLAY_INTERVAL), digit_grouping(DIGIT_GROUPING_NONE) {}
+	/// Format for time and date. Default: DATE_TIME_FORMAT_ISO
+	DateTimeFormat date_time_format;
+	/// Time zone for time and date. Default: TIME_ZONE_LOCAL
+	TimeZone time_zone;
+	/// Offset in minute for custom time zone. Default: 0
+	int custom_time_zone;
+	/// Negative binary numbers uses two's complement representation. All binary numbers starting with 1 are negative. Default: true
+	bool twos_complement;
+	/// Number of bits used for binary numbers. Set to 0 for automatic. Default: 0
+	unsigned int binary_bits;
+	PrintOptions() : min_exp(EXP_PRECISION), base(BASE_DECIMAL), lower_case_numbers(false), lower_case_e(false), number_fraction_format(FRACTION_DECIMAL), indicate_infinite_series(false), show_ending_zeroes(false), abbreviate_names(true), use_reference_names(false), place_units_separately(true), use_unit_prefixes(true), use_prefixes_for_all_units(false), use_prefixes_for_currencies(false), use_all_prefixes(false), use_denominator_prefix(true), negative_exponents(false), short_multiplication(true), limit_implicit_multiplication(false), allow_non_usable(false), use_unicode_signs(false), multiplication_sign(MULTIPLICATION_SIGN_DOT), division_sign(DIVISION_SIGN_DIVISION_SLASH), spacious(true), excessive_parenthesis(false), halfexp_to_sqrt(true), min_decimals(0), max_decimals(-1), use_min_decimals(true), use_max_decimals(true), round_halfway_to_even(false), improve_division_multipliers(true), prefix(NULL), is_approximate(NULL), can_display_unicode_string_function(NULL), can_display_unicode_string_arg(NULL), hide_underscore_spaces(false), preserve_format(false), allow_factorization(false), spell_out_logical_operators(false), restrict_to_parent_precision(true), restrict_fraction_length(false), exp_to_root(false), preserve_precision(false), interval_display(INTERVAL_DISPLAY_INTERVAL), digit_grouping(DIGIT_GROUPING_NONE), date_time_format(DATE_TIME_FORMAT_ISO), time_zone(TIME_ZONE_LOCAL), custom_time_zone(0), twos_complement(true), binary_bits(0) {}
 	/// Returns the comma sign used (default sign or comma_sign)
 	const string &comma() const;
 	/// Returns the decimal sign used (default sign or decimalpoint_sign)
@@ -554,6 +570,12 @@ typedef enum {
 } AngleUnit;
 
 typedef enum {
+	COMPLEX_NUMBER_FORM_RECTANGULAR,
+	COMPLEX_NUMBER_FORM_EXPONENTIAL,
+	COMPLEX_NUMBER_FORM_POLAR
+} ComplexNumberForm;
+
+typedef enum {
 	/// The default adaptive mode works as the "parse implicit multiplication first" mode, unless spaces are found (<quote>1/5x = 1/(5*x)</quote>, but <quote>1/5 x = (1/5)*x</quote>). In the adaptive mode unit expressions are parsed separately (<quote>5 m/5 m/s = (5*m)/(5*(m/s)) = 1 s</quote>).
 	PARSING_MODE_ADAPTIVE,
 	/// In the "parse implicit multiplication first" mode, implicit multiplication is parsed before explicit multiplication (<quote>12/2(1+2) = 12/(2*3) = 2</quote>, <quote>5x/5y = (5*x)/(5*y) = x/y</quote>).
@@ -585,7 +607,7 @@ static const struct ParseOptions {
 	ReadPrecisionMode read_precision;
 	/// If true dots will ignored if another character is the default decimal sign, to allow dots to be used as thousand separator. Default: false
 	bool dot_as_separator;
-	/// If true commas will ignored if another character is the default decimal sign, to allow commas to be used as thousand separator. You also need to call CALCULATOR->useDecimalPoint(true). Default: false
+	/// If true commas will ignored if another character is the default decimal sign, to allow commas to be used as thousand separator. You should also call CALCULATOR->useDecimalPoint(true). Default: false
 	bool comma_as_separator;
 	///Interpret square brackets equally to parentheses (not only for vectors/matrices). Default; false
 	bool brackets_as_parentheses;
@@ -599,8 +621,10 @@ static const struct ParseOptions {
 	DataSet *default_dataset;
 	/// Parsing mode. Default: PARSING_MODE_ADAPTIVE
 	ParsingMode parsing_mode;
+	/// Negative binary numbers uses two's complement representation. All binary numbers starting with 1 are assumed to be negative. Default: false
+	bool twos_complement;
 	
-	ParseOptions() : variables_enabled(true), functions_enabled(true), unknowns_enabled(true), units_enabled(true), rpn(false), base(BASE_DECIMAL), limit_implicit_multiplication(false), read_precision(DONT_READ_PRECISION), dot_as_separator(false), brackets_as_parentheses(false), angle_unit(ANGLE_UNIT_NONE), unended_function(NULL), preserve_format(false), default_dataset(NULL), parsing_mode(PARSING_MODE_ADAPTIVE) {}
+	ParseOptions() : variables_enabled(true), functions_enabled(true), unknowns_enabled(true), units_enabled(true), rpn(false), base(BASE_DECIMAL), limit_implicit_multiplication(false), read_precision(DONT_READ_PRECISION), dot_as_separator(false), brackets_as_parentheses(false), angle_unit(ANGLE_UNIT_NONE), unended_function(NULL), preserve_format(false), default_dataset(NULL), parsing_mode(PARSING_MODE_ADAPTIVE), twos_complement(false) {}
 } default_parse_options;
 
 /// Options for calculation.
@@ -618,7 +642,7 @@ static const struct EvaluationOptions {
 	/// If functions will be calculated. Default: true
 	bool calculate_functions;
 	/// If comparisons will be evaluated (ex. 5>2 => 1). Default: true
-	bool test_comparisons;
+	int test_comparisons;
 	/// If a varaible will be isolated to the left side in equations/comparisons (ex. x+y=2 => x=2-y). Default: true
 	bool isolate_x;
 	/// If factors (and bases) containing addition will be expanded (ex. z(x+y)=zx+zy). Default: true
@@ -641,7 +665,7 @@ static const struct EvaluationOptions {
 	bool keep_zero_units;
 	/// If and how units will be automatically converted. Does not affect syncing of units. Default: POST_CONVERSION_NONE
 	AutoPostConversion auto_post_conversion;
-	/// Shows time as h + min + s, imperial length as ft + in, etc.
+	/// Shows time as h + min + s, imperial length as ft + in, etc. Default: MIXED_UNITS_CONVERSION_DEFAULT
 	MixedUnitsConversion mixed_units_conversion;
 	/// If the evaluation result will be simplified or factorized Default: STRUCTURING_NONE
 	StructuringMode structuring;
@@ -649,8 +673,17 @@ static const struct EvaluationOptions {
 	ParseOptions parse_options;
 	/// If set will decide which variable to isolate in an equation. Default: NULL
 	const MathStructure *isolate_var;
+	/// Use polynomial division to simplify the result. Default: true
 	bool do_polynomial_division;
-	EvaluationOptions() : approximation(APPROXIMATION_TRY_EXACT), sync_units(true), sync_complex_unit_relations(true), keep_prefixes(false), calculate_variables(true), calculate_functions(true), test_comparisons(true), isolate_x(true), expand(true), combine_divisions(false), reduce_divisions(true), allow_complex(true), allow_infinite(true), assume_denominators_nonzero(false), warn_about_denominators_assumed_nonzero(false), split_squares(true), keep_zero_units(true), auto_post_conversion(POST_CONVERSION_NONE), mixed_units_conversion(MIXED_UNITS_CONVERSION_DEFAULT), structuring(STRUCTURING_SIMPLIFY), isolate_var(NULL), do_polynomial_division(true) {}
+	/// Do not calculate the specified function. Default: NULL
+	MathFunction *protected_function;
+	/// Complex number form. Default: COMPLEX_NUMBER_FORM_RECTANGULAR
+	ComplexNumberForm complex_number_form;
+	/// Convert to local currency when optimal conversion is enabled
+	bool local_currency_conversion;
+	/// Mainly for internal use. Default: true
+	bool transform_trigonometric_functions;
+	EvaluationOptions() : approximation(APPROXIMATION_TRY_EXACT), sync_units(true), sync_complex_unit_relations(true), keep_prefixes(false), calculate_variables(true), calculate_functions(true), test_comparisons(true), isolate_x(true), expand(true), combine_divisions(false), reduce_divisions(true), allow_complex(true), allow_infinite(true), assume_denominators_nonzero(false), warn_about_denominators_assumed_nonzero(false), split_squares(true), keep_zero_units(true), auto_post_conversion(POST_CONVERSION_NONE), mixed_units_conversion(MIXED_UNITS_CONVERSION_DEFAULT), structuring(STRUCTURING_SIMPLIFY), isolate_var(NULL), do_polynomial_division(true), protected_function(NULL), complex_number_form(COMPLEX_NUMBER_FORM_RECTANGULAR), local_currency_conversion(true), transform_trigonometric_functions(true) {}
 } default_evaluation_options;
 
 extern MathStructure m_undefined, m_empty_vector, m_empty_matrix, m_zero, m_one, m_minus_one, m_one_i;

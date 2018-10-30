@@ -303,6 +303,7 @@
         <system>SI</system>
         <_title>Radian</_title>
         <_names>ar:rad,radian,p:radians</_names>
+        <use_with_prefixes>false</use_with_prefixes>
         <base>
           <unit>m_p_m</unit>
           <relation>1</relation>
@@ -312,6 +313,7 @@
       <unit type="alias">
         <_title>Degree</_title>
         <_names>ar:deg,au:&#xB0;,degree,p:degrees</_names>
+        <use_with_prefixes>false</use_with_prefixes>
         <base>
           <unit>rad</unit>
           <relation>pi/180</relation>
@@ -321,6 +323,7 @@
       <unit type="alias">
         <_title>Gradian (Gon)</_title>
         <_names>ar:gra,gradian,p:gradians,gon,p:gons</_names>
+        <use_with_prefixes>false</use_with_prefixes>
         <base>
           <unit>rad</unit>
           <relation>pi/200</relation>
@@ -329,7 +332,7 @@
       </unit>
       <unit type="alias">
         <_title>Arcminute</_title>
-        <_names>r:arcminute,p:arcminutes</_names>
+        <_names>ar:arcmin,arcminute,p:arcminutes</_names>
         <base>
           <unit>deg</unit>
           <relation>1/60</relation>
@@ -338,9 +341,9 @@
       </unit>
       <unit type="alias">
         <_title>Arcsecond</_title>
-        <_names>r:arcsecond,p:arcseconds</_names>
+        <_names>ar:arcsec,arcsecond,p:arcseconds</_names>
         <base>
-          <unit>arcminute</unit>
+          <unit>arcmin</unit>
           <relation>1/60</relation>
           <exponent>1</exponent>
         </base>
@@ -782,6 +785,15 @@
         <relation>365.25</relation>
         <exponent>1</exponent>
         <mix>2</mix>
+      </base>
+    </unit>
+    <unit type="alias">
+      <_title>Month</_title>
+      <_names>r:month,p:months</_names>
+      <base>
+        <unit>d</unit>
+        <relation>30.4375</relation>
+        <exponent>1</exponent>
       </base>
     </unit>
     <category>

@@ -6,7 +6,7 @@ dnl  ----------------------
 dnl | initialize autotools |---------------------------------------------------
 dnl  ----------------------
 
-AC_INIT([libqalculate], [2.2.1])
+AC_INIT([libqalculate], [2.8.0])
 AC_CONFIG_SRCDIR(libqalculate/Calculator.cc)
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
@@ -80,7 +80,7 @@ AC_DEFINE([HAVE_PTHREADS],1,
 dnl libtool versioning for libqalculate
 
 dnl increment if the interface has additions, changes, removals.
-QALCULATE_CURRENT=14
+QALCULATE_CURRENT=20
 
 dnl increment any time the source changes; set to 
 dnl  0 if you increment CURRENT
@@ -107,6 +107,7 @@ AC_CHECK_HEADERS(mpfr.h, [LIBS="$LIBS -lmpfr -lgmp"], [AC_MSG_ERROR([Unable to f
 AC_LANG([C++])
 
 AC_CHECK_HEADERS([unordered_map])
+AC_CHECK_FUNCS([pipe2])
 
 AC_ARG_WITH([libcurl], AS_HELP_STRING([--with-libcurl], [support for built-in retrieval of exchange rates]), [], [with_libcurl=yes])
 AS_IF([test "x$with_libcurl" = "xyes"], [
