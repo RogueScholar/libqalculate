@@ -1,3 +1,9 @@
+libqalculate (2.8.0-1) unstable; urgency=medium
+
+  * New upstream version
+
+ -- Vincent Legout <vlegout@debian.org>  Tue, 30 Oct 2018 06:47:56 +0100
+
 libqalculate (2.2.1-2) experimental; urgency=medium
 
   * libqalculate-dev: add Depends on libmpfr-dev (Closes: #894300)
