@@ -11,3 +11,7 @@ override_dh_installdocs:
 	dh_installdocs
 	dh_installdocs --doc-main-package=libqalculate-doc -plibqalculate-doc
 	rm -rf debian/libqalculate-doc/usr/share/doc/libqalculate-dev/
+
+override_dh_auto_build:
+	cd docs/reference && doxygen Doxyfile
+	dh_auto_build

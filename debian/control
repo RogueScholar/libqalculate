@@ -2,7 +2,7 @@ Source: libqalculate
 Section: math
 Priority: optional
 Maintainer: Vincent Legout <vlegout@debian.org>
-Build-Depends: debhelper (>= 11), libncurses5-dev, libreadline-dev, libglib2.0-dev, libxml2-dev, libcln-dev (>> 1.2), libgmp-dev, libxml-parser-perl, intltool, libmpfr-dev, libcurl4-gnutls-dev
+Build-Depends: debhelper (>= 11), libncurses5-dev, libreadline-dev, libglib2.0-dev, libxml2-dev, libcln-dev (>> 1.2), libgmp-dev, libxml-parser-perl, intltool, libmpfr-dev, libcurl4-gnutls-dev, doxygen
 Standards-Version: 4.1.3
 Homepage: https://qalculate.github.io/
 
