@@ -100,7 +100,7 @@ class MathFunction : public ExpressionItem {
 	
 	string example(bool raw_format = false, string name_string = "") const;
 	void setExample(string new_example);
-
+	
 	bool testArgumentCount(int itmp);
 	virtual MathStructure calculate(const string &eq, const EvaluationOptions &eo = default_evaluation_options);
 	virtual MathStructure parse(const string &eq, const ParseOptions &po = default_parse_options);
@@ -193,6 +193,7 @@ class MathFunction : public ExpressionItem {
 	virtual bool representsInteger(const MathStructure&, bool = false) const;
 	virtual bool representsNumber(const MathStructure&, bool = false) const;
 	virtual bool representsRational(const MathStructure&, bool = false) const;
+	virtual bool representsNonComplex(const MathStructure&, bool = false) const;
 	virtual bool representsReal(const MathStructure&, bool = false) const;
 	virtual bool representsComplex(const MathStructure&, bool = false) const;
 	virtual bool representsNonZero(const MathStructure&, bool = false) const;
@@ -276,7 +277,7 @@ class Argument {
   protected:
   
   	string sname, scondition;
-	bool b_zero, b_test, b_matrix, b_text, b_error, b_rational, b_last;
+	bool b_zero, b_test, b_matrix, b_text, b_error, b_rational, b_last, b_handle_vector;
 	/** This function is called from Argument::test() and performs validation specific to the argument definition type.
 	* Should be reimplemented by all subclasses.
 	*
@@ -410,7 +411,10 @@ class Argument {
 	
 	bool matrixAllowed() const;
 	void setMatrixAllowed(bool allow_matrix);
-
+	
+	bool handlesVector() const;
+	void setHandleVector(bool handle_vector);
+	
 	bool isLastArgument() const;
 	void setIsLastArgument(bool is_last);
 

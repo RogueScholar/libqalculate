@@ -68,6 +68,7 @@
 						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
 						bool representsRational(const MathStructure &vargs, bool allow_units = false) const;\
 						bool representsReal(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
 						bool representsComplex(const MathStructure &vargs, bool allow_units = false) const;\
 						bool representsNonZero(const MathStructure &vargs, bool allow_units = false) const;\
 						bool representsEven(const MathStructure &vargs, bool allow_units = false) const;\
@@ -83,7 +84,23 @@
 						ExpressionItem *copy() const {return new x(this);} \
 						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
 						bool representsReal(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
 					};
+					
+
+#define DECLARE_BUILTIN_FUNCTION_R3(x)	class x : public MathFunction { \
+					  public: \
+						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
+						x(); \
+						x(const x *function) {set(function);} \
+						ExpressionItem *copy() const {return new x(this);} \
+						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsReal(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsComplex(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonZero(const MathStructure &vargs, bool allow_units = false) const;\
+					};
+										
 #define DECLARE_BUILTIN_FUNCTION_R1(x)	class x : public MathFunction { \
 					  public: \
 						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
@@ -118,6 +135,9 @@ DECLARE_BUILTIN_FUNCTION(PermanentFunction)
 DECLARE_BUILTIN_FUNCTION(AdjointFunction)
 DECLARE_BUILTIN_FUNCTION(CofactorFunction)
 DECLARE_BUILTIN_FUNCTION(InverseFunction)
+DECLARE_BUILTIN_FUNCTION(MagnitudeFunction)
+DECLARE_BUILTIN_FUNCTION(HadamardFunction)
+DECLARE_BUILTIN_FUNCTION(EntrywiseFunction)
 
 DECLARE_BUILTIN_FUNCTION_R(FactorialFunction)
 DECLARE_BUILTIN_FUNCTION_R(DoubleFactorialFunction)
@@ -126,6 +146,7 @@ DECLARE_BUILTIN_FUNCTION(BinomialFunction)
 
 DECLARE_BUILTIN_FUNCTION(BitXorFunction)
 DECLARE_BUILTIN_FUNCTION_B(XorFunction)
+DECLARE_BUILTIN_FUNCTION(BitCmpFunction)
 DECLARE_BUILTIN_FUNCTION_B(OddFunction)
 DECLARE_BUILTIN_FUNCTION_B(EvenFunction)
 DECLARE_BUILTIN_FUNCTION(ShiftFunction)
@@ -134,6 +155,8 @@ DECLARE_BUILTIN_FUNCTION_R(AbsFunction)
 DECLARE_BUILTIN_FUNCTION(GcdFunction)
 DECLARE_BUILTIN_FUNCTION(LcmFunction)
 DECLARE_BUILTIN_FUNCTION_R(SignumFunction)
+DECLARE_BUILTIN_FUNCTION_R(HeavisideFunction)
+DECLARE_BUILTIN_FUNCTION_R(DiracFunction)
 DECLARE_BUILTIN_FUNCTION_R(RoundFunction)
 DECLARE_BUILTIN_FUNCTION_R(FloorFunction)
 DECLARE_BUILTIN_FUNCTION_R(CeilFunction)
@@ -170,7 +193,7 @@ DECLARE_BUILTIN_FUNCTION(ExpFunction)
 DECLARE_BUILTIN_FUNCTION_R(LogFunction)
 DECLARE_BUILTIN_FUNCTION(LognFunction)
 
-DECLARE_BUILTIN_FUNCTION(LambertWFunction)
+DECLARE_BUILTIN_FUNCTION_R3(LambertWFunction)
 
 DECLARE_BUILTIN_FUNCTION_R2(SinFunction)
 DECLARE_BUILTIN_FUNCTION_R2(CosFunction)
@@ -205,8 +228,9 @@ DECLARE_BUILTIN_FUNCTION(MaxFunction)
 DECLARE_BUILTIN_FUNCTION(ModeFunction)
 DECLARE_BUILTIN_FUNCTION_RPI(RandFunction)
 
-DECLARE_BUILTIN_FUNCTION(ISODateFunction)
-DECLARE_BUILTIN_FUNCTION(LocalDateFunction)
+DECLARE_BUILTIN_FUNCTION(DateFunction)
+DECLARE_BUILTIN_FUNCTION(DateTimeFunction)
+DECLARE_BUILTIN_FUNCTION(TimeValueFunction)
 DECLARE_BUILTIN_FUNCTION(TimestampFunction)
 DECLARE_BUILTIN_FUNCTION(TimestampToDateFunction)
 DECLARE_BUILTIN_FUNCTION(DaysFunction)
@@ -221,6 +245,9 @@ DECLARE_BUILTIN_FUNCTION(TimeFunction)
 DECLARE_BUILTIN_FUNCTION(AddDaysFunction)
 DECLARE_BUILTIN_FUNCTION(AddMonthsFunction)
 DECLARE_BUILTIN_FUNCTION(AddYearsFunction)
+
+DECLARE_BUILTIN_FUNCTION(LunarPhaseFunction)
+DECLARE_BUILTIN_FUNCTION(NextLunarPhaseFunction)
 
 DECLARE_BUILTIN_FUNCTION(BinFunction)
 DECLARE_BUILTIN_FUNCTION(OctFunction)
@@ -270,6 +297,18 @@ DECLARE_BUILTIN_FUNCTION(DeriveFunction)
 DECLARE_BUILTIN_FUNCTION(IntegrateFunction)
 DECLARE_BUILTIN_FUNCTION(SolveFunction)
 DECLARE_BUILTIN_FUNCTION(SolveMultipleFunction)
+DECLARE_BUILTIN_FUNCTION(DSolveFunction)
+DECLARE_BUILTIN_FUNCTION(LimitFunction)
+
+DECLARE_BUILTIN_FUNCTION_R2(liFunction)
+DECLARE_BUILTIN_FUNCTION_R2(LiFunction)
+DECLARE_BUILTIN_FUNCTION_R2(EiFunction)
+DECLARE_BUILTIN_FUNCTION_R2(SiFunction)
+DECLARE_BUILTIN_FUNCTION_R2(CiFunction)
+DECLARE_BUILTIN_FUNCTION_R2(ShiFunction)
+DECLARE_BUILTIN_FUNCTION_R2(ChiFunction)
+DECLARE_BUILTIN_FUNCTION_R2(IGammaFunction)
+DECLARE_BUILTIN_FUNCTION_R2(GammaIncFunction)
 
 DECLARE_BUILTIN_FUNCTION(PlotFunction)
 

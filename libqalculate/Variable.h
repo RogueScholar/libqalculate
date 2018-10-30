@@ -153,6 +153,7 @@ class Variable : public ExpressionItem {
 	virtual bool representsNumber(bool = false) {return false;}
 	virtual bool representsRational(bool = false) {return false;}
 	virtual bool representsReal(bool = false) {return false;}
+	virtual bool representsNonComplex(bool b = false) {return representsReal(b);}
 	virtual bool representsComplex(bool = false) {return false;}
 	virtual bool representsNonZero(bool = false) {return false;}
 	virtual bool representsEven(bool = false) {return false;}
@@ -172,6 +173,7 @@ class UnknownVariable : public Variable {
   protected:
   
   	Assumptions *o_assumption;
+  	MathStructure *mstruct;
   
   public:
 
@@ -203,12 +205,17 @@ class UnknownVariable : public Variable {
 	* @param ass Assumptions.
 	*/
 	void setAssumptions(Assumptions *ass);
+	void setAssumptions(const MathStructure &mvar);
 	/** Returns the assumptions of the unknown variable.
 	*
 	* @returns Assumptions of the unknown variable.
 	*/
 	Assumptions *assumptions();
-	int subtype() const {return SUBTYPE_UNKNOWN_VARIABLE;}
+	
+	const MathStructure &interval() const;
+	void setInterval(const MathStructure &o);
+	
+	virtual int subtype() const {return SUBTYPE_UNKNOWN_VARIABLE;}
 
 	virtual bool representsPositive(bool = false);
 	virtual bool representsNegative(bool = false);
@@ -218,6 +225,7 @@ class UnknownVariable : public Variable {
 	virtual bool representsNumber(bool = false);
 	virtual bool representsRational(bool = false);
 	virtual bool representsReal(bool = false);
+	virtual bool representsNonComplex(bool = false);
 	virtual bool representsComplex(bool = false);
 	virtual bool representsNonZero(bool = false);
 	virtual bool representsNonMatrix();
@@ -322,6 +330,7 @@ class KnownVariable : public Variable {
 	virtual bool representsNumber(bool = false);
 	virtual bool representsRational(bool = false);
 	virtual bool representsReal(bool = false);
+	virtual bool representsNonComplex(bool = false);
 	virtual bool representsComplex(bool = false);
 	virtual bool representsNonZero(bool = false);
 	virtual bool representsEven(bool = false);
@@ -339,9 +348,10 @@ class KnownVariable : public Variable {
 class DynamicVariable : public KnownVariable {
 
   protected:
-  
-  	virtual void calculate() const = 0;
-  	
+
+	virtual void calculate() const = 0;
+	bool always_recalculate;
+	
   public:
 
 	DynamicVariable(string cat_, string name_, string title_ = "", bool is_local = false, bool is_builtin = true, bool is_active = true);
@@ -396,12 +406,69 @@ DECLARE_BUILTIN_VARIABLE(CatalanVariable)
 class PrecisionVariable : public DynamicVariable {
   private:
 	void calculate() const;
-  public: \
+  public:
 	PrecisionVariable();
 	PrecisionVariable(const PrecisionVariable *variable) {set(variable);}
 	ExpressionItem *copy() const {return new PrecisionVariable(this);}
 	bool representsInteger(bool = false) {return true;}
 	bool representsNonInteger(bool = false) {return false;}
+};
+
+class TodayVariable : public DynamicVariable {
+  private:
+	void calculate() const;
+  public:
+	TodayVariable();
+	TodayVariable(const TodayVariable *variable) {set(variable);}
+	ExpressionItem *copy() const {return new TodayVariable(this);}
+	virtual bool representsPositive(bool = false) {return false;}
+	virtual bool representsNonNegative(bool = false) {return false;}
+	virtual bool representsNonInteger(bool = false) {return false;}
+	virtual bool representsNumber(bool b = false) {return b;}
+	virtual bool representsReal(bool b = false) {return b;}
+	virtual bool representsNonZero(bool b = false) {return b;}
+};
+class TomorrowVariable : public DynamicVariable {
+  private:
+	void calculate() const;
+  public:
+	TomorrowVariable();
+	TomorrowVariable(const TomorrowVariable *variable) {set(variable);}
+	ExpressionItem *copy() const {return new TomorrowVariable(this);}
+	virtual bool representsPositive(bool = false) {return false;}
+	virtual bool representsNonNegative(bool = false) {return false;}
+	virtual bool representsNonInteger(bool = false) {return false;}
+	virtual bool representsNumber(bool b = false) {return b;}
+	virtual bool representsReal(bool b = false) {return b;}
+	virtual bool representsNonZero(bool b = false) {return b;}
+};
+class YesterdayVariable : public DynamicVariable {
+  private:
+	void calculate() const;
+  public:
+	YesterdayVariable();
+	YesterdayVariable(const YesterdayVariable *variable) {set(variable);}
+	ExpressionItem *copy() const {return new YesterdayVariable(this);}
+	virtual bool representsPositive(bool = false) {return false;}
+	virtual bool representsNonNegative(bool = false) {return false;}
+	virtual bool representsNonInteger(bool = false) {return false;}
+	virtual bool representsNumber(bool b = false) {return b;}
+	virtual bool representsReal(bool b = false) {return b;}
+	virtual bool representsNonZero(bool b = false) {return b;}
+};
+class NowVariable : public DynamicVariable {
+  private:
+	void calculate() const;
+  public:
+	NowVariable();
+	NowVariable(const NowVariable *variable) {set(variable);}
+	ExpressionItem *copy() const {return new NowVariable(this);}
+	virtual bool representsPositive(bool = false) {return false;}
+	virtual bool representsNonNegative(bool = false) {return false;}
+	virtual bool representsNonInteger(bool = false) {return false;}
+	virtual bool representsNumber(bool b = false) {return b;}
+	virtual bool representsReal(bool b = false) {return b;}
+	virtual bool representsNonZero(bool b = false) {return b;}
 };
 
 #endif

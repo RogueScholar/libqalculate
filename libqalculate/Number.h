@@ -54,7 +54,6 @@ class Number {
 		void testInteger();
 		bool testErrors(int error_level = 1) const;
 		bool testFloatResult(bool allow_infinite_result = true, int error_level = 1, bool test_integer = true);
-		void setPrecisionAndApproximateFrom(const Number &o);
 
 		mpq_t r_value;
 		mpfr_t fu_value;
@@ -98,7 +97,7 @@ class Number {
 		void set(long int numerator, long int denominator = 1, long int exp_10 = 0, bool keep_precision = false, bool keep_imag = false);
 		void setPlusInfinity(bool keep_precision = false, bool keep_imag = false);
 		void setMinusInfinity(bool keep_precision = false, bool keep_imag = false);
-		void setFloat(double d_value);
+		void setFloat(long double d_value);
 		bool setInterval(const Number &nr_lower, const Number &nr_upper, bool keep_precision = false);
 
 		void setInternal(const mpz_t &mpz_value, bool keep_precision = false, bool keep_imag = false);
@@ -127,6 +126,8 @@ class Number {
 		void precisionToInterval();
 		bool intervalToPrecision(long int min_precision = 2);
 		void intervalToMidValue();
+		void splitInterval(unsigned int nr_of_parts, vector<Number> &v) const;
+		bool getCentralInteger(Number &nr_int, bool *b_multiple = NULL, vector<Number> *v = NULL) const;
 		bool mergeInterval(const Number &o, bool set_to_overlap = false);
 		void setUncertainty(const Number &o, bool force_interval = false);
 		Number uncertainty() const;
@@ -142,6 +143,7 @@ class Number {
 		int intValue(bool *overflow = NULL) const;
 		unsigned int uintValue(bool *overflow = NULL) const;
 		long int lintValue(bool *overflow = NULL) const;
+		long long int llintValue() const;
 		unsigned long int ulintValue(bool *overflow = NULL) const;
 		
 		/** Returns true if the number is approximate.
@@ -154,6 +156,8 @@ class Number {
  		* @return true if the number has an approximate representation.
  		*/
 		bool isFloatingPoint() const;
+		
+		void setPrecisionAndApproximateFrom(const Number &o);
 		
 		bool isInterval(bool ignore_imag = true) const;
 		bool imaginaryPartIsInterval() const;
@@ -241,6 +245,14 @@ class Number {
 		
 		bool operator == (const Number &o) const;
 		bool operator != (const Number &o) const;
+		bool operator < (const Number &o) const;
+		bool operator <= (const Number &o) const;
+		bool operator > (const Number &o) const;
+		bool operator >= (const Number &o) const;
+		bool operator < (long int i) const;
+		bool operator <= (long int i) const;
+		bool operator > (long int i) const;
+		bool operator >= (long int i) const;
 		bool operator == (long int i) const;
 		bool operator != (long int i) const;
 		
@@ -248,6 +260,7 @@ class Number {
 		bool bitOr(const Number &o);
 		bool bitXor(const Number &o);
 		bool bitNot();
+		bool bitCmp(unsigned int bits);
 		bool bitEqv(const Number &o);
 		bool shiftLeft(const Number &o);
 		bool shiftRight(const Number &o);
@@ -279,14 +292,17 @@ class Number {
 		bool realPartIsRational() const;
 		bool imaginaryPartIsNegative() const;
 		bool imaginaryPartIsPositive() const;
+		bool imaginaryPartIsNonNegative() const;
+		bool imaginaryPartIsNonPositive() const;
 		bool imaginaryPartIsNonZero() const;
 		bool hasNegativeSign() const;
 		bool hasPositiveSign() const;
 		bool equalsZero() const;
-		bool equals(const Number &o, bool allow_interval = false) const;
+		bool equals(const Number &o, bool allow_interval = false, bool allow_infinite = false) const;
 		bool equals(long int i) const;
 		int equalsApproximately(const Number &o, int prec) const;
 		ComparisonResult compare(const Number &o, bool ignore_imag = false) const;
+		ComparisonResult compareAbsolute(const Number &o, bool ignore_imag = false) const;
 		ComparisonResult compare(long int i) const;
 		ComparisonResult compareApproximately(const Number &o, int prec = EQUALS_PRECISION_LOWEST) const;
 		ComparisonResult compareImaginaryParts(const Number &o) const;
@@ -398,7 +414,7 @@ class Number {
 		void setNegative(bool is_negative);
 		bool abs();
 		bool signum();
-		bool round(const Number &o);
+		bool round(const Number &o, bool halfway_to_even = true);
 		bool floor(const Number &o);
 		bool ceil(const Number &o);
 		bool trunc(const Number &o);
@@ -406,7 +422,7 @@ class Number {
 		bool isIntegerDivisible(const Number &o) const;
 		bool isqrt();
 		bool isPerfectSquare() const;
-		bool round();
+		bool round(bool halfway_to_even = true);
 		bool floor();
 		bool ceil();
 		bool trunc();	
@@ -473,6 +489,15 @@ class Number {
 		bool gcd(const Number &o);
 		bool lcm(const Number &o);
 		
+		bool polylog(const Number &o);
+		bool igamma(const Number &o);
+		bool expint();
+		bool logint();
+		bool sinint();
+		bool sinhint();
+		bool cosint();
+		bool coshint();
+		
 		bool factorial();
 		bool multiFactorial(const Number &o);
 		bool doubleFactorial();
@@ -492,5 +517,7 @@ class Number {
 		string print(const PrintOptions &po = default_print_options, const InternalPrintStruct &ips = top_ips) const;
 	
 };
+
+ostream& operator << (ostream &os, const Number&);
 
 #endif

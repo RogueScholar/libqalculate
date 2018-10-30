@@ -1,7 +1,7 @@
 /*
     Qalculate    
 
-    Copyright (C) 2003-2007, 2008, 2016  Hanna Knutsson (hanna.knutsson@protonmail.com)
+    Copyright (C) 2003-2007, 2008, 2016-2018  Hanna Knutsson (hanna.knutsson@protonmail.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,19 +27,26 @@
 * The main parts of the library is the almighty Calculator class, the MathStructure class for mathematical expressions and classes for objects in an expression,
 * mostly of the class Numbers and sub classes of ExpressionItem.
 *
-* A simple application using libqalculate need only create a calculator object, perhaps load definitions (functions, variables, units, etc.) and use the calculate function as follows:
-* \code new Calculator();
+* A simple application using libqalculate need only create a calculator object, perhaps load definitions (functions, variables, units, etc.), and calculate (and output) an expression as follows:
+* \code 
+* new Calculator();
 * CALCULATOR->loadGlobalDefinitions();
 * CALCULATOR->loadLocalDefinitions();
+* cout << CALCULATOR->calculateAndPrint("1 + 1", 2000) << endl;\endcode
+* In the above example, the calculation is terminated after two seconds (2000 ms), if it is not finished before then.
+* Applications using localized numbers should first call Calculalor::unlocalizeExpression() on the expression.
+*
+* A less simple application might calculate and output the expression separately.
+* \code
 * EvaluationOptions eo;
 * MathStructure result;
-* CALCULATOR->calculate(&mstruct, "1 + 1", 2000, eo);\endcode
-* In the above example, the calculation is terminated after two seconds (2000 ms), if it is not finished before then.
+* CALCULATOR->calculate(&mstruct, unlocalizeExpression("1 + 1"), 2000, eo);\endcode
 *
 * More complex usage mainly involves manipulating objects of the MathStructure class directly.
 *
 * To display the resulting expression use Calculator::print() as follows:
-* \code PrintOptions po;
+* \code
+* PrintOptions po;
 * string result_str = CALCULATOR->print(result, 2000, po);\endcode
 * Alternatively MathStructure::format() followed by MathStructure::print() can be used, whithout the possiblity to specify a time limit.
 *
@@ -125,6 +132,8 @@ struct PlotDataParameters {
 	bool yaxis2;
 	/// Use scale on second x-axis
 	bool xaxis2;
+	/// Check if data is continuous
+	bool test_continuous;
 	PlotDataParameters();
 };
 
@@ -210,6 +219,7 @@ class Calculator {
 	int i_precision;
 	bool b_interval;
 	int i_stop_interval;
+	int i_start_interval;
 	char vbuffer[200];
 	vector<void*> ufvl;
 	vector<char> ufvl_t;
@@ -230,6 +240,7 @@ class Calculator {
 	vector<int> stopped_errors_count;
 	vector<int> stopped_warnings_count;
 	vector<int> stopped_messages_count;
+	vector<vector<CalculatorMessage> > stopped_messages;
 
 	Thread *calculate_thread;
 
@@ -238,8 +249,9 @@ class Calculator {
 	bool b_argument_errors;
 	int current_stage;
 
-	time_t exchange_rates_time, exchange_rates_check_time;
-	bool b_exchange_rates_used, b_exchange_rates_warning_enabled;
+	time_t exchange_rates_time[3], exchange_rates_check_time[3];
+	int b_exchange_rates_used;
+	bool b_exchange_rates_warning_enabled;
 
 	bool b_gnuplot_open;
 	string gnuplot_cmdline;
@@ -273,12 +285,15 @@ class Calculator {
   public:
 
 	KnownVariable *v_pi, *v_e, *v_euler, *v_catalan, *v_i, *v_pinf, *v_minf, *v_undef, *v_precision;
+	KnownVariable *v_percent, *v_permille, *v_permyriad;
+	KnownVariable *v_today, *v_yesterday, *v_tomorrow, *v_now;
 	UnknownVariable *v_x, *v_y, *v_z;
+	UnknownVariable *v_C, *v_n;
 	MathFunction *f_vector, *f_sort, *f_rank, *f_limits, *f_component, *f_dimension, *f_merge_vectors;
-	MathFunction *f_matrix, *f_matrix_to_vector, *f_area, *f_rows, *f_columns, *f_row, *f_column, *f_elements, *f_element, *f_transpose, *f_identity, *f_determinant, *f_permanent, *f_adjoint, *f_cofactor, *f_inverse; 
+	MathFunction *f_matrix, *f_matrix_to_vector, *f_area, *f_rows, *f_columns, *f_row, *f_column, *f_elements, *f_element, *f_transpose, *f_identity, *f_determinant, *f_permanent, *f_adjoint, *f_cofactor, *f_inverse, *f_magnitude, *f_hadamard, *f_entrywise; 
 	MathFunction *f_factorial, *f_factorial2, *f_multifactorial, *f_binomial;
-	MathFunction *f_xor, *f_bitxor, *f_even, *f_odd, *f_shift;
-	MathFunction *f_abs, *f_gcd, *f_lcm, *f_signum, *f_round, *f_floor, *f_ceil, *f_trunc, *f_int, *f_frac, *f_rem, *f_mod;	
+	MathFunction *f_xor, *f_bitxor, *f_even, *f_odd, *f_shift, *f_bitcmp;
+	MathFunction *f_abs, *f_gcd, *f_lcm, *f_signum, *f_heaviside, *f_dirac, *f_round, *f_floor, *f_ceil, *f_trunc, *f_int, *f_frac, *f_rem, *f_mod;	
 	MathFunction *f_polynomial_unit, *f_polynomial_primpart, *f_polynomial_content, *f_coeff, *f_lcoeff, *f_tcoeff, *f_degree, *f_ldegree;
 	MathFunction *f_re, *f_im, *f_arg, *f_numerator, *f_denominator, *f_interval;
   	MathFunction *f_sqrt, *f_cbrt, *f_root, *f_sq;
@@ -288,18 +303,20 @@ class Calculator {
 	MathFunction *f_sin, *f_cos, *f_tan, *f_asin, *f_acos, *f_atan, *f_sinh, *f_cosh, *f_tanh, *f_asinh, *f_acosh, *f_atanh, *f_atan2, *f_sinc, *f_radians_to_default_angle_unit;
 	MathFunction *f_zeta, *f_gamma, *f_digamma, *f_beta, *f_airy, *f_besselj, *f_bessely, *f_erf, *f_erfc;
 	MathFunction *f_total, *f_percentile, *f_min, *f_max, *f_mode, *f_rand;
-	MathFunction *f_isodate, *f_localdate, *f_timestamp, *f_stamptodate, *f_days, *f_yearfrac, *f_week, *f_weekday, *f_month, *f_day, *f_year, *f_yearday, *f_time, *f_add_days, *f_add_months, *f_add_years;
+	MathFunction *f_date, *f_datetime, *f_timevalue, *f_timestamp, *f_stamptodate, *f_days, *f_yearfrac, *f_week, *f_weekday, *f_month, *f_day, *f_year, *f_yearday, *f_time, *f_add_days, *f_add_months, *f_add_years;
+	MathFunction *f_lunarphase, *f_nextlunarphase;
 	MathFunction *f_bin, *f_oct, *f_hex, *f_base, *f_roman;
 	MathFunction *f_ascii, *f_char;
 	MathFunction *f_length, *f_concatenate;
 	MathFunction *f_replace, *f_stripunits;
 	MathFunction *f_genvector, *f_for, *f_sum, *f_product, *f_process, *f_process_matrix, *f_csum, *f_if, *f_is_number, *f_is_real, *f_is_rational, *f_is_integer, *f_represents_number, *f_represents_real, *f_represents_rational, *f_represents_integer, *f_function, *f_select;
-	MathFunction *f_diff, *f_integrate, *f_solve, *f_multisolve;
+	MathFunction *f_diff, *f_integrate, *f_solve, *f_multisolve, *f_dsolve, *f_limit;
+	MathFunction *f_li, *f_Li, *f_Ei, *f_Si, *f_Ci, *f_Shi, *f_Chi, *f_igamma;
 	MathFunction *f_error, *f_warning, *f_message, *f_save, *f_load, *f_export, *f_title;
 	MathFunction *f_register, *f_stack;
 	MathFunction *f_plot;
 	
-	Unit *u_rad, *u_gra, *u_deg, *u_euro, *u_btc;
+	Unit *u_rad, *u_gra, *u_deg, *u_euro, *u_btc, *u_second, *u_minute, *u_hour, *u_year, *u_month, *u_day;
 	DecimalPrefix *decimal_null_prefix;
 	BinaryPrefix *binary_null_prefix;
 
@@ -319,11 +336,11 @@ class Calculator {
 	int tmp_proc_registers;
 	size_t tmp_rpnindex;
 	
-	PrintOptions save_printoptions;	
+	PrintOptions save_printoptions, message_printoptions;
   
 	vector<Variable*> variables;
-	vector<MathFunction*> functions;	
-	vector<Unit*> units;	
+	vector<MathFunction*> functions;
+	vector<Unit*> units;
 	vector<Prefix*> prefixes;
 	vector<DecimalPrefix*> decimal_prefixes;
 	vector<BinaryPrefix*> binary_prefixes;
@@ -379,6 +396,19 @@ class Calculator {
 	* @returns The result of the calculation.
 	*/
 	MathStructure calculate(const MathStructure &mstruct, const EvaluationOptions &eo = default_evaluation_options, string to_str = "");
+	/** Calculates an expression.and outputs the result to a text string. The expression should be unlocalized first with unlocalizeExpression().
+	* 
+	* Unlike other functions for expression evaluation this function handles ending "to"-commmands, in addition to unit conversion, such "to hexadecimal" or to "fractions", similar to the qalc application.
+	* 
+	*
+	* @param str Expression.
+	* @param msecs The maximum time for the calculation in milliseconds. If msecs <= 0 the time will be unlimited.
+	* @param eo Options for the evaluation and parsing of the expression.
+	* @param po Result formatting options.
+	* @returns The result of the calculation.
+	* \since 2.6.0
+	*/
+	string calculateAndPrint(string str, int msecs = 10000, const EvaluationOptions &eo = default_evaluation_options, const PrintOptions &po = default_print_options);
 	int testCondition(string expression);
 	//@}
 
@@ -589,7 +619,7 @@ class Calculator {
 	* @param str The expression to localize.
 	* @returns A localized expression.
 	*/
-	string localizeExpression(string str) const;
+	string localizeExpression(string str, const ParseOptions &po = default_parse_options) const;
 	/** Returns an unlocalized expressions. Affects decimal signs and argument separators.
 	*
 	* @param str The expression to unlocalize.
@@ -603,8 +633,8 @@ class Calculator {
 	* @param eo Options for the evaluation and parsing of the expression (nothing will be done if units are not enabled).
 	* @returns true if " to " was found and the expression split.
 	*/
-	bool separateToExpression(string &str, string &to_str, const EvaluationOptions &eo, bool keep_modifiers = false) const;	
-	bool hasToExpression(const string &str) const;
+	bool separateToExpression(string &str, string &to_str, const EvaluationOptions &eo, bool keep_modifiers = false, bool allow_empty_from = false) const;	
+	bool hasToExpression(const string &str, bool allow_empty_from = false) const;
 
 	void parseSigns(string &str, bool convert_to_internal_representation = false) const;
 	/** Parse an expression and place in a MathStructure object.
@@ -643,13 +673,14 @@ class Calculator {
 	* @returns Converted value.
 	*/
 	MathStructure convert(const MathStructure &mstruct, Unit *to_unit, const EvaluationOptions &eo = default_evaluation_options, bool always_convert = true, bool convert_to_mixed_units = true);
+	MathStructure convert(const MathStructure &mstruct, KnownVariable *to_var, const EvaluationOptions &eo = default_evaluation_options);
 	MathStructure convert(double value, Unit *from_unit, Unit *to_unit, const EvaluationOptions &eo = default_evaluation_options);
 	MathStructure convert(string str, Unit *from_unit, Unit *to_unit, int milliseconds, const EvaluationOptions &eo = default_evaluation_options);
 	/** Depecated: use convert() */
 	MathStructure convertTimeOut(string str, Unit *from_unit, Unit *to_unit, int milliseconds, const EvaluationOptions &eo = default_evaluation_options);
 	MathStructure convert(string str, Unit *from_unit, Unit *to_unit, const EvaluationOptions &eo = default_evaluation_options);	
 	MathStructure convertToBaseUnits(const MathStructure &mstruct, const EvaluationOptions &eo = default_evaluation_options);
-	Unit *getBestUnit(Unit *u, bool allow_only_div = false);
+	Unit *getBestUnit(Unit *u, bool allow_only_div = false, bool convert_to_local_currency = true);
 	MathStructure convertToBestUnit(const MathStructure &mstruct, const EvaluationOptions &eo = default_evaluation_options, bool convert_to_si_units = true);
 	MathStructure convertToCompositeUnit(const MathStructure &mstruct, CompositeUnit *cu, const EvaluationOptions &eo = default_evaluation_options, bool always_convert = true);
 	MathStructure convertToMixedUnits(const MathStructure &mstruct, const EvaluationOptions &eo = default_evaluation_options);
@@ -792,6 +823,7 @@ class Calculator {
 	Unit* getUnit(string name_);
 	Unit* getActiveUnit(string name_);
 	Unit* getCompositeUnit(string internal_name_);
+	Unit* getLocalCurrency();
 	/** Returns prefix for an index (starting at zero). All prefixes can be traversed by starting at index zero and increasing the index until NULL is returned.
 	*
 	* @param index Index of prefix.
@@ -917,7 +949,11 @@ class Calculator {
 	CalculatorMessage *nextMessage();
 	bool showArgumentErrors() const;
 	void beginTemporaryStopMessages();
-	int endTemporaryStopMessages(int *message_count = NULL, int *warning_count = NULL);
+	int endTemporaryStopMessages(int *message_count = NULL, int *warning_count = NULL, int release_messages_if_no_equal_or_greater_than_message_type = -1);
+	void endTemporaryStopMessages(bool release_messages, vector<CalculatorMessage> *blocked_messages = NULL);
+	void addMessages(vector<CalculatorMessage> *message_vector);
+	const PrintOptions &messagePrintOptions() const;
+	void setMessagePrintOptions(const PrintOptions &po);
 	//@}
 
 	/** @name Functions for loading and saving definitions (variables, functions, units, etc.). */
@@ -1030,7 +1066,7 @@ class Calculator {
 	*
 	* @returns Returns exchange rates modification time.
 	*/
-	time_t getExchangeRatesTime();
+	time_t getExchangeRatesTime(int index = -1);
 	///Deprecated: wget arguments are not used
 	bool fetchExchangeRates(int seconds, string wget_args);
 	/** Download current exchange rates from the Internet to local disc with default wget arguments.
@@ -1038,7 +1074,7 @@ class Calculator {
 	* @param seconds Maximum time for donwload try
 	* @returns true if operation was successful.
 	*/
-	bool fetchExchangeRates(int seconds = 15);
+	bool fetchExchangeRates(int seconds = 15, int n = -1);
 	/** Check age of exchange rates on local disc. 
 	*
 	* @param n_days How old in days exchange rates may be before exchange rates need updating
@@ -1046,15 +1082,15 @@ class Calculator {
 	* @param send_warning If the standard exchange rates warning should be sent.
 	* @returns false if exchange.rates need updating
 	*/
-	bool checkExchangeRatesDate(unsigned int n_days = 7, bool force_check = false, bool send_warning = false);	
+	bool checkExchangeRatesDate(unsigned int n_days = 7, bool force_check = false, bool send_warning = false, int n = -1);
 	/// Enable or disable old exchange rates warning (initial state is true).
 	void setExchangeRatesWarningEnabled(bool enable);
 	bool exchangeRatesWarningEnabled() const;
 	/// Check if exchange rates has been used since resetExchangeRatesUsed() was last called
-	bool exchangeRatesUsed() const;
+	int exchangeRatesUsed() const;
 	void resetExchangeRatesUsed();
 	/// For internal use, called by currency units
-	void setExchangeRatesUsed();
+	void setExchangeRatesUsed(int index);
 	//@}
 
 	/** @name Functions for plotting */
@@ -1095,6 +1131,8 @@ class Calculator {
 	bool usesIntervalArithmetic() const;
 	void beginTemporaryStopIntervalArithmetic();
 	void endTemporaryStopIntervalArithmetic();
+	void beginTemporaryEnableIntervalArithmetic();
+	void endTemporaryEnableIntervalArithmetic();
 	//@}
 
 	/** @name Functions for localization */
@@ -1108,13 +1146,13 @@ class Calculator {
 	void setLocale();
 	void useDecimalComma();
 	/** Use point as decimal separator. 
-	* To use comma as an ignored separator in numbers, must be invoked with comma_as_separator = true, before using ParseOptions::comma_as_separator.
+	* To use comma as an ignored separator in numbers, must be invoked with comma_as_separator = true, to change the default function argument separator to semicolon, in addition to using ParseOptions::comma_as_separator.
 	*/	
 	void useDecimalPoint(bool comma_as_separator = false);
 	/** Resets argument separator and decimal sign. Mainly for internal use. */
 	void unsetLocale();
 	/** Returns the translated text string used in expressions for converting to a specific unit expression (ex "5 meters to feet.*/
-	string localToString() const;
+	string localToString(bool include_spaces = true) const;
 	//@}
 
 	/** @name Functions adding alternative symbols for operators and such */
@@ -1159,44 +1197,5 @@ class Calculator {
 	//@}
 		
 };
-
-class QalculateDate {
-	protected:
-		long int i_year;
-		long int i_month;
-		long int i_day;
-	public:
-		QalculateDate();
-		QalculateDate(long int initialyear, int initialmonth, int initialday);
-		QalculateDate(long int initialtimestamp);
-		QalculateDate(string date_string);
-		bool operator > (const QalculateDate &date2) const;
-		bool operator < (const QalculateDate &date2) const;
-		bool operator >= (const QalculateDate &date2) const;
-		bool operator <= (const QalculateDate &date2) const;
-		bool operator != (const QalculateDate &date2) const;
-		bool operator == (const QalculateDate &date2) const;
-		bool isFutureDate() const;
-		bool isPastDate() const;
-		void setToCurrentDate();
-		bool set(long int newyear, int newmonth, int newday);
-		bool set(long int newtimestamp);
-		bool set(string date_string);
-		string toISOString() const;
-		string toLocalString() const;
-		long int year() const;
-		long int month() const;
-		long int day() const;
-		bool addDays(long int days);
-		bool addMonths(long int months);
-		bool addYears(long int years);
-		int weekday() const;
-		int week(bool start_sunday = false) const;
-		int yearday() const;
-		Number timestamp() const;
-		Number daysTo(const QalculateDate &date, int basis = 1, bool date_func = true) const;
-		Number yearsTo(const QalculateDate &date, int basis = 1, bool date_func = true) const;
-};
-
 
 #endif

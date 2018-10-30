@@ -46,6 +46,9 @@
 /* Define to 1 if you have the <mpfr.h> header file. */
 #undef HAVE_MPFR_H
 
+/* Define to 1 if you have the `pipe2' function. */
+#undef HAVE_PIPE2
+
 /* Define if pthreads are present. */
 #undef HAVE_PTHREADS
 

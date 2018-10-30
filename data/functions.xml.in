@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<QALCULATE version="2.2.0">
+<QALCULATE version="2.6.0">
   <category>
     <_title>Matrices &amp; Vectors</_title>
     <builtin_function name="vector">
@@ -285,6 +285,37 @@
         <_title>Separator</_title>
       </argument>
     </builtin_function>
+    <builtin_function name="magnitude">
+      <_title>Magnitude</_title>
+      <_names>r:magnitude</_names>
+      <_description>Calculates the magnitude of a value. This function returns the same value as abs() for all values except vectors.</_description>
+      <argument index="1">
+        <_title>Value</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="hadamard">
+      <_title>Hadamard Product</_title>
+      <_names>r:hadamard</_names>
+      <_description>Mulitplies each separate element in matrix 1 with the corresponding element in matrix 2.</_description>
+      <argument index="1">
+        <_title>Matrix 1</_title>
+      </argument>
+      <argument index="2">
+        <_title>Matrix 2</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="entrywise">
+      <_title>Entrywise Function</_title>
+      <_names>r:entrywise</_names>
+      <_description>Calculates a new matrix or vector using each separate element in matrix/vector 1 and the corresponding (in the same row and column) elements in matrix/vector 2. An unlimited number of matrices/vectors can be specified, with each matrix/vector argument followed by the corresponding variable used in the function argument.</_description>
+      <example>$name(x / y, [4, 10, 12], x, [2, 2, 4], y) = [2, 5, 3]</example>
+      <argument index="1">
+        <_title>Function</_title>
+      </argument>
+      <argument index="2">
+        <_title>Matrices/vectors and variables</_title>
+      </argument>
+    </builtin_function>
     <function>
       <_title>Norm (length)</_title>
       <_names>r:norm</_names>
@@ -381,9 +412,11 @@
       <_description>Returns the number of possible arrangements of an ordered list with a number of objects to choose from and a list size. If there are three objects (1, 2 and 3) that is put in a list with two positions, the alternatives are [1, 2], [2, 1], [1, 3], [3, 1], [2, 3] and [3, 2], and thus the number of permutations is 6.</_description>
       <argument type="free" index="1">
         <_title>Objects</_title>
+        <handle_vector>true</handle_vector>
       </argument>
       <argument type="free" index="2">
         <_title>Size</_title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -393,15 +426,17 @@
       <_description>Returns the number of possible arrangements of an unordered list with a number of objects to choose from and a list size. If there are three objects (1, 2 and 3) that is put in a list with place for two, the alternatives are [1, 2], [1, 3], and [2, 3], and thus the number of combinations is 3.</_description>
       <argument type="free" index="1">
         <_title>Objects</_title>
+        <handle_vector>true</handle_vector>
       </argument>
       <argument type="free" index="2">
         <_title>Size</_title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
       <_title>Derangements</_title>
       <_names>r:derangements</_names>
-      <_description>Returns the number of possible rearrangements of an ordered list, of a certain size, where none of the objects are on their original position. If the original list is [1, 2, 3], the possible derangements is [2, 3, 1] and [3, 1, 2], and thus the number of derangements is 2.</_description>
+      <_description>Returns the number of possible rearrangements of an ordered list, of a certain size, where none of the objects are on their original position. If the original list is [1, 2, 3], the possible derangements are [2, 3, 1] and [3, 1, 2], and thus the number of derangements is 2.</_description>
       <expression>factorial(\x)*sum(((-1)^"i")/factorial("i"),0,\x,"i")</expression>
       <argument type="integer" index="1">
         <_title>Number of elements</_title>
@@ -426,6 +461,9 @@
         <argument index="1">
           <!-- A numerical value -->
           <_title>Number</_title>
+        </argument>
+        <argument index="2">
+          <_title>Value for zero</_title>
         </argument>
       </builtin_function>
       <builtin_function name="numerator">
@@ -476,6 +514,7 @@
         <expression>\x^(-1)</expression>
         <argument type="free" index="1">
           <_title>Value</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -519,9 +558,11 @@
         <expression>\x^\y</expression>
         <argument type="free" index="1">
           <_title>Base</_title>
+          <handle_vector>true</handle_vector>
         </argument>
         <argument type="free" index="2">
           <_title>Exponent</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
     </category>
@@ -692,7 +733,7 @@
       <builtin_function name="base">
         <_title>Number Base</_title>
         <_names>r:base</_names>
-        <_description>Returns an integer from a number of specified base between 2 and 36</_description>
+        <_description>Returns an value from an expression using a specified base between 2 and 36</_description>
         <argument index="1">
           <_title>Number</_title>
         </argument>
@@ -703,15 +744,18 @@
       <builtin_function name="bin">
         <_title>Binary</_title>
         <_names>r:bin</_names>
-        <_description>Returns an integer from a binary number</_description>
+        <_description>Returns a value from a binary expression. If two's complement is true, numbers beginning with '1' is interpreted as negative binary numbers using two's complement.</_description>
         <argument index="1">
           <_title>Binary number</_title>
+        </argument>
+        <argument index="2">
+          <_title>Two's complement</_title>
         </argument>
       </builtin_function>
       <builtin_function name="oct">
         <_title>Octal</_title>
         <_names>r:oct</_names>
-        <_description>Returns an integer from an octal number</_description>
+        <_description>Returns a value from an octal expression.</_description>
         <argument index="1">
           <_title>Octal number</_title>
         </argument>
@@ -719,7 +763,7 @@
       <builtin_function name="hex">
         <_title>Hexadecimal</_title>
         <_names>r:hex</_names>
-        <_description>Returns a value from a hexadecimal number</_description>
+        <_description>Returns a value from a hexadecimal expression.</_description>
         <argument index="1">
           <_title>Hexadecimal number</_title>
         </argument>
@@ -745,24 +789,23 @@
   </category>
   <category>
     <_title>Step Functions</_title>
-    <function>
+    <builtin_function name="heaviside">
       <_title>Heaviside Step Function</_title>
-      <_names>r:heaviside</_names>
+      <_names>r:heaviside,au:&#x03B8;</_names>
       <_description>Discontinuous function also known as "unit step function". Returns 0 if x &lt; 0, 1 if x &gt; 0, and 1/2 if x = 0.</_description>
-      <expression>(1/2)*(1+sgn(\x))</expression>
-      <argument type="number" index="1">
-        <_title>Value</_title>
-	<complex_allowed>false</complex_allowed>
-        <test>false</test>
-      </argument>
-    </function>
+    </builtin_function>
+    <builtin_function name="dirac">
+      <_title>Dirac Delta Function</_title>
+      <_names>r:dirac,au:&#x3B4;</_names>
+      <_description>Returns 0 if x is non-zero, and infinity if x is zero.</_description>
+    </builtin_function>
     <function>
       <_title>Ramp Function</_title>
       <_names>r:ramp</_names>
       <expression>(\x+abs(\x))/2</expression>
       <argument type="number" index="1">
         <_title>Value</_title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
     </function>
@@ -772,7 +815,7 @@
       <expression>heaviside(\x+(1/2))-heaviside(\x-(1/2))</expression>
       <argument type="number" index="1">
         <_title>Value</_title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
     </function>
@@ -799,7 +842,7 @@
       <expression>if(abs(\x)&lt;1,1-abs(\x),0)</expression>
       <argument type="number" index="1">
         <_title>Value</_title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
     </function>
@@ -825,6 +868,16 @@
     <builtin_function name="erfc">
       <_title>Complementary Error Function</_title>
       <_names>r:erfc</_names>
+    </builtin_function>
+    <builtin_function name="Li">
+      <_title>Polylogarithm</_title>
+      <_names>rc:Li,polylog</_names>
+      <argument index="1">
+        <_title>Order</_title>
+      </argument>
+      <argument index="2">
+        <_title>Argument</_title>
+      </argument>
     </builtin_function>
     <builtin_function name="airy">
       <_title>Airy Function</_title>
@@ -864,12 +917,12 @@
       <expression>\x=\Y{0}</expression>
       <argument type="number" index="1">
         <_title>Value 1 (i)</_title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
       <argument type="number" index="2">
         <_title>Value 2 (j)</_title>
-	<complex_allowed>false</complex_allowed>
+        <complex_allowed>false</complex_allowed>
         <test>false</test>
       </argument>
     </function>
@@ -970,9 +1023,12 @@
     <builtin_function name="lambertw">
       <_title>Lambert W Function (Omega Function, Product Log)</_title>
       <_names>r:lambertw,productlog</_names>
-      <_description>Returns the inverse function for mx*e^x as ln() does for e^x.</_description>
+      <_description>Returns the inverse function for mx*e^x as ln() does for e^x. Only the principal branch and real valued results are currently supported.</_description>
       <argument index="1">
         <_title>Value</_title>
+      </argument>
+      <argument index="2">
+        <_title>Branch</_title>
       </argument>
     </builtin_function>
     <function>
@@ -1003,22 +1059,25 @@
       <expression>e^(\x*i)</expression>
       <argument type="free" index="1">
         <_title>Exponent</_title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
-      <_title>2 raised the to power X</_title>
+      <_title>2 raised to the power X</_title>
       <_names>rs:exp2</_names>
       <expression>2^\x</expression>
       <argument type="free" index="1">
         <_title>Exponent</_title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
-      <_title>10 raised the to power X</_title>
+      <_title>10 raised to the power X</_title>
       <_names>rs:exp10</_names>
       <expression>10^\x</expression>
       <argument type="free" index="1">
         <_title>Exponent</_title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -1027,9 +1086,11 @@
       <expression>\x^\y</expression>
       <argument type="free" index="1">
         <_title>Base</_title>
+        <handle_vector>true</handle_vector>
       </argument>
       <argument type="free" index="2">
         <_title>Exponent</_title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -1132,6 +1193,7 @@
       <argument type="angle" index="1">
         <_title>Angle</_title>
         <test>false</test>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -1141,6 +1203,7 @@
       <argument type="angle" index="1">
         <_title>Angle</_title>
         <test>false</test>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -1150,52 +1213,80 @@
       <argument type="angle" index="1">
         <_title>Angle</_title>
         <test>false</test>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
       <_title>Hyperbolic Secant</_title>
       <_names>r:sech</_names>
       <expression>1/cosh(\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <_title>Hyperbolic Cosecant</_title>
       <_names>r:csch</_names>
       <expression>1/sinh(\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <_title>Hyperbolic Cotangent</_title>
       <_names>r:coth</_names>
       <expression>1/tanh(\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <_title>Inverse Secant</_title>
       <_names>r:asec</_names>
       <expression>radtodef(0.5pi+i*ln(sqrt(1-1\x^2)+i/\x))</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <_title>Inverse Cosecant</_title>
       <_names>r:acsc</_names>
       <expression>radtodef(-i*ln(sqrt(1-1\x^2)+i/\x))</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <_title>Inverse Cotangent</_title>
       <_names>r:acot</_names>
       <expression>radtodef(i/2*(ln((\x-i)/\x)-ln((\x+i)/\x)))</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <_title>Inverse Hyperbolic Secant</_title>
       <_names>r:asech</_names>
       <expression>ln(sqrt(1/\x-1)*sqrt(1/\x+1)+1/\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <_title>Inverse Hyperbolic Cosecant</_title>
       <_names>r:acsch</_names>
       <expression>ln(sqrt(1+1/\x^2)+1/\x)</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
     <function>
       <_title>Inverse Hyperbolic Cotangent</_title>
       <_names>r:acoth</_names>
       <expression>(ln(1+1/\x)-ln(1-1/\x))/2</expression>
+      <argument type="number" index="1">
+        <test>false</test>
+      </argument>
     </function>
   </category>
   <category>
@@ -1208,9 +1299,11 @@
       <expression>(\x/(1000g))/(\y/m)^2</expression>
       <argument type="free" index="1">
         <_title>Weight</_title>
+        <handle_vector>true</handle_vector>
       </argument>
       <argument type="free" index="2">
         <_title>Length</_title>
+        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <builtin_function name="roman">
@@ -1404,6 +1497,7 @@
         </argument>
         <argument type="free" index="2">
           <_title>Trimmed percentage (at each end)</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1418,6 +1512,7 @@
         </argument>
         <argument type="free" index="2">
           <_title>Winsorized percentage (at each end)</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1657,6 +1752,45 @@
   </category>
   <category>
     <_title>Date &amp; Time</_title>
+    <builtin_function name="date">
+      <_title>Construct Date</_title>
+      <_names>r:date</_names>
+      <_description>Returns a date. Available calendars gregorian (1), hebrew (2), islamic (3), persian (4), indian (5), chinese (6), julian (7), milankovic (8), coptic (9), ethiopian (10), egyptian (11). The Chinese year uses an epoch of 2697 BEC and chinese leap months are indicated by adding 12 to the month number (e.g. leap month 4 = 16). </_description>
+      <argument index="1">
+        <_title>Year</_title>
+      </argument>
+      <argument index="2">
+        <_title>Month</_title>
+      </argument>
+      <argument index="3">
+        <_title>Day</_title>
+      </argument>
+      <argument index="4">
+        <_title>Calendar</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="datetime">
+      <_title>Construct Date and Time</_title>
+      <_names>r:datetime</_names>
+      <argument index="1">
+        <_title>Year</_title>
+      </argument>
+      <argument index="2">
+        <_title>Month</_title>
+      </argument>
+      <argument index="3">
+        <_title>Day</_title>
+      </argument>
+      <argument index="4">
+        <_title>Hour</_title>
+      </argument>
+      <argument index="5">
+        <_title>Minute</_title>
+      </argument>
+      <argument index="6">
+        <_title>Second</_title>
+      </argument>
+    </builtin_function>
     <builtin_function name="days">
       <_title>Days between two dates</_title>
       <_names>r:days</_names>
@@ -1743,16 +1877,10 @@
       <_title>Current Time</_title>
       <_names>r:time</_names>
     </builtin_function>
-    <builtin_function name="isodate">
-      <_title>Standard Date Format</_title>
-      <_names>r:isodate</_names>
-      <argument index="1">
-        <_title>Date</_title>
-      </argument>
-    </builtin_function>
-    <builtin_function name="localdate">
-      <_title>Local Date Format</_title>
-      <_names>r:localdate</_names>
+    <builtin_function name="timevalue">
+      <_title>Time Value</_title>
+      <_names>r:timevalue</_names>
+      <_description>Returns the time part, in fractional hours, of a date and time value.</_description>
       <argument index="1">
         <_title>Date</_title>
       </argument>
@@ -1766,7 +1894,8 @@
     </builtin_function>
     <builtin_function name="stamptodate">
       <_title>Unix Timestamp to Date</_title>
-      <_names>r:stamptodate</_names>
+      <_names>r:stamptodate,unix2date</_names>
+      <_description>Returns the local date and time represented by the specified Unix timestamp (seconds, excluding leap seconds, since 1970-01-01). Supports time units.</_description>
       <argument index="1">
         <_title>Timestamp</_title>
       </argument>
@@ -1805,15 +1934,34 @@
       <_title>Add Time</_title>
       <_names>r:addTime</_names>
       <_description>Adds a time value to a date. The value can be positive or negative, but must use a unit based on seconds (such as day and year). Fractions of days are truncated.</_description>
-      <expression>addDays(\x,trunc(\y/d))</expression>
+      <expression>\x+\y</expression>
       <argument type="date" index="1">
         <_title>Date</_title>
       </argument>
       <argument index="2">
         <_title>Time</_title>
-	<condition>isNumber(\x/d)</condition>
+        <condition>isNumber(\x/s)</condition>
       </argument>
     </function>
+    <builtin_function name="lunarphase">
+      <_title>Lunar Phase</_title>
+      <_names>r:lunarphase</_names>
+      <_description>Returns the lunar phase, as a number between 0 and 1, for the specified date. 0 represents new moon, 0.5 full moon, and 0.25 and 0.75 quarter moons.</_description>
+      <argument type="date" index="1">
+        <_title>Date</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="nextlunarphase">
+      <_title>Find Lunar Phase</_title>
+      <_names>r:nextlunarphase</_names>
+      <_description>Returns the date when the specified lunar phase occurs. The function searches forward beginning at the specified date. The lunar phase are specified as a number between 0 and 1, where 0 represents new moon, 0.5 full moon, and 0.25 and 0.75 quarter moons.</_description>
+      <argument type="date" index="1">
+        <_title>Lunar Phase</_title>
+      </argument>
+      <argument index="2">
+        <_title>Start Date</_title>
+      </argument>
+    </builtin_function>
   </category>
   <category>
     <_title>Utilities</_title>
@@ -2190,6 +2338,16 @@
         <_title>Bits</_title>
       </argument>
     </builtin_function>
+    <builtin_function name="bitcmp">
+      <_title>Bitwise Complement (Not)</_title>
+      <_names>r:bitcmp</_names>
+      <argument index="1">
+        <_title>Number</_title>
+      </argument>
+      <argument index="2">
+        <_title>Bits</_title>
+      </argument>
+    </builtin_function>
   </category>
   <category>
     <_title>Algebra</_title>
@@ -2248,6 +2406,21 @@
       <argument index="2">
         <_title>With respect to</_title>
       </argument>
+    </builtin_function>
+    <builtin_function name="dsolve">
+      <_title>Solve differential equation</_title>
+      <_names>r:dsolve</_names>
+      <argument index="1">
+        <_title>Equation</_title>
+      </argument>
+      <argument index="2">
+        <_title>Initial condition: function value (y)</_title>
+      </argument>
+      <argument index="3">
+        <_title>Initial condition: argument value (x)</_title>
+      </argument>
+      <_description>Solves a differential equation and returns the value of y(x). The derivative in the equation should be in the format diff(y, x). Only first-order differential equations are currently supported.</_description>
+      <example>$name(2 * diff(y, x) - y = 4x, 5, 2) = 21e^(x/2) / e - 4x - 8</example>
     </builtin_function>
     <function>
       <_title>Solve for two variables</_title>
@@ -2317,6 +2490,23 @@
         <_title>Upper limit</_title>
       </argument>
     </builtin_function>
+    <builtin_function name="limit">
+      <_title>Limit</_title>
+      <_description>Returns the two-sided limit of the function if direction is zero, limit from left (below) if direction is -1, or limit from right (above) if direction is +1.</_description>
+      <_names>r:limit</_names>
+      <argument index="1">
+        <_title>Function</_title>
+      </argument>
+      <argument index="2">
+        <_title>Value to approach</_title>
+      </argument>
+      <argument index="3">
+        <_title>Variable</_title>
+      </argument>
+      <argument index="4">
+        <_title>Direction</_title>
+      </argument>
+    </builtin_function>
     <function>
       <_title>Extreme Values</_title>
       <_names>r:extremum</_names>
@@ -2328,6 +2518,54 @@
         <_title>With respect to</_title>
       </argument>
     </function>
+    <category>
+      <_title>Named Integrals</_title>
+      <builtin_function name="li">
+        <_title>Logarithmic Integral</_title>
+        <_names>rc:li,logint</_names>
+        <_description>The integral of 1/ln(x).</_description>
+      </builtin_function>
+      <builtin_function name="Ei">
+        <_title>Exponential Integral</_title>
+        <_names>rc:Ei,expint</_names>
+        <_description>The integral of e^x/x.</_description>
+      </builtin_function>
+      <builtin_function name="Si">
+        <_title>Sine Integral</_title>
+        <_names>rc:Si,sinint</_names>
+        <argument index="1">
+          <_title>Angle</_title>
+        </argument>
+        <_description>The integral of sin(x)/x.</_description>
+      </builtin_function>
+      <builtin_function name="Ci">
+        <_title>Cosine Integral</_title>
+        <_names>rc:Ci,cosint</_names>
+        <argument index="1">
+          <_title>Angle</_title>
+        </argument>
+        <_description>The integral of cos(x)/x.</_description>
+      </builtin_function>
+      <builtin_function name="Shi">
+        <_title>Hyperbolic Sine Integral</_title>
+        <_names>rc:Shi,sinhint</_names>
+        <_description>The integral of sinh(x)/x.</_description>
+      </builtin_function>
+      <builtin_function name="Chi">
+        <_title>Hyperbolic Cosine Integral</_title>
+        <_names>rc:Chi,coshint</_names>
+        <_description>The integral of cosh(x)/x.</_description>
+      </builtin_function>
+      <builtin_function name="igamma">
+        <_title>Upper Incomplete Gamma Function</_title>
+        <_names>r:igamma</_names>
+      </builtin_function>
+      <function>
+        <_title>Lower Incomplete Gamma Function</_title>
+        <_names>r:gammainc</_names>
+        <expression>1-igamma(\x,\y)/gamma(\x)</expression>
+      </function>
+    </category>
   </category>
   <category>
     <_title>Geometry</_title>
@@ -2690,7 +2928,7 @@
       <function>
         <_title>Elasticity</_title>
         <_names>r:elasticity</_names>
-        <_description>Calculates the demand elasticity. Also works for supply elasticity, income elasticity, cross-price elasticity, etc. Just replace demand, with supply, or price with income...&#10;&#10;eg. elasticity(100-x^2, 3) calculates the demand elasticity when the price is 3 for the function "Q = 100 - x^2" where x is the default price variable.</_description>
+        <_description>Calculates the demand elasticity. Also works for supply elasticity, income elasticity, cross-price elasticity, etc. Just replace demand with supply, or price with income...&#10;&#10;eg. elasticity(100-x^2, 3) calculates the demand elasticity when the price is 3 for the function "Q = 100 - x^2" where x is the default price variable.</_description>
         <expression>replace(diff(\x,\Z{x}),\Z,\y,1)*\y/replace(\x,\Z,\y)</expression>
         <argument type="free" index="1">
           <_title>Demand function</_title>

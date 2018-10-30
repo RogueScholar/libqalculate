@@ -1,7 +1,7 @@
 /*
     Qalculate    
 
-    Copyright (C) 2003-2007, 2008, 2016-2017  Hanna Knutsson (hanna.knutsson@protonmail.com)
+    Copyright (C) 2003-2007, 2008, 2016-2018  Hanna Knutsson (hanna.knutsson@protonmail.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "ExpressionItem.h"
 #include "Prefix.h"
 #include "Number.h"
+#include "QalculateDateTime.h"
 
 #include <locale.h>
 #include <libxml/xmlmemory.h>
@@ -128,6 +129,7 @@ PlotDataParameters::PlotDataParameters() {
 	xaxis2 = false;
 	style = PLOT_STYLE_LINES;
 	smoothing = PLOT_SMOOTHING_NONE;
+	test_continuous = false;
 }
 
 CalculatorMessage::CalculatorMessage(string message_, MessageType type_, int cat_, int stage_) {
@@ -216,18 +218,28 @@ class CalculateThread : public Thread {
 
 
 void autoConvert(const MathStructure &morig, MathStructure &mconv, const EvaluationOptions &eo) {
+	if(!morig.containsType(STRUCT_UNIT, true)) {
+		if(&mconv != &morig) mconv.set(morig);
+		return;
+	}
 	switch(eo.auto_post_conversion) {
 		case POST_CONVERSION_OPTIMAL: {
 			mconv.set(CALCULATOR->convertToBestUnit(morig, eo, false));
+			break;
 		}
 		case POST_CONVERSION_BASE: {
 			mconv.set(CALCULATOR->convertToBaseUnits(morig, eo));
+			break;
 		}
 		case POST_CONVERSION_OPTIMAL_SI: {
 			mconv.set(CALCULATOR->convertToBestUnit(morig, eo, true));
+			break;
 		}
-		default: {}
+		default: {
+			if(&mconv != &morig) mconv.set(morig);
+		}
 	}
+	if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mconv.set(CALCULATOR->convertToMixedUnits(mconv, eo));
 }
 
 void CalculateThread::run() {
@@ -247,9 +259,7 @@ void CalculateThread::run() {
 		} else {
 			MathStructure meval(*mstruct);
 			mstruct->setAborted();
-			meval.eval(CALCULATOR->tmp_evaluationoptions);
-			if(CALCULATOR->tmp_evaluationoptions.auto_post_conversion == POST_CONVERSION_NONE) mstruct->set(meval);
-			else autoConvert(meval, *mstruct, CALCULATOR->tmp_evaluationoptions);
+			mstruct->set(CALCULATOR->calculate(meval, CALCULATOR->tmp_evaluationoptions));
 		}
 		switch(CALCULATOR->tmp_proc_command) {
 			case PROC_RPN_ADD: {
@@ -326,10 +336,14 @@ Calculator::Calculator() {
 
 	srand(time(NULL));
 
-	exchange_rates_time = 0;
-	exchange_rates_check_time = 0;
+	exchange_rates_time[0] = 0;
+	exchange_rates_time[1] = 0;
+	exchange_rates_time[2] = 0;
+	exchange_rates_check_time[0] = 0;
+	exchange_rates_check_time[1] = 0;
+	exchange_rates_check_time[2] = 0;
 	b_exchange_rates_warning_enabled = true;
-	b_exchange_rates_used = false;
+	b_exchange_rates_used = 0;
 	
 	i_aborted = 0;
 	b_controlled = false;
@@ -368,6 +382,7 @@ Calculator::Calculator() {
 	addStringAlternative(";", COMMA);
 	addStringAlternative("\t", SPACE);
 	addStringAlternative("\n", SPACE);
+	addStringAlternative(" ", SPACE);
 	addStringAlternative("**", POWER);
 	addStringAlternative("↊", "X");
 	addStringAlternative("↋", "E");
@@ -417,14 +432,14 @@ Calculator::Calculator() {
 	default_dot_as_separator = (local_digit_group_separator == ".");
 	if(strcmp(lc->decimal_point, ",") == 0) {
 		DOT_STR = ",";
-		DOT_S = ".,";	
+		DOT_S = ".,";
 		COMMA_STR = ";";
-		COMMA_S = ";";		
+		COMMA_S = ";";
 	} else {
-		DOT_STR = ".";	
-		DOT_S = ".";	
+		DOT_STR = ".";
+		DOT_S = ".";
 		COMMA_STR = ",";
-		COMMA_S = ",;";		
+		COMMA_S = ",;";
 	}
 	setlocale(LC_NUMERIC, "C");
 
@@ -470,6 +485,10 @@ Calculator::Calculator() {
 	save_printoptions.spacious = false;
 	save_printoptions.number_fraction_format = FRACTION_FRACTIONAL;
 	save_printoptions.short_multiplication = false;
+	
+	message_printoptions.interval_display = INTERVAL_DISPLAY_PLUSMINUS;
+	message_printoptions.spell_out_logical_operators = true;
+	message_printoptions.number_fraction_format = FRACTION_FRACTIONAL;
 
 	default_assumptions = new Assumptions;
 	default_assumptions->setType(ASSUMPTION_TYPE_REAL);
@@ -559,18 +578,68 @@ void Calculator::beginTemporaryStopMessages() {
 	stopped_errors_count.push_back(0);
 	stopped_warnings_count.push_back(0);
 	stopped_messages_count.push_back(0);
+	vector<CalculatorMessage> vcm;
+	stopped_messages.push_back(vcm);
 }
-int Calculator::endTemporaryStopMessages(int *message_count, int *warning_count) {
+int Calculator::endTemporaryStopMessages(int *message_count, int *warning_count, int release_messages_if_no_equal_or_greater_than_message_type) {
 	if(disable_errors_ref <= 0) return -1;
 	disable_errors_ref--;
 	int ret = stopped_errors_count[disable_errors_ref];
+	bool release_messages = false;
+	if(release_messages_if_no_equal_or_greater_than_message_type >= MESSAGE_INFORMATION) {
+		if(ret > 0) release_messages = true;
+		if(release_messages_if_no_equal_or_greater_than_message_type == MESSAGE_WARNING && stopped_warnings_count[disable_errors_ref] > 0) release_messages = true;
+		else if(release_messages_if_no_equal_or_greater_than_message_type == MESSAGE_INFORMATION && stopped_messages_count[disable_errors_ref] > 0) release_messages = true;
+	}
 	if(message_count) *message_count = stopped_messages_count[disable_errors_ref];
 	if(warning_count) *warning_count = stopped_warnings_count[disable_errors_ref];
 	stopped_errors_count.pop_back();
 	stopped_warnings_count.pop_back();
 	stopped_messages_count.pop_back();
+	if(release_messages) addMessages(&stopped_messages[disable_errors_ref]);
+	stopped_messages.pop_back();
 	return ret;
 }
+void Calculator::endTemporaryStopMessages(bool release_messages, vector<CalculatorMessage> *blocked_messages) {
+	if(disable_errors_ref <= 0) return;
+	disable_errors_ref--;
+	stopped_errors_count.pop_back();
+	stopped_warnings_count.pop_back();
+	stopped_messages_count.pop_back();
+	if(blocked_messages) *blocked_messages = stopped_messages[disable_errors_ref];
+	if(release_messages) addMessages(&stopped_messages[disable_errors_ref]);
+	stopped_messages.pop_back();
+}
+void Calculator::addMessages(vector<CalculatorMessage> *message_vector) {
+	for(size_t i3 = 0; i3 < message_vector->size(); i3++) {
+		string error_str = (*message_vector)[i3].message();
+		bool dup_error = false;
+		for(size_t i = 0; i < messages.size(); i++) {
+			if(error_str == messages[i].message()) {
+				dup_error = true;
+				break;
+			}
+		}
+		if(!dup_error) {
+			if(disable_errors_ref > 0) {
+				for(size_t i2 = 0; !dup_error && i2 < (size_t) disable_errors_ref; i2++) {
+					for(size_t i = 0; i < stopped_messages[i2].size(); i++) {
+						if(error_str == stopped_messages[i2][i].message()) {
+							dup_error = true;
+							break;
+						}
+					}
+				}
+				if(!dup_error) stopped_messages[disable_errors_ref - 1].push_back((*message_vector)[i3]);
+			} else {
+				messages.push_back((*message_vector)[i3]);
+			}
+		}
+	}
+}
+const PrintOptions &Calculator::messagePrintOptions() const {return message_printoptions;}
+void Calculator::setMessagePrintOptions(const PrintOptions &po) {message_printoptions = po;}
+
 Variable *Calculator::getVariable(size_t index) const {
 	if(index < variables.size()) {
 		return variables[index];
@@ -1151,32 +1220,39 @@ int Calculator::getPrecision() const {
 	return i_precision;
 }
 void Calculator::useIntervalArithmetic(bool use_interval_arithmetic) {b_interval = use_interval_arithmetic;}
-bool Calculator::usesIntervalArithmetic() const {return b_interval && i_stop_interval <= 0;}
+bool Calculator::usesIntervalArithmetic() const {return i_start_interval > 0 || (b_interval && i_stop_interval <= 0);}
 void Calculator::beginTemporaryStopIntervalArithmetic() {
 	i_stop_interval++;
 }
 void Calculator::endTemporaryStopIntervalArithmetic() {
 	i_stop_interval--;
 }
+void Calculator::beginTemporaryEnableIntervalArithmetic() {
+	i_start_interval++;
+}
+void Calculator::endTemporaryEnableIntervalArithmetic() {
+	i_start_interval--;
+}
 
 const string &Calculator::getDecimalPoint() const {return DOT_STR;}
 const string &Calculator::getComma() const {return COMMA_STR;}
-string Calculator::localToString() const {
-	return _(" to ");
+string Calculator::localToString(bool include_spaces) const {
+	if(include_spaces) return _(" to ");
+	else return _("to");
 }
 void Calculator::setLocale() {
 	if(saved_locale) setlocale(LC_NUMERIC, saved_locale);
 	lconv *locale = localeconv();
 	if(strcmp(locale->decimal_point, ",") == 0) {
 		DOT_STR = ",";
-		DOT_S = ".,";	
+		DOT_S = ".,";
 		COMMA_STR = ";";
-		COMMA_S = ";";		
+		COMMA_S = ";";
 	} else {
-		DOT_STR = ".";	
-		DOT_S = ".";	
+		DOT_STR = ".";
+		DOT_S = ".";
 		COMMA_STR = ",";
-		COMMA_S = ",;";		
+		COMMA_S = ",;";
 	}
 	setlocale(LC_NUMERIC, "C");
 }
@@ -1318,9 +1394,21 @@ void Calculator::addBuiltinVariables() {
 	v_euler = (KnownVariable*) addVariable(new EulerVariable());
 	v_catalan = (KnownVariable*) addVariable(new CatalanVariable());
 	v_precision = (KnownVariable*) addVariable(new PrecisionVariable());
+	v_percent = (KnownVariable*) addVariable(new KnownVariable("", "%", MathStructure(1, 1, -2), "Percent", false, true));
+	v_permille = (KnownVariable*) addVariable(new KnownVariable("", "permille", MathStructure(1, 1, -3), "Per Mille", false, true));
+	v_permyriad = (KnownVariable*) addVariable(new KnownVariable("", "permyriad", MathStructure(1, 1, -4), "Per Myriad", false, true));
 	v_x = (UnknownVariable*) addVariable(new UnknownVariable("", "x", "", true, false));
 	v_y = (UnknownVariable*) addVariable(new UnknownVariable("", "y", "", true, false));
 	v_z = (UnknownVariable*) addVariable(new UnknownVariable("", "z", "", true, false));
+	v_C = new UnknownVariable("", "C", "", false, true);
+	v_C->setAssumptions(new Assumptions());
+	v_n = (UnknownVariable*) addVariable(new UnknownVariable("", "n", "", false, true));
+	v_n->setAssumptions(new Assumptions());
+	v_n->assumptions()->setType(ASSUMPTION_TYPE_INTEGER);
+	v_today = (KnownVariable*) addVariable(new TodayVariable());
+	v_yesterday = (KnownVariable*) addVariable(new YesterdayVariable());
+	v_tomorrow = (KnownVariable*) addVariable(new TomorrowVariable());
+	v_now = (KnownVariable*) addVariable(new NowVariable());
 	
 }
 void Calculator::addBuiltinFunctions() {
@@ -1348,6 +1436,9 @@ void Calculator::addBuiltinFunctions() {
 	f_adjoint = addFunction(new AdjointFunction());
 	f_cofactor = addFunction(new CofactorFunction());
 	f_inverse = addFunction(new InverseFunction());
+	f_magnitude = addFunction(new MagnitudeFunction());
+	f_hadamard = addFunction(new HadamardFunction());
+	f_entrywise = addFunction(new EntrywiseFunction());
 
 	f_factorial = addFunction(new FactorialFunction());
 	f_factorial2 = addFunction(new DoubleFactorialFunction());
@@ -1359,9 +1450,12 @@ void Calculator::addBuiltinFunctions() {
 	f_even = addFunction(new EvenFunction());
 	f_odd = addFunction(new OddFunction());
 	f_shift = addFunction(new ShiftFunction());
+	f_bitcmp = addFunction(new BitCmpFunction());
 	
 	f_abs = addFunction(new AbsFunction());
 	f_signum = addFunction(new SignumFunction());
+	f_heaviside = addFunction(new HeavisideFunction());
+	f_dirac = addFunction(new DiracFunction());
 	f_gcd = addFunction(new GcdFunction());
 	f_lcm = addFunction(new LcmFunction());
 	f_round = addFunction(new RoundFunction());
@@ -1435,8 +1529,9 @@ void Calculator::addBuiltinFunctions() {
 	f_mode = addFunction(new ModeFunction());
 	f_rand = addFunction(new RandFunction());
 
-	f_isodate = addFunction(new ISODateFunction());
-	f_localdate = addFunction(new LocalDateFunction());
+	f_date = addFunction(new DateFunction());
+	f_datetime = addFunction(new DateTimeFunction());
+	f_timevalue = addFunction(new TimeValueFunction());
 	f_timestamp = addFunction(new TimestampFunction());
 	f_stamptodate = addFunction(new TimestampToDateFunction());
 	f_days = addFunction(new DaysFunction());
@@ -1451,6 +1546,9 @@ void Calculator::addBuiltinFunctions() {
 	f_add_days = addFunction(new AddDaysFunction());
 	f_add_months = addFunction(new AddMonthsFunction());
 	f_add_years = addFunction(new AddYearsFunction());
+	
+	f_lunarphase = addFunction(new LunarPhaseFunction());
+	f_nextlunarphase = addFunction(new NextLunarPhaseFunction());
 
 	f_base = addFunction(new BaseFunction());
 	f_bin = addFunction(new BinFunction());
@@ -1501,6 +1599,17 @@ void Calculator::addBuiltinFunctions() {
 	f_integrate = addFunction(new IntegrateFunction());
 	f_solve = addFunction(new SolveFunction());
 	f_multisolve = addFunction(new SolveMultipleFunction());
+	f_dsolve = addFunction(new DSolveFunction());
+	f_limit = addFunction(new LimitFunction());
+	
+	f_li = addFunction(new liFunction());
+	f_Li = addFunction(new LiFunction());
+	f_Ei = addFunction(new EiFunction());
+	f_Si = addFunction(new SiFunction());
+	f_Ci = addFunction(new CiFunction());
+	f_Shi = addFunction(new ShiFunction());
+	f_Chi = addFunction(new ChiFunction());
+	f_igamma = addFunction(new IGammaFunction());
 	
 	if(canPlot()) f_plot = addFunction(new PlotFunction());
 	
@@ -1520,10 +1629,16 @@ void Calculator::addBuiltinFunctions() {
 }
 void Calculator::addBuiltinUnits() {
 	u_euro = addUnit(new Unit(_("Currency"), "EUR", "euros", "euro", "European Euros", false, true, true));
-	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "8982.36", 1, "", false, true, true));
+	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "5612.58", 1, "", false, true, true));
 	u_btc->setApproximate();
 	u_btc->setPrecision(-2);
 	u_btc->setChanged(false);
+	u_second = NULL;
+	u_minute = NULL;
+	u_hour = NULL;
+	u_day = NULL;
+	u_month = NULL;
+	u_year = NULL;
 }
 
 void Calculator::setVariableUnitsEnabled(bool enable_variable_units) {
@@ -1565,7 +1680,6 @@ void Calculator::message(MessageType mtype, int message_category, const char *TE
 		} else if(mtype == MESSAGE_WARNING) {
 			stopped_warnings_count[disable_errors_ref - 1]++;
 		}
-		return;
 	}
 	string error_str = TEMPLATE;
 	size_t i = 0;
@@ -1604,8 +1718,19 @@ void Calculator::message(MessageType mtype, int message_category, const char *TE
 			break;
 		}
 	}
+	if(disable_errors_ref > 0) {
+		for(size_t i2 = 0; !dup_error && i2 < (size_t) disable_errors_ref; i2++) {
+			for(i = 0; i < stopped_messages[i2].size(); i++) {
+				if(error_str == stopped_messages[i2][i].message()) {
+					dup_error = true;
+					break;
+				}
+			}
+		}
+	}
 	if(!dup_error) {
-		messages.push_back(CalculatorMessage(error_str, mtype, message_category, current_stage));
+		if(disable_errors_ref > 0) stopped_messages[disable_errors_ref - 1].push_back(CalculatorMessage(error_str, mtype, message_category, current_stage));
+		else messages.push_back(CalculatorMessage(error_str, mtype, message_category, current_stage));
 	}
 }
 CalculatorMessage* Calculator::message() {
@@ -1686,6 +1811,7 @@ bool Calculator::abort() {
 			stopped_messages_count.clear();
 			stopped_warnings_count.clear();
 			stopped_errors_count.clear();
+			stopped_messages.clear();
 			disable_errors_ref = 0;
 			if(tmp_rpn_mstruct) tmp_rpn_mstruct->unref();
 			tmp_rpn_mstruct = NULL;
@@ -1710,8 +1836,8 @@ void Calculator::terminateThreads() {
 	}
 }
 
-string Calculator::localizeExpression(string str) const {
-	if(DOT_STR == DOT && COMMA_STR == COMMA) return str;
+string Calculator::localizeExpression(string str, const ParseOptions &po) const {
+	if(DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) return str;
 	vector<size_t> q_begin;
 	vector<size_t> q_end;
 	size_t i3 = 0;
@@ -1729,7 +1855,8 @@ string Calculator::localizeExpression(string str) const {
 		q_end.push_back(i3);
 		i3++;
 	}
-	if(COMMA_STR != COMMA) {
+	if(COMMA_STR != COMMA || po.comma_as_separator) {
+		bool b_alt_comma = po.comma_as_separator && COMMA_STR == COMMA;
 		size_t ui = str.find(COMMA);
 		while(ui != string::npos) {
 			bool b = false;
@@ -1741,8 +1868,8 @@ string Calculator::localizeExpression(string str) const {
 				}
 			}
 			if(!b) {
-				str.replace(ui, strlen(COMMA), COMMA_STR);
-				ui = str.find(COMMA, ui + COMMA_STR.length());
+				str.replace(ui, strlen(COMMA), b_alt_comma ? ";" : COMMA_STR);
+				ui = str.find(COMMA, ui + (b_alt_comma ? 1 : COMMA_STR.length()));
 			}
 		}
 	}
@@ -1766,7 +1893,7 @@ string Calculator::localizeExpression(string str) const {
 	return str;
 }
 string Calculator::unlocalizeExpression(string str, const ParseOptions &po) const {
-	if(DOT_STR == DOT && COMMA_STR == COMMA) return str;
+	if(DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) return str;
 	vector<size_t> q_begin;
 	vector<size_t> q_end;
 	size_t i3 = 0;
@@ -1818,7 +1945,8 @@ string Calculator::unlocalizeExpression(string str, const ParseOptions &po) cons
 			}
 		}
 	}
-	if(COMMA_STR != COMMA) {
+	if(COMMA_STR != COMMA || po.comma_as_separator) {
+		bool b_alt_comma = po.comma_as_separator && COMMA_STR == COMMA;
 		if(po.comma_as_separator) {
 			size_t ui = str.find(COMMA);
 			while(ui != string::npos) {
@@ -1831,24 +1959,24 @@ string Calculator::unlocalizeExpression(string str, const ParseOptions &po) cons
 					}
 				}
 				if(!b) {
-					str.replace(ui, strlen(COMMA), SPACE);
-					ui = str.find(COMMA, ui + strlen(SPACE));
+					str.erase(ui, strlen(COMMA));
+					ui = str.find(COMMA, ui);
 				}
 			}	
 		}
-		size_t ui = str.find(COMMA_STR);
+		size_t ui = str.find(b_alt_comma ? ";" : COMMA_STR);
 		while(ui != string::npos) {
 			bool b = false;
 			for(size_t ui2 = 0; ui2 < q_end.size(); ui2++) {
 				if(ui <= q_end[ui2] && ui >= q_begin[ui2]) {
-					ui = str.find(COMMA_STR, q_end[ui2] + 1);
+					ui = str.find(b_alt_comma ? ";" : COMMA_STR, q_end[ui2] + 1);
 					b = true;
 					break;
 				}
 			}
 			if(!b) {
-				str.replace(ui, COMMA_STR.length(), COMMA);
-				ui = str.find(COMMA_STR, ui + strlen(COMMA));
+				str.replace(ui, b_alt_comma ? 1 : COMMA_STR.length(), COMMA);
+				ui = str.find(b_alt_comma ? ";" : COMMA_STR, ui + strlen(COMMA));
 			}
 		}
 	}
@@ -2020,6 +2148,7 @@ bool Calculator::calculateRPNLogicalNot(int msecs, const EvaluationOptions &eo, 
 	return calculateRPN(mstruct, PROC_RPN_OPERATION_1, 0, msecs, eo);
 }
 MathStructure *Calculator::calculateRPN(MathOperation op, const EvaluationOptions &eo, MathStructure *parsed_struct) {
+	current_stage = MESSAGE_STAGE_PARSING;
 	MathStructure *mstruct;
 	if(rpn_stack.size() == 0) {
 		mstruct = new MathStructure();
@@ -2054,8 +2183,11 @@ MathStructure *Calculator::calculateRPN(MathOperation op, const EvaluationOption
 		mstruct = new MathStructure(*rpn_stack[rpn_stack.size() - 2]);
 		mstruct->add(*rpn_stack.back(), op);
 	}
+	current_stage = MESSAGE_STAGE_CALCULATION;
 	mstruct->eval(eo);
+	current_stage = MESSAGE_STAGE_CONVERSION;
 	autoConvert(*mstruct, *mstruct, eo);
+	current_stage = MESSAGE_STAGE_UNSET;
 	if(rpn_stack.size() > 1) {
 		rpn_stack.back()->unref();
 		rpn_stack.erase(rpn_stack.begin() + (rpn_stack.size() - 1));
@@ -2069,6 +2201,7 @@ MathStructure *Calculator::calculateRPN(MathOperation op, const EvaluationOption
 	return rpn_stack.back();
 }
 MathStructure *Calculator::calculateRPN(MathFunction *f, const EvaluationOptions &eo, MathStructure *parsed_struct) {
+	current_stage = MESSAGE_STAGE_PARSING;
 	MathStructure *mstruct = new MathStructure(f, NULL);
 	size_t iregs = 0;
 	if(f->args() != 0) {
@@ -2113,8 +2246,11 @@ MathStructure *Calculator::calculateRPN(MathFunction *f, const EvaluationOptions
 		f->appendDefaultValues(*mstruct);
 	}
 	if(parsed_struct) parsed_struct->set(*mstruct);
+	current_stage = MESSAGE_STAGE_CALCULATION;
 	mstruct->eval(eo);
+	current_stage = MESSAGE_STAGE_CONVERSION;
 	autoConvert(*mstruct, *mstruct, eo);
+	current_stage = MESSAGE_STAGE_UNSET;
 	if(iregs == 0) {
 		rpn_stack.push_back(mstruct);
 	} else {
@@ -2129,6 +2265,7 @@ MathStructure *Calculator::calculateRPN(MathFunction *f, const EvaluationOptions
 	return rpn_stack.back();
 }
 MathStructure *Calculator::calculateRPNBitwiseNot(const EvaluationOptions &eo, MathStructure *parsed_struct) {
+	current_stage = MESSAGE_STAGE_PARSING;
 	MathStructure *mstruct;
 	if(rpn_stack.size() == 0) {
 		mstruct = new MathStructure();
@@ -2138,8 +2275,11 @@ MathStructure *Calculator::calculateRPNBitwiseNot(const EvaluationOptions &eo, M
 		mstruct->setBitwiseNot();
 	}
 	if(parsed_struct) parsed_struct->set(*mstruct);
+	current_stage = MESSAGE_STAGE_CALCULATION;
 	mstruct->eval(eo);
+	current_stage = MESSAGE_STAGE_CONVERSION;
 	autoConvert(*mstruct, *mstruct, eo);
+	current_stage = MESSAGE_STAGE_UNSET;
 	if(rpn_stack.size() == 0) {
 		rpn_stack.push_back(mstruct);
 	} else {
@@ -2149,6 +2289,7 @@ MathStructure *Calculator::calculateRPNBitwiseNot(const EvaluationOptions &eo, M
 	return rpn_stack.back();
 }
 MathStructure *Calculator::calculateRPNLogicalNot(const EvaluationOptions &eo, MathStructure *parsed_struct) {
+	current_stage = MESSAGE_STAGE_PARSING;
 	MathStructure *mstruct;
 	if(rpn_stack.size() == 0) {
 		mstruct = new MathStructure();
@@ -2158,8 +2299,11 @@ MathStructure *Calculator::calculateRPNLogicalNot(const EvaluationOptions &eo, M
 		mstruct->setLogicalNot();
 	}
 	if(parsed_struct) parsed_struct->set(*mstruct);
+	current_stage = MESSAGE_STAGE_CALCULATION;
 	mstruct->eval(eo);
+	current_stage = MESSAGE_STAGE_CONVERSION;
 	autoConvert(*mstruct, *mstruct, eo);
+	current_stage = MESSAGE_STAGE_UNSET;
 	if(rpn_stack.size() == 0) {
 		rpn_stack.push_back(mstruct);
 	} else {
@@ -2181,8 +2325,11 @@ bool Calculator::RPNStackEnter(string str, int msecs, const EvaluationOptions &e
 }
 void Calculator::RPNStackEnter(MathStructure *mstruct, bool eval, const EvaluationOptions &eo) {
 	if(eval) {
+		current_stage = MESSAGE_STAGE_CALCULATION;
 		mstruct->eval();
+		current_stage = MESSAGE_STAGE_CONVERSION;
 		autoConvert(*mstruct, *mstruct, eo);
+		current_stage = MESSAGE_STAGE_UNSET;
 	}
 	rpn_stack.push_back(mstruct);
 }
@@ -2209,8 +2356,11 @@ void Calculator::setRPNRegister(size_t index, MathStructure *mstruct, bool eval,
 		return;
 	}
 	if(eval) {
+		current_stage = MESSAGE_STAGE_CALCULATION;
 		mstruct->eval();
+		current_stage = MESSAGE_STAGE_CONVERSION;
 		autoConvert(*mstruct, *mstruct, eo);
+		current_stage = MESSAGE_STAGE_UNSET;
 	}
 	if(index <= 0 || index > rpn_stack.size()) return;
 	index = rpn_stack.size() - index;
@@ -2289,8 +2439,136 @@ void Calculator::moveRPNRegisterDown(size_t index) {
 	}
 }
 
+#define EQUALS_IGNORECASE_AND_LOCAL(x,y,z)	(equalsIgnoreCase(x, y) || equalsIgnoreCase(x, z))
+string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOptions &eo, const PrintOptions &po) {
+	if(msecs > 0) startControl(msecs);
+	PrintOptions printops = po;
+	EvaluationOptions evalops = eo;
+	MathStructure mstruct;
+	bool do_bases = false, do_factors = false, do_fraction = false, do_pfe = false, do_calendars = false;
+	string from_str = str, to_str;
+	if(separateToExpression(from_str, to_str, evalops, true)) {
+		remove_duplicate_blanks(to_str);
+		string to_str1, to_str2;
+		size_t ispace = to_str.find_first_of(SPACES);
+		if(ispace != string::npos) {
+			to_str1 = to_str.substr(0, ispace);
+			remove_blank_ends(to_str1);
+			to_str2 = to_str.substr(ispace + 1);
+			remove_blank_ends(to_str2);
+		}
+		if(equalsIgnoreCase(to_str, "hex") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "hexadecimal", _("hexadecimal"))) {
+			str = from_str;
+			printops.base = BASE_HEXADECIMAL;
+		} else if(equalsIgnoreCase(to_str, "bin") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "binary", _("binary"))) {
+			str = from_str;
+			printops.base = BASE_BINARY;
+		} else if(equalsIgnoreCase(to_str, "oct") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "octal", _("octal"))) {
+			str = from_str;
+			printops.base = BASE_OCTAL;
+		} else if(equalsIgnoreCase(to_str, "duo") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "duodecimal", _("duodecimal"))) {
+			str = from_str;
+			printops.base = BASE_DUODECIMAL;
+		} else if(equalsIgnoreCase(to_str, "roman") || equalsIgnoreCase(to_str, _("roman"))) {
+			str = from_str;
+			printops.base = BASE_ROMAN_NUMERALS;
+		} else if(equalsIgnoreCase(to_str, "sexa") || equalsIgnoreCase(to_str, "sexagesimal") || equalsIgnoreCase(to_str, _("sexagesimal"))) {
+			str = from_str;
+			printops.base = BASE_SEXAGESIMAL;
+		} else if(equalsIgnoreCase(to_str, "time") || equalsIgnoreCase(to_str, _("time"))) {
+			str = from_str;
+			printops.base = BASE_TIME;
+		} else if(equalsIgnoreCase(to_str, "utc") || equalsIgnoreCase(to_str, "gmt")) {
+			str = from_str;
+			printops.time_zone = TIME_ZONE_UTC;
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "fraction", _("fraction"))) {
+			str = from_str;
+			do_fraction = true;
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "factors", _("factors"))) {
+			str = from_str;
+			do_factors = true;
+		}  else if(equalsIgnoreCase(to_str, "partial fraction") || equalsIgnoreCase(to_str, _("partial fraction"))) {
+			str = from_str;
+			do_pfe = true;
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "bases", _("bases"))) {
+			do_bases = true;
+			str = from_str;
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "calendars", _("calendars"))) {
+			do_calendars = true;
+			str = from_str;
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "optimal", _("optimal"))) {
+			str = from_str;
+			evalops.parse_options.units_enabled = true;
+			evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL_SI;
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "base", _("base"))) {
+			str = from_str;
+			evalops.parse_options.units_enabled = true;
+			evalops.auto_post_conversion = POST_CONVERSION_BASE;
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str1, "base", _("base")) && s2i(to_str2) >= 2 && (s2i(to_str2) <= 36 || s2i(to_str2) == BASE_SEXAGESIMAL)) {
+			str = from_str;
+			printops.base = s2i(to_str2);
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "mixed", _("mixed"))) {
+			str = from_str;
+			evalops.parse_options.units_enabled = true;
+			evalops.auto_post_conversion = POST_CONVERSION_NONE;
+			evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_FORCE_INTEGER;
+		}
+	}		
+
+	mstruct = calculate(str, evalops);
+	
+	if(do_factors) {
+		if(!mstruct.integerFactorize()) mstruct.factorize(evalops, true, -1, 0, true, 2);
+	}
+	if(do_pfe) mstruct.expandPartialFractions(evalops);
+
+	printops.allow_factorization = printops.allow_factorization || evalops.structuring == STRUCTURING_FACTORIZE || do_factors;
+	
+	if(do_calendars && mstruct.isDateTime()) {
+		str = "";
+		bool b_fail;
+		long int y, m, d;
+#define PRINT_CALENDAR(x, c) if(!str.empty()) {str += "\n";} str += x; str += " "; b_fail = !dateToCalendar(*mstruct.datetime(), y, m, d, c); if(b_fail) {str += _("failed");} else {str += i2s(d); str += " "; str += monthName(m, c, true); str += " "; str += i2s(y);}
+		PRINT_CALENDAR(string(_("Gregorian:")), CALENDAR_GREGORIAN);
+		PRINT_CALENDAR(string(_("Hebrew:")), CALENDAR_HEBREW);
+		PRINT_CALENDAR(string(_("Islamic:")), CALENDAR_ISLAMIC);
+		PRINT_CALENDAR(string(_("Persian:")), CALENDAR_PERSIAN);
+		PRINT_CALENDAR(string(_("Indian national:")), CALENDAR_INDIAN);
+		PRINT_CALENDAR(string(_("Chinese:")), CALENDAR_CHINESE); 
+		long int cy, yc, st, br;
+		chineseYearInfo(y, cy, yc, st, br);
+		if(!b_fail) {str += " ("; str += chineseStemName(st); str += string(" "); str += chineseBranchName(br); str += ")";}
+		PRINT_CALENDAR(string(_("Julian:")), CALENDAR_JULIAN);
+		PRINT_CALENDAR(string(_("Revised julian:")), CALENDAR_MILANKOVIC);
+		PRINT_CALENDAR(string(_("Coptic:")), CALENDAR_COPTIC);
+		PRINT_CALENDAR(string(_("Ethiopian:")), CALENDAR_ETHIOPIAN);
+		stopControl();
+		return str;
+	} else if(do_bases) {
+		printops.base = BASE_BINARY;
+		str = print(mstruct, 0, printops);
+		str += " = ";
+		printops.base = BASE_OCTAL;
+		str += print(mstruct, 0, printops);
+		str += " = ";
+		printops.base = BASE_DECIMAL;
+		str += print(mstruct, 0, printops);
+		str += " = ";
+		printops.base = BASE_HEXADECIMAL;
+		str += print(mstruct, 0, printops);
+		stopControl();
+		return str;
+	} else if(do_fraction) {
+		if(mstruct.isNumber()) printops.number_fraction_format = FRACTION_COMBINED;
+		else printops.number_fraction_format = FRACTION_FRACTIONAL;
+	}
+	mstruct.format(printops);
+	str = mstruct.print(printops);
+	stopControl();
+	return str;
+}
 bool Calculator::calculate(MathStructure *mstruct, string str, int msecs, const EvaluationOptions &eo, MathStructure *parsed_struct, MathStructure *to_struct, bool make_to_division) {
-	mstruct->set(string(_("calculating...")));
+	mstruct->set(string(_("calculating...")), false, true);
 	b_busy = true;
 	if(!calculate_thread->running && !calculate_thread->start()) {mstruct->setAborted(); return false;}
 	bool had_msecs = msecs > 0;
@@ -2338,30 +2616,38 @@ bool Calculator::calculate(MathStructure *mstruct, int msecs, const EvaluationOp
 	}
 	return true;
 }
-bool Calculator::hasToExpression(const string &str) const {
-	return str.rfind(_(" to ")) != string::npos || str.rfind(" to ") != string::npos;
+bool Calculator::hasToExpression(const string &str, bool allow_empty_from) const {
+	if(str.rfind(_(" to ")) != string::npos || str.rfind(" to ") != string::npos) return true;
+	if(allow_empty_from && (str.find("to ") == 0 || (str.find(_("to")) == 0 && str.length() > strlen(_("to")) && str[strlen(_("to"))] == ' '))) return true;
+	return false;
 }
-bool Calculator::separateToExpression(string &str, string &to_str, const EvaluationOptions &eo, bool keep_modifiers) const {
+bool Calculator::separateToExpression(string &str, string &to_str, const EvaluationOptions &eo, bool keep_modifiers, bool allow_empty_from) const {
 	to_str = "";
 	size_t i = 0;
 	if(eo.parse_options.units_enabled && (i = str.find(_(" to "))) != string::npos) {
 		size_t l = strlen(_(" to "));
 		to_str = str.substr(i + l, str.length() - i - l);
-		
 	} else if(eo.parse_options.units_enabled && (i = str.find(" to ")) != string::npos) {
 		size_t l = strlen(" to ");
-		to_str = str.substr(i + l, str.length() - i - l);		
+		to_str = str.substr(i + l, str.length() - i - l);
+	} else if(allow_empty_from && str.find("to ") == 0) {
+		to_str = str.substr(3);
+		i = 0;
+	} else if(allow_empty_from && (str.find(_("to")) == 0 && str.length() > strlen(_("to")) && str[strlen(_("to"))] == ' ')) {
+		to_str = str.substr(strlen(_("to")));
+		i = 0;
 	} else {
 		return false;
 	}
-	if(to_str.rfind(SIGN_MINUS, 0) == 0) {
-		to_str.replace(0, strlen(SIGN_MINUS), MINUS);
-	}
-	if(!keep_modifiers && !to_str.empty() && (to_str[0] == '0' || to_str[0] == '?' || to_str[0] == '+' || to_str[0] == '-')) {
-		to_str = to_str.substr(1, str.length() - 1);
-		remove_blank_ends(to_str);
-	}
 	if(!to_str.empty()) {
+		remove_blank_ends(to_str);
+		if(to_str.rfind(SIGN_MINUS, 0) == 0) {
+			to_str.replace(0, strlen(SIGN_MINUS), MINUS);
+		}
+		if(!keep_modifiers && (to_str[0] == '0' || to_str[0] == '?' || to_str[0] == '+' || to_str[0] == '-')) {
+			to_str = to_str.substr(1, str.length() - 1);
+			remove_blank_ends(to_str);
+		}
 		str = str.substr(0, i);
 		return true;
 	}
@@ -2371,7 +2657,6 @@ MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, Mat
 	string str2;
 	if(make_to_division) separateToExpression(str, str2, eo, true);
 	Unit *u = NULL;
-
 	if(to_struct) {
 		if(str2.empty()) {
 			if(to_struct->isSymbolic() && !to_struct->symbol().empty()) {
@@ -2398,13 +2683,16 @@ MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, Mat
 	mstruct.eval(eo);
 
 	current_stage = MESSAGE_STAGE_UNSET;
-	if(aborted() || !mstruct.containsType(STRUCT_UNIT, true)) return mstruct;
-	if(u) {
+	if(aborted()) return mstruct;
+	bool b_units = mstruct.containsType(STRUCT_UNIT, true);
+	if(b_units && u) {
 		current_stage = MESSAGE_STAGE_CONVERSION;
 		if(to_struct) to_struct->set(u);
 		mstruct.set(convert(mstruct, u, eo, false, false));
 	} else if(!str2.empty()) {
 		return convert(mstruct, str2, eo);
+	} else if(!b_units) {
+		return mstruct;
 	} else {
 		current_stage = MESSAGE_STAGE_CONVERSION;
 		switch(eo.auto_post_conversion) {
@@ -2465,7 +2753,7 @@ MathStructure Calculator::calculate(const MathStructure &mstruct_to_calculate, c
 string Calculator::print(const MathStructure &mstruct, int msecs, const PrintOptions &po) {
 	startControl(msecs);
 	MathStructure mstruct2(mstruct);
-	mstruct2.format();
+	mstruct2.format(po);
 	string print_result = mstruct2.print(po);
 	stopControl();
 	return print_result;
@@ -2643,6 +2931,26 @@ MathStructure Calculator::convert(string str, Unit *from_unit, Unit *to_unit, co
 	mstruct.eval(eo);
 	return mstruct;
 }
+MathStructure Calculator::convert(const MathStructure &mstruct, KnownVariable *to_var, const EvaluationOptions &eo) {
+	if(mstruct.contains(to_var, true) > 0) return mstruct;
+	if(!to_var->unit().empty() && to_var->isExpression()) {
+		CompositeUnit cu("", "temporary_composite_convert", "", to_var->unit());
+		if(cu.countUnits() > 0) {
+			AliasUnit au("", "temporary_alias_convert", "", "", "", &cu, to_var->expression());
+			au.setUncertainty(to_var->uncertainty());
+			au.setApproximate(to_var->isApproximate());
+			au.setPrecision(to_var->precision());
+			MathStructure mstruct_new(convert(mstruct, &au, eo, false, false));
+			mstruct_new.replace(&au, to_var);
+			return mstruct_new;
+		}
+	}
+	MathStructure mstruct_new(mstruct);
+	mstruct_new /= to_var->get();
+	mstruct_new.eval(eo);
+	mstruct_new *= to_var;
+	return mstruct_new;
+}
 MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, const EvaluationOptions &eo, bool always_convert, bool convert_to_mixed_units) {
 	if(!mstruct.containsType(STRUCT_UNIT, true)) return mstruct;
 	CompositeUnit *cu = NULL;
@@ -2655,7 +2963,7 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 	if(mstruct_new.isAddition()) {
 		if(mstruct_new.size() > 100 && aborted()) return mstruct;
 		mstruct_new.factorizeUnits();
-		if(!b_changed && mstruct_new != mstruct) b_changed = true;
+		if(!b_changed && !mstruct_new.equals(mstruct, true, true)) b_changed = true;
 	}
 
 	if(!mstruct_new.isPower() && !mstruct_new.isUnit() && !mstruct_new.isMultiplication()) {
@@ -2664,7 +2972,7 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 				if(mstruct_new.size() > 100 && aborted()) return mstruct;
 				if(!mstruct_new.isFunction() || !mstruct_new.function()->getArgumentDefinition(i + 1) || mstruct_new.function()->getArgumentDefinition(i + 1)->type() != ARGUMENT_TYPE_ANGLE) { 
 					mstruct_new[i] = convert(mstruct_new[i], to_unit, eo, false, convert_to_mixed_units);
-					if(!b_changed && mstruct_new != mstruct[i]) b_changed = true;
+					if(!b_changed && !mstruct_new.equals(mstruct[i], true, true)) b_changed = true;
 				}
 			}
 			if(b_changed) {
@@ -2760,7 +3068,7 @@ MathStructure Calculator::convertToBaseUnits(const MathStructure &mstruct, const
 	if(!mstruct.containsType(STRUCT_UNIT, true)) return mstruct;
 	MathStructure mstruct_new(mstruct);
 	mstruct_new.convertToBaseUnits(true, NULL, true, eo);
-	if(mstruct_new != mstruct) {
+	if(!mstruct_new.equals(mstruct, true, true)) {
 		EvaluationOptions eo2 = eo;
 		eo2.keep_prefixes = false;
 		eo2.isolate_x = false;
@@ -2852,14 +3160,23 @@ Unit *Calculator::findMatchingUnit(const MathStructure &mstruct) {
 	}
 	return NULL;
 }
-Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div) {
+Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_local_currency) {
 	switch(u->subtype()) {
 		case SUBTYPE_BASE_UNIT: {
+			if(convert_to_local_currency && u->isCurrency()) {
+				Unit *u_local_currency = CALCULATOR->getLocalCurrency();
+				if(u_local_currency) return u_local_currency;
+			}
 			return u;
 		}
 		case SUBTYPE_ALIAS_UNIT: {
 			AliasUnit *au = (AliasUnit*) u;
 			if(au->baseExponent() == 1 && au->baseUnit()->subtype() == SUBTYPE_BASE_UNIT) {
+				if(au->isCurrency()) {
+					if(!convert_to_local_currency) return u;
+					Unit *u_local_currency = CALCULATOR->getLocalCurrency();
+					if(u_local_currency) return u_local_currency;
+				}
 				return (Unit*) au->baseUnit();
 			} else if(au->isSIUnit() && (au->firstBaseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT || au->firstBaseExponent() != 1)) {
 				return u;
@@ -3030,7 +3347,7 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div) {
 				if(points >= max_points && !minus) break;
 			}
 			if(!best_u) return u;
-			best_u = getBestUnit(best_u);
+			best_u = getBestUnit(best_u, false, convert_to_local_currency);
 			if(points > 1 && points < max_points - 1) {
 				CompositeUnit *cu_new = new CompositeUnit("", "temporary_composite_convert");
 				bool return_cu = minus;
@@ -3050,12 +3367,18 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div) {
 						b = true;
 						cu2->add(cu_mstruct.getChild(i)->unit());
 					} else if(cu_mstruct.getChild(i)->isPower() && cu_mstruct.getChild(i)->base()->isUnit() && cu_mstruct.getChild(i)->exponent()->isNumber() && cu_mstruct.getChild(i)->exponent()->number().isInteger()) {
+						if(cu_mstruct.getChild(i)->exponent()->number().isGreaterThan(10) || cu_mstruct.getChild(i)->exponent()->number().isLessThan(-10)) {
+							if(aborted() || cu_mstruct.getChild(i)->exponent()->number().isGreaterThan(1000) || cu_mstruct.getChild(i)->exponent()->number().isLessThan(-1000)) {
+								b = false;
+								break;
+							}
+						}
 						b = true;
 						cu2->add(cu_mstruct.getChild(i)->base()->unit(), cu_mstruct.getChild(i)->exponent()->number().intValue());
 					}
 				}
 				if(b) {
-					Unit *u2 = getBestUnit(cu2, true);
+					Unit *u2 = getBestUnit(cu2, true, convert_to_local_currency);
 					b = false;
 					if(u2->subtype() == SUBTYPE_COMPOSITE_UNIT) {
 						for(size_t i3 = 1; i3 <= ((CompositeUnit*) u2)->countUnits(); i3++) {
@@ -3127,7 +3450,7 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 				} else {
 					CompositeUnit *cu = new CompositeUnit("", "temporary_composite_convert_to_best_unit");
 					cu->add(mstruct_new.base()->unit(), mstruct_new.exponent()->number().intValue());
-					Unit *u = getBestUnit(cu);
+					Unit *u = getBestUnit(cu, false, eo.local_currency_conversion);
 					if(u == cu) {
 						delete cu;
 						return mstruct_new;
@@ -3139,10 +3462,12 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 				int new_points = 0;
 				bool new_is_si_units = true;
 				bool new_minus = true;
+				bool is_currency = false;
 				if(mstruct_new.isMultiplication()) {
 					for(size_t i = 1; i <= mstruct_new.countChildren(); i++) {
 						if(mstruct_new.getChild(i)->isUnit()) {
 							if(new_is_si_units && !mstruct_new.getChild(i)->unit()->isSIUnit()) new_is_si_units = false;
+							is_currency = mstruct_new.getChild(i)->unit()->isCurrency();
 							new_points++;
 							new_minus = false;
 						} else if(mstruct_new.getChild(i)->isPower() && mstruct_new.getChild(i)->base()->isUnit() && mstruct_new.getChild(i)->exponent()->isNumber() && mstruct_new.getChild(i)->exponent()->number().isRational()) {
@@ -3150,12 +3475,14 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 							if(mstruct_new.getChild(i)->exponent()->isInteger()) points = mstruct_new.getChild(i)->exponent()->number().intValue();
 							else points = mstruct_new.getChild(i)->exponent()->number().numerator().intValue() + mstruct_new.getChild(i)->exponent()->number().denominator().intValue() * (mstruct_new.getChild(i)->exponent()->number().isNegative() ? -1 : 1);
 							if(new_is_si_units && !mstruct_new.getChild(i)->base()->unit()->isSIUnit()) new_is_si_units = false;
+							is_currency = mstruct_new.getChild(i)->base()->unit()->isCurrency();
 							if(points < 0) {
 								new_points -= points;
 							} else {
 								new_points += points;
 								new_minus = false;
 							}
+
 						}
 					}
 				} else if(mstruct_new.isPower() && mstruct_new.base()->isUnit() && mstruct_new.exponent()->isNumber() && mstruct_new.exponent()->number().isRational()) {
@@ -3163,6 +3490,7 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 					if(mstruct_new.exponent()->isInteger()) points = mstruct_new.exponent()->number().intValue();
 					else points = mstruct_new.exponent()->number().numerator().intValue() + mstruct_new.exponent()->number().denominator().intValue() * (mstruct_new.exponent()->number().isNegative() ? -1 : 1);
 					if(new_is_si_units && !mstruct_new.base()->unit()->isSIUnit()) new_is_si_units = false;
+					is_currency = mstruct_new.base()->unit()->isCurrency();
 					if(points < 0) {
 						new_points = -points;
 					} else {
@@ -3171,11 +3499,12 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 					}
 				} else if(mstruct_new.isUnit()) {
 					if(!mstruct_new.unit()->isSIUnit()) new_is_si_units = false;
+					is_currency = mstruct_new.unit()->isCurrency();
 					new_points = 1;
 					new_minus = false;
 				}
 				if(new_points == 0) return mstruct;
-				if((new_points > old_points && (!convert_to_si_units || is_si_units)) || (new_points == old_points && (new_minus || !old_minus) && (!convert_to_si_units || (is_si_units && !new_is_si_units)))) return mstruct;
+				if((new_points > old_points && (!convert_to_si_units || is_si_units || !new_is_si_units)) || (new_points == old_points && (new_minus || !old_minus) && (!is_currency || !eo.local_currency_conversion) && (!convert_to_si_units || !new_is_si_units))) return mstruct;
 				return mstruct_new;
 			}
 		}
@@ -3197,7 +3526,7 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 			for(size_t i = 0; i < mstruct_new.size(); i++) {
 				if(mstruct_new.size() > 100 && aborted()) return mstruct;
 				mstruct_new[i] = convertToBestUnit(mstruct_new[i], eo, convert_to_si_units);
-				if(!b && mstruct_new[i] != mstruct[i]) b = true;
+				if(!b && !mstruct_new[i].equals(mstruct[i], true, true)) b = true;
 			}
 			if(b) {
 				mstruct_new.childrenUpdated();
@@ -3206,9 +3535,9 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 			return mstruct_new;
 		}
 		case STRUCT_UNIT: {
-			if(!convert_to_si_units || mstruct.unit()->isSIUnit()) return mstruct;
-			Unit *u = getBestUnit(mstruct.unit());
-			if(u != mstruct.unit()) {
+			if((!mstruct.unit()->isCurrency() || !eo.local_currency_conversion) && (!convert_to_si_units || mstruct.unit()->isSIUnit())) return mstruct;
+			Unit *u = getBestUnit(mstruct.unit(), false, eo.local_currency_conversion);
+			if(u != mstruct.unit() && (u->isSIUnit() || (u->isCurrency() && eo.local_currency_conversion))) {
 				MathStructure mstruct_new = convert(mstruct, u, eo, true);
 				if(!u->isRegistered()) delete u;
 				return mstruct_new;
@@ -3220,12 +3549,14 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 			int old_points = 0;
 			bool old_minus = true;
 			bool is_si_units = true;
+			bool is_currency = false;
 			bool child_updated = false;
 			MathStructure mstruct_old(mstruct);
 			for(size_t i = 1; i <= mstruct_old.countChildren(); i++) {
 				if(mstruct_old.countChildren() > 100 && aborted()) return mstruct_old;
 				if(mstruct_old.getChild(i)->isUnit()) {
 					if(is_si_units && !mstruct_old.getChild(i)->unit()->isSIUnit()) is_si_units = false;
+					is_currency = mstruct_old.getChild(i)->unit()->isCurrency();
 					old_points++;
 					old_minus = false;
 				} else if(mstruct_old.getChild(i)->isPower() && mstruct_old.getChild(i)->base()->isUnit() && mstruct_old.getChild(i)->exponent()->isNumber() && mstruct_old.getChild(i)->exponent()->number().isRational()) {
@@ -3233,6 +3564,7 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 					if(mstruct_old.getChild(i)->exponent()->number().isInteger()) points = mstruct_old.getChild(i)->exponent()->number().intValue();
 					else points = mstruct_old.getChild(i)->exponent()->number().numerator().intValue() + mstruct_old.getChild(i)->exponent()->number().denominator().intValue() * (mstruct_old.getChild(i)->exponent()->number().isNegative() ? -1 : 1);;
 					if(is_si_units && !mstruct_old.getChild(i)->base()->unit()->isSIUnit()) is_si_units = false;
+						is_currency = mstruct_old.getChild(i)->base()->unit()->isCurrency();
 					if(points < 0) {
 						old_points -= points;
 					} else {
@@ -3242,11 +3574,11 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 				} else if(mstruct_old.getChild(i)->size() > 0) {
 					mstruct_old[i - 1] = convertToBestUnit(mstruct_old[i - 1], eo, convert_to_si_units);
 					mstruct_old.childUpdated(i);
-					child_updated = true;
+					if(!mstruct_old[i - 1].equals(mstruct[i - 1], true, true)) child_updated = true;
 				}
 			}
 			if(child_updated) mstruct_old.eval(eo2);
-			if((!convert_to_si_units || is_si_units) && old_points <= 1 && !old_minus) {
+			if((!is_currency || !eo.local_currency_conversion) && (!convert_to_si_units || is_si_units) && old_points <= 1 && !old_minus) {
 				return mstruct_old;
 			}
 			MathStructure mstruct_new(convertToBaseUnits(mstruct_old, eo));	
@@ -3265,14 +3597,15 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 						b = true;
 						cu->add(mstruct_new.getChild(i)->base()->unit(), mstruct_new.getChild(i)->exponent()->number().intValue());
 					} else if(mstruct_new.getChild(i)->size() > 0) {
+						MathStructure m_i_old(mstruct_new[i - 1]);
 						mstruct_new[i - 1] = convertToBestUnit(mstruct_new[i - 1], eo, convert_to_si_units);
 						mstruct_new.childUpdated(i);
-						child_updated = true;
+						if(!mstruct_new[i - 1].equals(m_i_old, true, true)) child_updated = true;
 					}
 				}
 				bool is_converted = false;
 				if(b) {
-					Unit *u = getBestUnit(cu);
+					Unit *u = getBestUnit(cu, false, eo.local_currency_conversion);
 					if(u != cu) {
 						mstruct_new = convert(mstruct_new, u, eo, true);
 						if(!u->isRegistered()) delete u;
@@ -3289,11 +3622,13 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 			int new_points = 0;
 			bool new_minus = true;
 			bool new_is_si_units = true;
+			bool new_is_currency = false;
 			if(mstruct_new.isMultiplication()) {
 				for(size_t i = 1; i <= mstruct_new.countChildren(); i++) {
 					if(mstruct_new.countChildren() > 100 && aborted()) return mstruct_old;
 					if(mstruct_new.getChild(i)->isUnit()) {
 						if(new_is_si_units && !mstruct_new.getChild(i)->unit()->isSIUnit()) new_is_si_units = false;
+						new_is_currency = mstruct_new.getChild(i)->unit()->isCurrency();
 						new_points++;
 						new_minus = false;
 					} else if(mstruct_new.getChild(i)->isPower() && mstruct_new.getChild(i)->base()->isUnit() && mstruct_new.getChild(i)->exponent()->isNumber() && mstruct_new.getChild(i)->exponent()->number().isRational()) {
@@ -3301,6 +3636,7 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 						if(mstruct_new.getChild(i)->exponent()->number().isInteger()) points = mstruct_new.getChild(i)->exponent()->number().intValue();
 						else points = mstruct_new.getChild(i)->exponent()->number().numerator().intValue() + mstruct_new.getChild(i)->exponent()->number().denominator().intValue() * (mstruct_new.getChild(i)->exponent()->number().isNegative() ? -1 : 1);
 						if(new_is_si_units && !mstruct_new.getChild(i)->base()->unit()->isSIUnit()) new_is_si_units = false;
+						new_is_currency = mstruct_new.getChild(i)->base()->unit()->isCurrency();
 						if(points < 0) {
 							new_points -= points;
 						} else {
@@ -3314,6 +3650,7 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 				if(mstruct_new.exponent()->number().isInteger()) points = mstruct_new.exponent()->number().intValue();
 				else points = mstruct_new.exponent()->number().numerator().intValue() + mstruct_new.exponent()->number().denominator().intValue() * (mstruct_new.exponent()->number().isNegative() ? -1 : 1);
 				if(new_is_si_units && !mstruct_new.base()->unit()->isSIUnit()) new_is_si_units = false;
+				new_is_currency = mstruct_new.base()->unit()->isCurrency();
 				if(points < 0) {
 					new_points = -points;
 				} else {
@@ -3322,11 +3659,12 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 				}
 			} else if(mstruct_new.isUnit()) {
 				if(!mstruct_new.unit()->isSIUnit()) new_is_si_units = false;
+				new_is_currency = mstruct_new.unit()->isCurrency();
 				new_points = 1;
 				new_minus = false;
 			}
 			if(new_points == 0) return mstruct_old;
-			if((new_points > old_points && (!convert_to_si_units || is_si_units)) || (new_points == old_points && (new_minus || !old_minus) && (!convert_to_si_units || (is_si_units && !new_is_si_units)))) return mstruct_old;
+			if((new_points > old_points && (!convert_to_si_units || is_si_units || !new_is_si_units)) || (new_points == old_points && (new_minus || !old_minus) && (!new_is_currency || !eo.local_currency_conversion) && (!convert_to_si_units || !new_is_si_units))) return mstruct_old;
 			return mstruct_new;
 		}
 		default: {}
@@ -3357,34 +3695,38 @@ MathStructure Calculator::convert(const MathStructure &mstruct_to_convert, strin
 	MathStructure mstruct;
 	bool b = false;
 	Unit *u = getUnit(str2);
+	Variable *v = NULL;
+	if(!u) v = getVariable(str2);
+	if(!u && !v) {
+		for(size_t i = 0; i < signs.size(); i++) {
+			if(str2 == signs[i]) {
+				u = getUnit(real_signs[i]);
+				if(!u) v = getVariable(real_signs[i]);
+				break;
+			}
+		}
+	}
+	if(v && (!v->isKnown() || ((KnownVariable*) v)->unit().empty())) v = NULL;
 	if(u) {
 		if(to_struct) to_struct->set(u);
 		mstruct.set(convert(mstruct_to_convert, u, eo2, false, false));
 		b = true;
+	} else if(v) {
+		if(to_struct) to_struct->set(v);
+		mstruct.set(convert(mstruct_to_convert, (KnownVariable*) v, eo2));
+		b = true;
 	} else {
-		for(size_t i = 0; i < signs.size(); i++) {
-			if(str2 == signs[i]) {
-				u = getUnit(real_signs[i]);
-				break;
-			}
-		}
-		if(u) {
-			if(to_struct) to_struct->set(u);
-			mstruct.set(convert(mstruct_to_convert, u, eo2, false, false));
+		current_stage = MESSAGE_STAGE_CONVERSION_PARSING;
+		CompositeUnit cu("", "temporary_composite_convert", "", str2);
+		current_stage = MESSAGE_STAGE_CONVERSION;
+		if(to_struct) to_struct->set(cu.generateMathStructure());
+		if(cu.countUnits() > 0) {
+			mstruct.set(convert(mstruct_to_convert, &cu, eo2, false, false));
 			b = true;
-		} else {
-			current_stage = MESSAGE_STAGE_CONVERSION_PARSING;
-			CompositeUnit cu("", "temporary_composite_convert", "", str2);
-			current_stage = MESSAGE_STAGE_CONVERSION;
-			if(to_struct) to_struct->set(cu.generateMathStructure());
-			if(cu.countUnits() > 0) {
-				mstruct.set(convert(mstruct_to_convert, &cu, eo2, false, false));
-				b = true;
-			}
 		}
 	}
 	if(!b) return mstruct_to_convert;
-	if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo2));
+	if(!v && eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo2));
 	current_stage = MESSAGE_STAGE_UNSET;
 	return mstruct;
 }
@@ -3496,6 +3838,17 @@ Unit* Calculator::getActiveUnit(string name_) {
 	for(size_t i = 0; i < units.size(); i++) {
 		if(units[i]->isActive() && units[i]->subtype() != SUBTYPE_COMPOSITE_UNIT && units[i]->hasName(name_)) {
 			return units[i];
+		}
+	}
+	return NULL;
+}
+Unit* Calculator::getLocalCurrency() {
+	struct lconv *lc = localeconv();
+	if(lc) {
+		string local_currency = lc->int_curr_symbol;
+		remove_blank_ends(local_currency);
+		if(!local_currency.empty()) {
+			return CALCULATOR->getActiveUnit(local_currency);
 		}
 	}
 	return NULL;
@@ -4137,14 +4490,79 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 
 	const string *name = NULL;
 	string stmp, stmp2;
+	
+	bool b_prime_quote = true;
+	
+	size_t i_degree = str.find(SIGN_DEGREE);
+	if(i_degree != string::npos && i_degree < str.length() - strlen(SIGN_DEGREE) && is_not_in(NOT_IN_NAMES NUMBER_ELEMENTS, str[i_degree + strlen(SIGN_DEGREE)])) i_degree = string::npos;
+	
+	if(i_degree == string::npos) {
+		size_t i_quote = str.find('\'', 0);
+		size_t i_dquote = str.find('\"', 0);
+		if(i_quote == 0 || i_dquote == 0) {
+			b_prime_quote = false;
+		} else if((i_quote != string::npos && i_quote < str.length() - 1 && str.find('\'', i_quote + 1) != string::npos) || (i_quote != string::npos && i_dquote == i_quote + 1) || (i_dquote != string::npos && i_dquote < str.length() - 1 && str.find('\"', i_dquote + 1) != string::npos)) {
+			b_prime_quote = false;
+			while(i_dquote != string::npos) {
+				i_quote = str.rfind('\'', i_dquote - 1);
+				if(i_quote != string::npos) {
+					size_t i_prev = str.find_last_not_of(SPACES, i_quote - 1);
+					if(i_prev != string::npos && is_in(NUMBER_ELEMENTS, str[i_prev])) {
+						if(is_in(NUMBER_ELEMENTS, str[str.find_first_not_of(SPACES, i_quote + 1)]) && str.find_first_not_of(SPACES NUMBER_ELEMENTS, i_quote + 1) == i_dquote) {
+							if(i_prev == 0) {
+								b_prime_quote = true;
+								break;
+							} else {
+								i_prev = str.find_last_not_of(NUMBER_ELEMENTS, i_prev - 1);
+								if(i_prev == string::npos || (str[i_prev] != '\"' && str[i_prev] != '\'')) {
+									b_prime_quote = true;
+									break;
+								}
+							}
+						}
+					}
+				}
+				i_dquote = str.find('\"', i_dquote + 2);
+			}
+		}
+	}
+	if(b_prime_quote) {
+		gsub("\'", "′", str);
+		gsub("\"", "″", str);
+	}
 
 	parseSigns(str, true);
 
+	for(size_t str_index = 0; str_index < str.length(); str_index++) {
+		if(str[str_index] == '\"' || str[str_index] == '\'') {
+			if(str_index == str.length() - 1) {
+				str.erase(str_index, 1);
+			} else {
+				size_t i = str.find(str[str_index], str_index + 1);
+				size_t name_length;
+				if(i == string::npos) {
+					i = str.length();
+					name_length = i - str_index;
+				} else {
+					name_length = i - str_index + 1;
+				}
+				stmp = LEFT_PARENTHESIS ID_WRAP_LEFT;
+				MathStructure *mstruct = new MathStructure(str.substr(str_index + 1, i - str_index - 1));
+				stmp += i2s(addId(mstruct));
+				stmp += ID_WRAP_RIGHT RIGHT_PARENTHESIS;
+				str.replace(str_index, name_length, stmp);
+				str_index += stmp.length() - 1;
+			}
+		}
+	}
+	
+	
 	if(po.brackets_as_parentheses) {
 		gsub(LEFT_VECTOR_WRAP, LEFT_PARENTHESIS, str);
 		gsub(RIGHT_VECTOR_WRAP, RIGHT_PARENTHESIS, str);
 	}
-
+	
+	
 	size_t isave = 0;
 	if((isave = str.find(":=", 1)) != string::npos) {
 		string name = str.substr(0, isave);
@@ -4193,6 +4611,131 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 		}
 	}
 
+	bool b_degree = (i_degree != string::npos);
+	size_t i_quote = str.find("′");
+	size_t i_dquote = str.find("″");
+	while(i_quote != string::npos || i_dquote != string::npos) {
+		size_t i_op = 0;
+		if(i_quote == string::npos || i_dquote < i_quote) {
+			bool b = false;
+			if(b_degree) {
+				i_degree = str.rfind(SIGN_DEGREE, i_dquote - 1);
+				if(i_degree != string::npos && i_degree > 0 && i_degree < i_dquote) {
+					size_t i_op = str.find_first_not_of(SPACE, i_degree + strlen(SIGN_DEGREE));
+					if(i_op != string::npos) {
+						i_op = str.find_first_not_of(SPACE, i_degree + strlen(SIGN_DEGREE));
+						if(is_in(NUMBER_ELEMENTS, str[i_op])) i_op = str.find_first_not_of(NUMBER_ELEMENTS SPACE, i_op);
+						else i_op = 0;
+					}
+					size_t i_prev = string::npos;
+					if(i_op == i_dquote) {
+						i_prev = str.find_last_not_of(SPACE, i_degree - 1);
+						if(i_prev != string::npos) {
+							if(is_in(NUMBER_ELEMENTS, str[i_prev])) {
+								i_prev = str.find_last_not_of(NUMBER_ELEMENTS SPACE, i_prev);
+								if(i_prev == string::npos) i_prev = 0;
+								else i_prev++;
+							} else {
+								i_prev = string::npos;
+							}
+						}
+					}
+					if(i_prev != string::npos) {
+						str.insert(i_prev, LEFT_PARENTHESIS);
+						i_degree++;
+						i_op++;
+						str.replace(i_op, strlen("″"), "arcsec" RIGHT_PARENTHESIS);
+						str.replace(i_degree, strlen(SIGN_DEGREE), "deg" PLUS);
+						b = true;
+					}
+				}
+			}
+			if(!b) {
+				if(str.length() >= i_dquote + strlen("″") && is_in(NUMBERS, str[i_dquote + strlen("″")])) str.insert(i_dquote + strlen("″"), " ");
+				str.replace(i_dquote, strlen("″"), b_degree ? "arcsec" : "in");
+				i_op = i_dquote;
+			}
+		} else {
+			bool b = false;
+			if(b_degree) {
+				i_degree = str.rfind(SIGN_DEGREE, i_quote - 1);
+				if(i_degree != string::npos && i_degree > 0 && i_degree < i_quote) {
+					size_t i_op = str.find_first_not_of(SPACE, i_degree + strlen(SIGN_DEGREE));
+					if(i_op != string::npos) {
+						i_op = str.find_first_not_of(SPACE, i_degree + strlen(SIGN_DEGREE));
+						if(is_in(NUMBER_ELEMENTS, str[i_op])) i_op = str.find_first_not_of(NUMBER_ELEMENTS SPACE, i_op);
+						else i_op = 0;
+					}
+					size_t i_prev = string::npos;
+					if(i_op == i_quote) {
+						i_prev = str.find_last_not_of(SPACE, i_degree - 1);
+						if(i_prev != string::npos) {
+							if(is_in(NUMBER_ELEMENTS, str[i_prev])) {
+								i_prev = str.find_last_not_of(NUMBER_ELEMENTS SPACE, i_prev);
+								if(i_prev == string::npos) i_prev = 0;
+								else i_prev++;
+							} else {
+								i_prev = string::npos;
+							}
+						}
+					}
+					if(i_prev != string::npos) {
+						str.insert(i_prev, LEFT_PARENTHESIS);
+						i_degree++;
+						i_quote++;
+						i_op++;
+						if(i_dquote != string::npos) {
+							i_dquote++;
+							size_t i_op2 = str.find_first_not_of(SPACE, i_quote + strlen("′"));
+							if(i_op2 != string::npos && is_in(NUMBER_ELEMENTS, str[i_op2])) i_op2 = str.find_first_not_of(NUMBER_ELEMENTS SPACE, i_op2);
+							else i_op2 = 0;
+							if(i_op2 == i_dquote) {
+								str.replace(i_dquote, strlen("″"), "arcsec" RIGHT_PARENTHESIS);
+								i_op = i_op2;
+							}
+						}
+						str.replace(i_quote, strlen("′"), i_op == i_quote ? "arcmin" RIGHT_PARENTHESIS : "arcmin" PLUS);
+						str.replace(i_degree, strlen(SIGN_DEGREE), "deg" PLUS);
+						b = true;
+					}
+				}
+			}
+			if(!b) {
+				i_op = str.find_first_not_of(SPACE, i_quote + strlen("′"));
+				if(i_op != string::npos && is_in(NUMBER_ELEMENTS, str[i_op])) i_op = str.find_first_not_of(NUMBER_ELEMENTS SPACE, i_op);
+				else i_op = 0;
+				size_t i_prev = string::npos;
+				if(((!b_degree && i_op == string::npos) || i_op == i_dquote) && i_quote != 0) {
+					i_prev = str.find_last_not_of(SPACE, i_quote - 1);
+					if(i_prev != string::npos) {
+						if(is_in(NUMBER_ELEMENTS, str[i_prev])) {
+							i_prev = str.find_last_not_of(NUMBER_ELEMENTS SPACE, i_prev);
+							if(i_prev == string::npos) i_prev = 0;
+							else i_prev++;
+						} else {
+							i_prev = string::npos;
+						}
+					}
+				}
+				if(i_prev != string::npos) {
+					str.insert(i_prev, LEFT_PARENTHESIS);
+					i_quote++;
+					if(i_op == string::npos) str += b_degree ? "arcsec" RIGHT_PARENTHESIS : "in" RIGHT_PARENTHESIS;
+					else str.replace(i_op + 1, strlen("″"), b_degree ? "arcsec" RIGHT_PARENTHESIS : "in" RIGHT_PARENTHESIS);
+					str.replace(i_quote, strlen("′"), b_degree ? "arcmin" PLUS : "ft" PLUS);
+					if(i_op == string::npos) break;
+					i_op++;
+				} else {
+					if(str.length() >= i_quote + strlen("′") && is_in(NUMBERS, str[i_quote + strlen("′")])) str.insert(i_quote + strlen("′"), " ");
+					str.replace(i_quote, strlen("′"), b_degree ? "arcmin" : "ft");
+					i_op = i_quote;
+				}
+			}
+		}
+		if(i_dquote != string::npos) i_dquote = str.find("″", i_op);
+		if(i_quote != string::npos) i_quote = str.find("′", i_op);
+	}
+
 	for(size_t str_index = 0; str_index < str.length(); str_index++) {
 		if(str[str_index] == LEFT_VECTOR_WRAP_CH) {
 			int i4 = 1;
@@ -4225,25 +4768,6 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					break;
 				}
 			}	
-		} else if(str[str_index] == '\"' || str[str_index] == '\'') {
-			if(str_index == str.length() - 1) {
-				str.erase(str_index, 1);
-			} else {
-				size_t i = str.find(str[str_index], str_index + 1);
-				size_t name_length;
-				if(i == string::npos) {
-					i = str.length();
-					name_length = i - str_index;
-				} else {
-					name_length = i - str_index + 1;
-				}
-				stmp = LEFT_PARENTHESIS ID_WRAP_LEFT;
-				MathStructure *mstruct = new MathStructure(str.substr(str_index + 1, i - str_index - 1));
-				stmp += i2s(addId(mstruct));
-				stmp += ID_WRAP_RIGHT RIGHT_PARENTHESIS;
-				str.replace(str_index, name_length, stmp);
-				str_index += stmp.length() - 1;
-			}
 		} else if(((po.base >= 2 && po.base <= 10) || po.base == BASE_DUODECIMAL) && str[str_index] == '!' && po.functions_enabled) {
 			if(str_index > 0 && (str.length() - str_index == 1 || str[str_index + 1] != EQUALS_CH)) {
 				stmp = "";
@@ -4819,17 +5343,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 						}
 						case 'u': {
 							replace_text_by_unit_place:
-							/*if(str.length() > str_index + name_length && is_in(NUMBERS, str[str_index + name_length]) && (str.length() == str_index + name_length + 1 || is_not_in(NUMBERS, str[str_index + name_length + 1])) && !((Unit*) object)->isCurrency()) {
-								if(str_index + name_length + 1 == str.length()) {
-									str.insert(str_index + name_length, 1, POWER_CH);
-								} else {
-									str.insert(str_index + name_length + 1, 1, RIGHT_PARENTHESIS_CH);
-									str.insert(str_index + name_length, 1, POWER_CH);
-									str.insert(str_index, 1, LEFT_PARENTHESIS_CH);
-									str_index++;
-								}
-							}*/
-							if(str.length() > str_index + name_length && is_in(NUMBERS INTERNAL_NUMBER_CHARS, str[str_index + name_length]) && !((Unit*) object)->isCurrency()) {
+							if(str.length() > str_index + name_length && is_in("23", str[str_index + name_length]) && (str.length() == str_index + name_length + 1 || is_not_in(NUMBER_ELEMENTS, str[str_index + name_length + 1])) && *name != SIGN_DEGREE && !((Unit*) object)->isCurrency()) {
 								str.insert(str_index + name_length, 1, POWER_CH);
 							}
 							stmp = LEFT_PARENTHESIS ID_WRAP_LEFT;
@@ -5056,17 +5570,14 @@ bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOpti
 	mstruct->clear();
 	if(str.empty()) return false;
 	if(str.find_first_not_of(OPERATORS SPACE) == string::npos) {
-		if(disable_errors_ref > 0) {
-			stopped_messages_count[disable_errors_ref - 1]++;
-			stopped_warnings_count[disable_errors_ref - 1]++;
-		} else {
-			error(false, _("Misplaced operator(s) \"%s\" ignored"), str.c_str(), NULL);
-		}
+		error(false, _("Misplaced operator(s) \"%s\" ignored"), str.c_str(), NULL);
 		return false;
 	}
 	int minus_count = 0;
-	bool has_sign = false, had_non_sign = false;
+	bool has_sign = false, had_non_sign = false, b_dot = false, b_exp = false, after_sign_e = false;
+	int i_colon = 0;
 	size_t i = 0;
+
 	while(i < str.length()) {
 		if(!had_non_sign && str[i] == MINUS_CH) {
 			has_sign = true;
@@ -5077,18 +5588,39 @@ bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOpti
 			str.erase(i, 1);
 		} else if(str[i] == SPACE_CH) {
 			str.erase(i, 1);
+		} else if(!b_exp && (po.base <= 10 && po.base >= 2) && (str[i] == EXP_CH || str[i] == EXP2_CH)) {
+			b_exp = true;
+			had_non_sign = true;
+			after_sign_e = true;
+			i++;
+		} else if(after_sign_e && (str[i] == MINUS_CH || str[i] == PLUS_CH)) {
+			after_sign_e = false;
+			i++;
+		} else if(po.preserve_format && str[i] == DOT_CH) {
+			b_dot = true;
+			had_non_sign = true;
+			after_sign_e = false;
+			i++;
+		} else if(po.preserve_format && (!b_dot || i_colon > 0) && str[i] == ':') {
+			i_colon++;
+			had_non_sign = true;
+			after_sign_e = false;
+			i++;
 		} else if(str[i] == COMMA_CH && DOT_S == ".") {
 			str.erase(i, 1);
+			after_sign_e = false;
+			had_non_sign = true;
 		} else if(is_in(OPERATORS, str[i])) {
-			if(disable_errors_ref > 0) {
-				stopped_messages_count[disable_errors_ref - 1]++;
-				stopped_warnings_count[disable_errors_ref - 1]++;
-			} else {
-				error(false, _("Misplaced '%c' ignored"), str[i], NULL);
-			}
+			error(false, _("Misplaced '%c' ignored"), str[i], NULL);
 			str.erase(i, 1);
+		} else if(str[i] == '\b') {
+			b_exp = false;
+			had_non_sign = false;
+			after_sign_e = false;
+			i++;
 		} else {
 			had_non_sign = true;
+			after_sign_e = false;
 			i++;
 		}
 	}
@@ -5127,7 +5659,7 @@ bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOpti
 		return true;
 	}
 	size_t itmp;
-	if(((po.base >= 2 && po.base <= 10) || po.base == BASE_DUODECIMAL) && (itmp = str.find_first_not_of(po.base == BASE_DUODECIMAL ? NUMBER_ELEMENTS INTERNAL_NUMBER_CHARS MINUS DUODECIMAL_CHARS : NUMBER_ELEMENTS INTERNAL_NUMBER_CHARS MINUS, 0)) != string::npos) {
+	if(((po.base >= 2 && po.base <= 10) || po.base == BASE_DUODECIMAL) && (itmp = str.find_first_not_of(po.base == BASE_DUODECIMAL ? NUMBER_ELEMENTS INTERNAL_NUMBER_CHARS MINUS DUODECIMAL_CHARS : NUMBER_ELEMENTS INTERNAL_NUMBER_CHARS EXPS MINUS, 0)) != string::npos) {
 		if(itmp == 0) {
 			error(true, _("\"%s\" is not a valid variable/function/unit."), str.c_str(), NULL);
 			if(minus_count % 2 == 1 && !po.preserve_format) {
@@ -5153,7 +5685,19 @@ bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOpti
 	if(!po.preserve_format && minus_count % 2 == 1) {
 		nr.negate();
 	}
-	mstruct->set(nr);
+	if(i_colon && nr.isRational() && !nr.isInteger()) {
+		Number nr_num(nr.numerator()), nr_den(1, 1, 0);
+		while(i_colon) {
+			nr_den *= 60;
+			i_colon--;
+		}
+		nr_num *= nr_den;
+		nr_num /= nr.denominator();
+		mstruct->set(nr_num);
+		mstruct->transform(STRUCT_DIVISION, nr_den);
+	} else {
+		mstruct->set(nr);
+	}
 	if(po.preserve_format) {
 		while(minus_count > 0) {
 			mstruct->transform(STRUCT_NEGATE);
@@ -5236,6 +5780,14 @@ bool Calculator::parseAdd(string &str, MathStructure *mstruct, const ParseOption
 	return true;
 }
 
+MathStructure *get_out_of_negate(MathStructure &mstruct, int *i_neg) {
+	if(mstruct.isNegate() || (mstruct.isMultiplication() && mstruct.size() == 2 && mstruct[0].isMinusOne())) {
+		(*i_neg)++;
+		return get_out_of_negate(mstruct.last(), i_neg);
+	}
+	return &mstruct;
+}
+
 bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseOptions &po) {
 	string save_str = str;
 	mstruct->clear();
@@ -5306,11 +5858,63 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		} else {
 			parseOperators(mstruct2, str2, po);
 		}
+		mstruct2->setInParentheses(true);
 		str2 = ID_WRAP_LEFT;
 		str2 += i2s(addId(mstruct2));
 		str2 += ID_WRAP_RIGHT;
 		str.replace(i, i2 - i + 1, str2);
 		mstruct->clear();
+	}
+	bool b_abs_or = false, b_bit_or = false;
+	i = 0;
+	while((i = str.find('|', i)) != string::npos) {
+		if(i == 0 || i == str.length() - 1 || is_in(po.rpn ? OPERATORS : OPERATORS SPACE, str[i - 1])) {b_abs_or = true; break;}
+		if(str[i + 1] == '|') {
+			if(i == str.length() - 2) {b_abs_or = true; break;}
+			if(b_bit_or) {
+				b_abs_or = true;
+				break;
+			}
+			i += 2;
+		} else {
+			b_bit_or = true;
+			i++;
+		}
+	}
+	if(b_abs_or) {
+		while((i = str.find('|', 0)) != string::npos && i + 1 != str.length()) {
+			if(str[i + 1] == '|') {
+				size_t depth = 1;
+				i2 = i;
+				while((i2 = str.find("||", i2 + 2)) != string::npos) {
+					if(is_in(OPERATORS, str[i2 - 1])) depth++;
+					else depth--;
+					if(depth == 0) break;
+				}
+				if(i2 == string::npos) str2 = str.substr(i + 2);
+				else str2 = str.substr(i + 2, i2 - (i + 2));
+				str3 = ID_WRAP_LEFT;
+				str3 += i2s(parseAddId(f_magnitude, str2, po));
+				str3 += ID_WRAP_RIGHT;
+				if(i2 == string::npos) str.replace(i, str.length() - i, str3);
+				else str.replace(i, i2 - i + 2, str3);
+			} else {
+				size_t depth = 1;
+				i2 = i;
+				while((i2 = str.find('|', i2 + 1)) != string::npos) {
+					if(is_in(OPERATORS, str[i2 - 1])) depth++;
+					else depth--;
+					if(depth == 0) break;
+				}
+				if(i2 == string::npos) str2 = str.substr(i + 1);
+				else str2 = str.substr(i + 1, i2 - (i + 1));
+				str3 = ID_WRAP_LEFT;
+				str3 += i2s(parseAddId(f_abs, str2, po));
+				str3 += ID_WRAP_RIGHT;
+				if(i2 == string::npos) str.replace(i, str.length() - i, str3);
+				else str.replace(i, i2 - i + 1, str3);
+			}
+		}
 	}
 	if((i = str.find(LOGICAL_AND, 1)) != string::npos && i + 2 != str.length()) {
 		bool b = false, append = false;
@@ -5361,7 +5965,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		return true;
 	}
 	if((i = str.find_first_of(LESS GREATER EQUALS NOT, 0)) != string::npos) {
-		while((i != string::npos && (str[i] == LESS_CH && i + 1 < str.length() && str[i + 1] == LESS_CH)) || (str[i] == GREATER_CH && i + 1 < str.length() && str[i + 1] == GREATER_CH)) {
+		while(i != string::npos && ((str[i] == LESS_CH && i + 1 < str.length() && str[i + 1] == LESS_CH) || (str[i] == GREATER_CH && i + 1 < str.length() && str[i + 1] == GREATER_CH))) {
 			i = str.find_first_of(LESS GREATER NOT EQUALS, i + 2);
 		}
 	}
@@ -5376,7 +5980,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		}
 		MathOperation s = OPERATION_ADD;
 		while(!c) {
-			while((i != string::npos && (str[i] == LESS_CH && i + 1 < str.length() && str[i + 1] == LESS_CH)) || (str[i] == GREATER_CH && i + 1 < str.length() && str[i + 1] == GREATER_CH)) {
+			while(i != string::npos && ((str[i] == LESS_CH && i + 1 < str.length() && str[i + 1] == LESS_CH) || (str[i] == GREATER_CH && i + 1 < str.length() && str[i + 1] == GREATER_CH))) {
 				i = str.find_first_of(LESS GREATER NOT EQUALS, i + 2);
 				while(i != string::npos && str[i] == NOT_CH && str.length() > i + 1 && str[i + 1] == NOT_CH) {
 					i++;
@@ -5659,12 +6263,56 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 			if(is_not_in(MULTIPLICATION_2 OPERATORS EXPS, str[i - 1])) {
 				str2 = str.substr(0, i);
 				if(!c && b) {
+					bool b_add;
 					if(min) {
-						parseAdd(str2, mstruct, po, OPERATION_SUBTRACT, append);
+						b_add = parseAdd(str2, mstruct, po, OPERATION_SUBTRACT, append) && mstruct->isAddition();
 					} else {
-						parseAdd(str2, mstruct, po, OPERATION_ADD, append);
+						b_add = parseAdd(str2, mstruct, po, OPERATION_ADD, append) && mstruct->isAddition();
 					}
 					append = true;
+					if(b_add) {
+						int i_neg = 0;
+						MathStructure *mstruct_a = get_out_of_negate(mstruct->last(), &i_neg);
+						MathStructure *mstruct_b = mstruct_a;
+						if(mstruct_a->isMultiplication() && mstruct_a->size() >= 2) mstruct_b = &mstruct_a->last();
+						if(mstruct_b->isVariable() && (mstruct_b->variable() == v_percent || mstruct_b->variable() == v_permille || mstruct_b->variable() == v_permyriad)) {
+							Variable *v = mstruct_b->variable();
+							bool b_neg = (i_neg % 2 == 1);
+							while(i_neg > 0) {
+								mstruct->last().setToChild(mstruct->last().size());
+								i_neg--;
+							}
+							if(mstruct->last().isVariable()) {
+								mstruct->last().multiply(m_one);
+								mstruct->last().swapChildren(1, 2);
+							}
+							if(mstruct->last().size() > 2) {
+								mstruct->last().delChild(mstruct->last().size());
+								mstruct->last().multiply(v);
+							}
+							if(mstruct->last()[0].isNumber()) {
+								if(b_neg) mstruct->last()[0].number().negate();
+								if(v == CALCULATOR->v_percent) mstruct->last()[0].number().add(100);
+								else if(v == CALCULATOR->v_permille) mstruct->last()[0].number().add(1000);
+								else mstruct->last()[0].number().add(10000);
+							} else {
+								if(b_neg && po.preserve_format) mstruct->last()[0].transform(STRUCT_NEGATE);
+								else if(b_neg) mstruct->last()[0].negate();
+								if(v == CALCULATOR->v_percent) mstruct->last()[0] += Number(100, 1);
+								else if(v == CALCULATOR->v_permille) mstruct->last()[0] += Number(1000, 1);
+								else mstruct->last()[0] += Number(10000, 1);
+								mstruct->last()[0].swapChildren(1, 2);
+							}
+							if(mstruct->size() == 2) {
+								mstruct->setType(STRUCT_MULTIPLICATION);
+							} else {
+								MathStructure *mpercent = &mstruct->last();
+								mpercent->ref();
+								mstruct->delChild(mstruct->size());
+								mstruct->multiply_nocopy(mpercent);
+							}
+						}
+					}
 				} else {
 					if(!b && str2.empty()) {
 						c = true;
@@ -5694,10 +6342,54 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 				}
 				return b;
 			} else {
+				bool b_add;
 				if(min) {
-					parseAdd(str, mstruct, po, OPERATION_SUBTRACT, append);
+					b_add = parseAdd(str, mstruct, po, OPERATION_SUBTRACT, append) && mstruct->isAddition();
 				} else {
-					parseAdd(str, mstruct, po, OPERATION_ADD, append);
+					b_add = parseAdd(str, mstruct, po, OPERATION_ADD, append) && mstruct->isAddition();
+				}
+				if(b_add) {
+					int i_neg = 0;
+					MathStructure *mstruct_a = get_out_of_negate(mstruct->last(), &i_neg);
+					MathStructure *mstruct_b = mstruct_a;
+					if(mstruct_a->isMultiplication() && mstruct_a->size() >= 2) mstruct_b = &mstruct_a->last();
+					if(mstruct_b->isVariable() && (mstruct_b->variable() == v_percent || mstruct_b->variable() == v_permille || mstruct_b->variable() == v_permyriad)) {
+						Variable *v = mstruct_b->variable();
+						bool b_neg = (i_neg % 2 == 1);
+						while(i_neg > 0) {
+							mstruct->last().setToChild(mstruct->last().size());
+							i_neg--;
+						}
+						if(mstruct->last().isVariable()) {
+							mstruct->last().multiply(m_one);
+							mstruct->last().swapChildren(1, 2);
+						}
+						if(mstruct->last().size() > 2) {
+							mstruct->last().delChild(mstruct->last().size());
+							mstruct->last().multiply(v);
+						}
+						if(mstruct->last()[0].isNumber()) {
+							if(b_neg) mstruct->last()[0].number().negate();
+							if(v == CALCULATOR->v_percent) mstruct->last()[0].number().add(100);
+							else if(v == CALCULATOR->v_permille) mstruct->last()[0].number().add(1000);
+							else mstruct->last()[0].number().add(10000);
+						} else {
+							if(b_neg && po.preserve_format) mstruct->last()[0].transform(STRUCT_NEGATE);
+							else if(b_neg) mstruct->last()[0].negate();
+							if(v == CALCULATOR->v_percent) mstruct->last()[0] += Number(100, 1);
+							else if(v == CALCULATOR->v_permille) mstruct->last()[0] += Number(1000, 1);
+							else mstruct->last()[0] += Number(10000, 1);
+							mstruct->last()[0].swapChildren(1, 2);
+						}
+						if(mstruct->size() == 2) {
+							mstruct->setType(STRUCT_MULTIPLICATION);
+						} else {
+							MathStructure *mpercent = &mstruct->last();
+							mpercent->ref();
+							mstruct->delChild(mstruct->size());
+							mstruct->multiply_nocopy(mpercent);
+						}
+					}
 				}
 			}
 			return true;
@@ -5835,24 +6527,14 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		while(i != string::npos && i + 1 != str.length()) {
 			if(i < 1) {
 				if(i < 1 && str.find_first_not_of(MULTIPLICATION_2 OPERATORS EXPS) == string::npos) {
-					if(disable_errors_ref > 0) {
-						stopped_messages_count[disable_errors_ref - 1]++;
-						stopped_warnings_count[disable_errors_ref - 1]++;
-					} else {
-						error(false, _("Misplaced operator(s) \"%s\" ignored"), str.c_str(), NULL);
-					}
+					error(false, _("Misplaced operator(s) \"%s\" ignored"), str.c_str(), NULL);
 					return b;
 				}
 				i = 1;
 				while(i < str.length() && is_in(MULTIPLICATION DIVISION, str[i])) {
 					i++;
 				}
-				if(disable_errors_ref > 0) {
-					stopped_messages_count[disable_errors_ref - 1]++;
-					stopped_warnings_count[disable_errors_ref - 1]++;
-				} else {
-					error(false, _("Misplaced operator(s) \"%s\" ignored"), str.substr(0, i).c_str(), NULL);
-				}
+				error(false, _("Misplaced operator(s) \"%s\" ignored"), str.substr(0, i).c_str(), NULL);
 				str = str.substr(i, str.length() - i);
 				i = str.find_first_of(MULTIPLICATION DIVISION, 0);
 			} else {
@@ -5873,12 +6555,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 					while(i2 + i + 1 != str.length() && is_in(MULTIPLICATION DIVISION, str[i2 + i + 1])) {
 						i2++;
 					}
-					if(disable_errors_ref > 0) {
-						stopped_messages_count[disable_errors_ref - 1]++;
-						stopped_warnings_count[disable_errors_ref - 1]++;
-					} else {
-						error(false, _("Misplaced operator(s) \"%s\" ignored"), str.substr(i, i2).c_str(), NULL);
-					}
+					error(false, _("Misplaced operator(s) \"%s\" ignored"), str.substr(i, i2).c_str(), NULL);
 					i += i2;
 				}
 				div = str[i] == DIVISION_CH;
@@ -5899,12 +6576,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 
 	if(str.empty()) return false;
 	if(str.find_first_not_of(OPERATORS SPACE) == string::npos) {
-		if(disable_errors_ref > 0) {
-			stopped_messages_count[disable_errors_ref - 1]++;
-			stopped_warnings_count[disable_errors_ref - 1]++;
-		} else {
-			error(false, _("Misplaced operator(s) \"%s\" ignored"), str.c_str(), NULL);
-		}
+		error(false, _("Misplaced operator(s) \"%s\" ignored"), str.c_str(), NULL);
 		return false;
 	}
 	
@@ -5923,12 +6595,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		} else if(str[i] == SPACE_CH) {
 			str.erase(i, 1);
 		} else if(is_in(OPERATORS, str[i])) {
-			if(disable_errors_ref > 0) {
-				stopped_messages_count[disable_errors_ref - 1]++;
-				stopped_warnings_count[disable_errors_ref - 1]++;
-			} else {
-				error(false, _("Misplaced '%c' ignored"), str[i], NULL);
-			}
+			error(false, _("Misplaced '%c' ignored"), str[i], NULL);
 			str.erase(i, 1);
 		} else {
 			break;
@@ -5968,6 +6635,47 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		}
 		if(b) {
 			parseAdd(str, mstruct, po, OPERATION_MULTIPLY, append);
+			if(po.parsing_mode == PARSING_MODE_ADAPTIVE && mstruct->isMultiplication() && mstruct->size() >= 2 && !(*mstruct)[0].inParentheses()) {
+				Unit *u1 = NULL; Prefix *p1 = NULL;
+				bool b_plus = false;
+				if((*mstruct)[0].isMultiplication() && (*mstruct)[0].size() == 2 && (*mstruct)[0][0].isNumber() && (*mstruct)[0][1].isUnit()) {u1 = (*mstruct)[0][1].unit(); p1 = (*mstruct)[0][1].prefix();}
+				if(u1 && u1->subtype() == SUBTYPE_BASE_UNIT && (u1->referenceName() == "m" || (!p1 && u1->referenceName() == "L")) && (!p1 || (p1->type() == PREFIX_DECIMAL && ((DecimalPrefix*) p1)->exponent() <= 3 && ((DecimalPrefix*) p1)->exponent() > -3))) {
+					b_plus = true;
+					for(size_t i2 = 1; i2 < mstruct->size(); i2++) {
+						if(!(*mstruct)[i2].inParentheses() && (*mstruct)[i2].isMultiplication() && (*mstruct)[i2].size() == 2 && (*mstruct)[i2][0].isNumber() && (*mstruct)[i2][1].isUnit() && (*mstruct)[i2][1].unit() == u1) {
+							Prefix *p2 = (*mstruct)[i2][1].prefix();
+							if(p1 && p2) b_plus = p1->type() == PREFIX_DECIMAL && p2->type() == PREFIX_DECIMAL && ((DecimalPrefix*) p1)->exponent() > ((DecimalPrefix*) p2)->exponent() && ((DecimalPrefix*) p2)->exponent() >= -3;
+							else if(p2) b_plus = p2->type() == PREFIX_DECIMAL && ((DecimalPrefix*) p2)->exponent() < 0 && ((DecimalPrefix*) p2)->exponent() >= -3;
+							else if(p1) b_plus = p1->type() == PREFIX_DECIMAL && ((DecimalPrefix*) p1)->exponent() > 1;
+							else b_plus = false;
+							if(!b_plus) break;
+							p1 = p2;
+						} else {
+							b_plus = false;
+							break;
+						}
+					}
+				} else if(u1 && !p1 && u1->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u1)->mixWithBase()) {
+					b_plus = true;
+					for(size_t i2 = 1; i2 < mstruct->size(); i2++) {
+						if(!(*mstruct)[i2].inParentheses() && (*mstruct)[i2].isMultiplication() && (*mstruct)[i2].size() == 2 && (*mstruct)[i2][0].isNumber() && (*mstruct)[i2][1].isUnit() && u1->isChildOf((*mstruct)[i2][1].unit()) && !(*mstruct)[i2][1].prefix() && (i2 == mstruct->size() - 1 || ((*mstruct)[i2][1].unit()->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) (*mstruct)[i2][1].unit())->mixWithBase()))) {
+							while(((AliasUnit*) u1)->firstBaseUnit() != (*mstruct)[i2][1].unit()) {
+								u1 = ((AliasUnit*) u1)->firstBaseUnit();
+								if(u1->subtype() != SUBTYPE_ALIAS_UNIT || !((AliasUnit*) u1)->mixWithBase()) {
+									b_plus = false;
+									break;
+								}
+							}
+							if(!b_plus) break;
+							u1 = (*mstruct)[i2][1].unit();
+						} else {
+							b_plus = false;
+							break;
+						}
+					}
+				}
+				if(b_plus) mstruct->setType(STRUCT_ADDITION);
+			}
 			if(po.preserve_format) {
 				while(minus_count > 0) {
 					mstruct->transform(STRUCT_NEGATE);
@@ -6015,7 +6723,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		str = str.substr(i + 1, str.length() - (i + 1));
 		parseAdd(str2, mstruct, po);
 		parseAdd(str, mstruct, po, OPERATION_RAISE);
-	} else if(po.base >= 2 && po.base <= 10 && (i = str.find_first_of(EXPS, 1)) != string::npos && i + 1 != str.length()) {
+	} else if(po.base >= 2 && po.base <= 10 && (i = str.find_first_of(EXPS, 1)) != string::npos && i + 1 != str.length() && str.find("\b") == string::npos) {
 		str2 = str.substr(0, i);
 		str = str.substr(i + 1, str.length() - (i + 1));
 		parseAdd(str2, mstruct, po);
@@ -6171,7 +6879,7 @@ bool Calculator::loadLocalDefinitions() {
 		string homedir_old = buildPath(getOldLocalDir(), "definitions");
 		if(dirExists(homedir)) {
 			if(!dirExists(getLocalDataDir())) {
-				makeDir(getLocalDataDir());
+				recursiveMakeDir(getLocalDataDir());
 			}
 			if(makeDir(homedir)) {
 				list<string> eps_old;
@@ -6219,7 +6927,7 @@ bool Calculator::loadLocalDefinitions() {
 	}
 	eps.sort();
 	for(list<string>::iterator it = eps.begin(); it != eps.end(); ++it) {
-		loadDefinitions(buildPath(homedir, *it).c_str(), true);
+		loadDefinitions(buildPath(homedir, *it).c_str(), (*it) == "functions.xml" || (*it) == "variables.xml" || (*it) == "units.xml" || (*it) == "datasets.xml");
 	}
 	for(size_t i = 0; i < variables.size(); i++) {
 		if(!variables[i]->isLocal() && !variables[i]->isActive() && !getActiveExpressionItem(variables[i])) variables[i]->setActive(true);
@@ -6725,9 +7433,9 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 
 	xmlDocPtr doc;
 	xmlNodePtr cur, child, child2, child3;
-	string version, stmp, name, uname, type, svalue, sexp, plural, singular, category_title, category, description, title, inverse, suncertainty, base, argname, usystem;
+	string version, stmp, name, uname, type, svalue, sexp, plural, countries, singular, category_title, category, description, title, inverse, suncertainty, base, argname, usystem;
 	bool best_title, next_best_title, best_category_title, next_best_category_title, best_description, next_best_description;
-	bool best_plural, next_best_plural, best_singular, next_best_singular, best_argname, next_best_argname;
+	bool best_plural, next_best_plural, best_singular, next_best_singular, best_argname, next_best_argname, best_countries, next_best_countries;
 	bool best_proptitle, next_best_proptitle, best_propdescr, next_best_propdescr;
 	string proptitle, propdescr;
 	ExpressionName names[10];
@@ -6818,7 +7526,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 		xmlFreeDoc(doc);
 		return false;
 	}
-	int version_numbers[] = {2, 2, 1};
+	int version_numbers[] = {2, 8, 0};
 	parse_qalculate_version(version, version_numbers);
 
 	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);
@@ -6832,6 +7540,8 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 
 	category = "";
 	nodes.resize(1);
+	
+	Unit *u_usd = getUnit("USD");
 
 	while(true) {
 		if(!in_unfinished) {
@@ -6987,6 +7697,9 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "test")) {
 								XML_GET_FALSE_FROM_TEXT(child2, b);
 								arg->setTests(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "handle_vector")) {
+								XML_GET_FALSE_FROM_TEXT(child2, b);
+								arg->setHandleVector(b);
 							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "alert")) {
 								XML_GET_FALSE_FROM_TEXT(child2, b);
 								arg->setAlerts(b);
@@ -7639,6 +8352,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					child = cur->xmlChildrenNode;
 					singular = ""; best_singular = false; next_best_singular = false;
 					plural = ""; best_plural = false; next_best_plural = false;
+					countries = "", best_countries = false, next_best_countries = false;
 					use_with_prefixes_set = false;
 					ITEM_INIT_DTH
 					ITEM_INIT_NAME
@@ -7658,6 +8372,8 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							if(!unitNameIsValid(plural, version_numbers, is_user_defs)) {
 								plural = "";
 							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "countries")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries, next_best_countries)
 						} else ITEM_READ_NAME(unitNameIsValid)
 						 else ITEM_READ_DTH
 						 else {
@@ -7665,6 +8381,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 						}
 						child = child->next;
 					}
+					u->setCountries(countries);
 					if(new_names) {
 						ITEM_SET_BEST_NAMES(unitNameIsValid)
 						ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
@@ -7683,6 +8400,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 						u->destroy();
 						u = NULL;
 					} else {
+						if(!is_user_defs && u->referenceName() == "s") u_second = u;
 						addUnit(u, true, is_user_defs);
 						u->setChanged(false);
 					}
@@ -7698,6 +8416,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					child = cur->xmlChildrenNode;
 					singular = ""; best_singular = false; next_best_singular = false;
 					plural = ""; best_plural = false; next_best_plural = false;
+					countries = "", best_countries = false, next_best_countries = false;
 					bool b_currency = false;
 					use_with_prefixes_set = false;
 					usystem = "";
@@ -7764,6 +8483,8 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							if(!unitNameIsValid(plural, version_numbers, is_user_defs)) {
 								plural = "";
 							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "countries")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries, next_best_countries)
 						} else ITEM_READ_NAME(unitNameIsValid)
 						 else ITEM_READ_DTH
 						 else {
@@ -7779,6 +8500,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 						}
 					} else {
 						au = new AliasUnit(category, name, plural, singular, title, u, svalue, exponent, inverse, is_user_defs, false, active);
+						au->setCountries(countries);
 						if(mix_priority > 0) {
 							au->setMixWithBase(mix_priority);
 							au->setMixWithBaseMinimum(mix_min);
@@ -7808,6 +8530,13 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							au->destroy();
 							au = NULL;
 						} else {
+							if(!is_user_defs && au->baseUnit() == CALCULATOR->u_second) {
+								if(au->referenceName() == "d" || au->referenceName() == "day") u_day = au;
+								else if(au->referenceName() == "year") u_year = au;
+								else if(au->referenceName() == "month") u_month = au;
+								else if(au->referenceName() == "min") u_minute = au;
+								else if(au->referenceName() == "h") u_hour = au;
+							}
 							addUnit(au, true, is_user_defs);
 							au->setChanged(false);
 						}
@@ -7948,6 +8677,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					child = cur->xmlChildrenNode;
 					singular = ""; best_singular = false; next_best_singular = false;
 					plural = ""; best_plural = false; next_best_plural = false;
+					countries = "", best_countries = false, next_best_countries = false;
 					use_with_prefixes_set = false;
 					ITEM_INIT_DTH
 					ITEM_INIT_NAME
@@ -7965,6 +8695,8 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 						} else if(!xmlStrcmp(child->name, (const xmlChar*) "use_with_prefixes")) {
 							XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
 							use_with_prefixes_set = true;
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "countries")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries, next_best_countries)
 						} else ITEM_READ_NAME(unitNameIsValid)
 						 else ITEM_READ_DTH
 						 else {
@@ -7975,6 +8707,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					if(use_with_prefixes_set) {
 						u->setUseWithPrefixesByDefault(use_with_prefixes);
 					}
+					u->setCountries(countries);
 					if(new_names) {
 						ITEM_SAVE_BUILTIN_NAMES
 						ITEM_SET_BEST_NAMES(unitNameIsValid)
@@ -7989,6 +8722,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 						BUILTIN_NAMES_2
 					}
 					ITEM_SET_DTH
+					if(u_usd && u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd) u->setHidden(true);
 					u->setChanged(false);
 					done_something = true;
 				}
@@ -8081,7 +8815,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 }
 bool Calculator::saveDefinitions() {
 
-	makeDir(getLocalDataDir());
+	recursiveMakeDir(getLocalDataDir());
 	string homedir = buildPath(getLocalDataDir(), "definitions");
 	makeDir(homedir);
 	bool b = true;
@@ -9290,7 +10024,7 @@ bool Calculator::loadExchangeRates() {
 		if(fileExists(filename)) {
 			doc = xmlParseFile(filename_old.c_str());
 			if(doc) {
-				makeDir(getLocalDataDir());
+				recursiveMakeDir(getLocalDataDir());
 				move_file(filename_old.c_str(), filename.c_str());
 				removeDir(getOldLocalDir());
 			}
@@ -9312,10 +10046,10 @@ bool Calculator::loadExchangeRates() {
 		if(!xmlStrcmp(cur->name, (const xmlChar*) "Cube")) {
 			if(global_file && sdate.empty()) {
 				XML_GET_STRING_FROM_PROP(cur, "time", sdate);
-				QalculateDate qdate;
+				QalculateDateTime qdate;
 				if(qdate.set(sdate)) {
-					exchange_rates_time = (time_t) qdate.timestamp().ulintValue();
-					if(exchange_rates_time > exchange_rates_check_time) exchange_rates_check_time = exchange_rates_time;
+					exchange_rates_time[0] = (time_t) qdate.timestamp().ulintValue();
+					if(exchange_rates_time[0] > exchange_rates_check_time[0]) exchange_rates_check_time[0] = exchange_rates_time[0];
 				} else {
 					sdate.clear();
 				}
@@ -9354,13 +10088,13 @@ bool Calculator::loadExchangeRates() {
 	if(sdate.empty()) {
 		struct stat stats;
 		if(stat(filename.c_str(), &stats) == 0) {
-			if(exchange_rates_time >= stats.st_mtime) {
+			if(exchange_rates_time[0] >= stats.st_mtime) {
 #ifdef _WIN32
 				struct _utimbuf new_times;
 #else
 				struct utimbuf new_times;
 #endif
-				struct tm *temptm = localtime(&exchange_rates_time);
+				struct tm *temptm = localtime(&exchange_rates_time[0]);
 				if(temptm) {
 					struct tm extm = *temptm;
 					time_t time_now = time(NULL);
@@ -9369,30 +10103,57 @@ bool Calculator::loadExchangeRates() {
 						newtm->tm_hour = extm.tm_hour;
 						newtm->tm_min = extm.tm_min;
 						newtm->tm_sec = extm.tm_sec;
-						exchange_rates_time = mktime(newtm);
+						exchange_rates_time[0] = mktime(newtm);
 					} else {
-						time(&exchange_rates_time);
+						time(&exchange_rates_time[0]);
 					}
 				} else {
-					time(&exchange_rates_time);
+					time(&exchange_rates_time[0]);
 				}
-				new_times.modtime = exchange_rates_time;
-				new_times.actime = exchange_rates_time;
+				new_times.modtime = exchange_rates_time[0];
+				new_times.actime = exchange_rates_time[0];
 #ifdef _WIN32
 				_utime(filename.c_str(), &new_times);
 #else
 				utime(filename.c_str(), &new_times);
 #endif
 			} else {
-				exchange_rates_time = stats.st_mtime;
-				if(exchange_rates_time > exchange_rates_check_time) exchange_rates_check_time = exchange_rates_time;
+				exchange_rates_time[0] = stats.st_mtime;
+				if(exchange_rates_time[0] > exchange_rates_check_time[0]) exchange_rates_check_time[0] = exchange_rates_time[0];
 			}
 		}
 	}
+	
+	filename = buildPath(getLocalDataDir(), "btc.json");
+	ifstream file2(filename.c_str());
+	if(file2.is_open()) {
+		std::stringstream ssbuffer2;
+		ssbuffer2 << file2.rdbuf();
+		string sbuffer = ssbuffer2.str();
+		size_t i = sbuffer.find("\"amount\":");
+		if(i != string::npos) {
+			i = sbuffer.find("\"", i + 9);
+			if(i != string::npos) {
+				size_t i2 = sbuffer.find("\"", i + 1);
+				((AliasUnit*) u_btc)->setExpression(sbuffer.substr(i + 1, i2 - (i + 1)));
+			}
+		}
+		file2.close();
+		struct stat stats;
+		if(stat(filename.c_str(), &stats) == 0) {
+			exchange_rates_time[1] = stats.st_mtime;
+			if(exchange_rates_time[1] > exchange_rates_check_time[1]) exchange_rates_check_time[1] = exchange_rates_time[1];
+		}
+	} else {
+		exchange_rates_time[1] = ((time_t) 1531087L) * 1000;
+		if(exchange_rates_time[1] > exchange_rates_check_time[1]) exchange_rates_check_time[1] = exchange_rates_time[1];
+	}
+	
 	Unit *u_usd = getUnit("USD");
 	if(!u_usd) return true;
+	
 	string sbuffer;
-	filename = buildPath(getLocalDataDir(), "rates.json");
+	filename = buildPath(getLocalDataDir(), "rates.html");
 	ifstream file(filename.c_str());
 	if(file.is_open()) {
 		std::stringstream ssbuffer;
@@ -9408,72 +10169,118 @@ bool Calculator::loadExchangeRates() {
 		std::stringstream ssbuffer;
 		ssbuffer << file.rdbuf();
 		sbuffer = ssbuffer.str();
-	}
-	string sname;
-	size_t i = sbuffer.find("\"currency_code\":");
-	while(i != string::npos) {
-		i += 16;
-		size_t i2 = sbuffer.find("\"", i);
-		if(i2 == string::npos) break;
-		size_t i3 = sbuffer.find("\"", i2 + 1);
-		if(i3 != string::npos && i3 - (i2 + 1) == 3) {
-			currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-			if(currency.length() == 3 && currency[0] >= 'A' && currency[0] <= 'Z') {
-				u = getUnit(currency);
-				if(!u || (u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd)) {
-					i2 = sbuffer.find("\"rate\":", i3 + 1);
-					size_t i4 = sbuffer.find("}", i3 + 1);
-					if(i2 != string::npos && i2 < i4) {
-						i3 = sbuffer.find(",", i2 + 7);
-						rate = sbuffer.substr(i2 + 7, i3 - (i2 + 7));
-						rate = "1/" + rate;
-						if(!u) {
-							i2 = sbuffer.find("\"name\":\"", i3 + 1);
-							if(i2 != string::npos && i2 < i4) {
-								i3 = sbuffer.find("\"", i2 + 8);
-								if(i3 != string::npos) {
-									sname = sbuffer.substr(i2 + 8, i3 - (i2 + 8));
-									remove_blank_ends(sname);
+		string sname;
+		size_t i = sbuffer.find("\"currency_code\":");
+		while(i != string::npos) {
+			i += 16;
+			size_t i2 = sbuffer.find("\"", i);
+			if(i2 == string::npos) break;
+			size_t i3 = sbuffer.find("\"", i2 + 1);
+			if(i3 != string::npos && i3 - (i2 + 1) == 3) {
+				currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+				if(currency.length() == 3 && currency[0] >= 'A' && currency[0] <= 'Z') {
+					u = getUnit(currency);
+					if(!u || (u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd)) {
+						i2 = sbuffer.find("\"rate\":", i3 + 1);
+						size_t i4 = sbuffer.find("}", i3 + 1);
+						if(i2 != string::npos && i2 < i4) {
+							i3 = sbuffer.find(",", i2 + 7);
+							rate = sbuffer.substr(i2 + 7, i3 - (i2 + 7));
+							rate = "1/" + rate;
+							if(!u) {
+								i2 = sbuffer.find("\"name\":\"", i3 + 1);
+								if(i2 != string::npos && i2 < i4) {
+									i3 = sbuffer.find("\"", i2 + 8);
+									if(i3 != string::npos) {
+										sname = sbuffer.substr(i2 + 8, i3 - (i2 + 8));
+										remove_blank_ends(sname);
+									}
+								} else {
+									sname = "";
 								}
+								u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname, u_usd, rate, 1, "", false, true), false, true);
+								if(u) u->setHidden(true);
 							} else {
-								sname = "";
+								((AliasUnit*) u)->setBaseUnit(u_usd);
+								((AliasUnit*) u)->setExpression(rate);
 							}
-							u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname, u_usd, rate, 1, "", false, true), false, true);
 							if(u) {
-								u->setHidden(true);
+								u->setApproximate();
+								u->setPrecision(-2);
+								u->setChanged(false);
 							}
-						} else {
-							((AliasUnit*) u)->setExpression(rate);
-						}
-						if(u) {
-							u->setApproximate();
-							u->setPrecision(-2);
-							u->setChanged(false);
 						}
 					}
 				}
 			}
+			i = sbuffer.find("\"currency_code\":", i);
 		}
-		i = sbuffer.find("\"currency_code\":", i);
+		file.close();
+		exchange_rates_time[2] = ((time_t) 1527199L) * 1000;
+		if(exchange_rates_time[2] > exchange_rates_check_time[2]) exchange_rates_check_time[2] = exchange_rates_time[2];
+	} else {
+		string sname;
+		size_t i = sbuffer.find("class=\'country\'");
+		while(i != string::npos) {
+			currency = ""; sname = ""; rate = "";
+			i += 15;
+			size_t i2 = sbuffer.find("data-currency-code=\"", i);
+			if(i2 != string::npos) {
+				i2 += 19;
+				size_t i3 = sbuffer.find("\"", i2 + 1);
+				if(i3 != string::npos) {
+					currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+					remove_blank_ends(currency);
+				}
+			}
+			i2 = sbuffer.find("data-currency-name=\'", i);
+			if(i2 != string::npos) {
+				i2 += 19;
+				size_t i3 = sbuffer.find("|", i2 + 1);
+				if(i3 != string::npos) {
+					sname = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+					remove_blank_ends(sname);
+				}
+			}
+			i2 = sbuffer.find("data-rate=\'", i);
+			if(i2 != string::npos) {
+				i2 += 10;
+				size_t i3 = sbuffer.find("'", i2 + 1);
+				if(i3 != string::npos) {
+					rate = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+					remove_blank_ends(rate);
+				}
+			}
+			if(currency.length() == 3 && currency[0] >= 'A' && currency[0] <= 'Z' && !rate.empty()) {
+				u = getUnit(currency);
+				if(!u || (u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd)) {
+					rate = "1/" + rate;
+					if(!u) {
+						u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname, u_usd, rate, 1, "", false, true), false, true);
+						if(u) u->setHidden(true);
+					} else {
+						((AliasUnit*) u)->setBaseUnit(u_usd);
+						((AliasUnit*) u)->setExpression(rate);
+					}
+					if(u) {
+						u->setApproximate();
+						u->setPrecision(-2);
+						u->setChanged(false);
+					}
+				}
+			}
+			i = sbuffer.find("class=\'country\'", i);
+		}
+		file.close();
+		struct stat stats;
+		if(stat(filename.c_str(), &stats) == 0) {
+			exchange_rates_time[2] = stats.st_mtime;
+			if(exchange_rates_time[2] > exchange_rates_check_time[2]) exchange_rates_check_time[2] = exchange_rates_time[2];
+		}
 	}
-	file.close();
 	
-	filename = buildPath(getLocalDataDir(), "btc.json");
-	ifstream file2(filename.c_str());
-	if(!file2.is_open()) return true;
-	std::stringstream ssbuffer2;
-	ssbuffer2 << file2.rdbuf();
-	sbuffer = ssbuffer2.str();
-	i = sbuffer.find("\"amount\":");
-	if(i != string::npos) {
-		i = sbuffer.find("\"", i + 9);
-		if(i != string::npos) {
-			size_t i2 = sbuffer.find("\"", i + 1);
-			((AliasUnit*) u_btc)->setExpression(sbuffer.substr(i + 1, i2 - (i + 1)));
-		}
-	}
-	file2.close();
 	return true;
+
 }
 bool Calculator::hasGVFS() {
 	return false;
@@ -9491,20 +10298,32 @@ bool Calculator::canFetch() {
 string Calculator::getExchangeRatesFileName(int index) {
 	switch(index) {
 		case 1: {return buildPath(getLocalDataDir(), "eurofxref-daily.xml");}
-		case 2: {return buildPath(getLocalDataDir(), "rates.json");}
-		case 3: {return buildPath(getLocalDataDir(), "btc.json");}
+		case 2: {return buildPath(getLocalDataDir(), "btc.json");}
+		//case 3: {return buildPath(getLocalDataDir(), "rates.json");}
+		case 3: {return buildPath(getLocalDataDir(), "rates.html");}
 		default: {}
 	}
 	return "";
 }
-time_t Calculator::getExchangeRatesTime() {
-	return exchange_rates_time;
+time_t Calculator::getExchangeRatesTime(int index) {
+	if(index > 3) return 0;
+	if(index < 1) {
+		if(exchange_rates_time[1] < exchange_rates_time[0]) {
+			if(exchange_rates_time[2] < exchange_rates_time[1]) return exchange_rates_time[2];
+			return exchange_rates_time[1];
+		}
+		if(exchange_rates_time[2] < exchange_rates_time[0]) return exchange_rates_time[2];
+		return exchange_rates_time[0];
+	}
+	index--;
+	return exchange_rates_time[index];
 }
 string Calculator::getExchangeRatesUrl(int index) {
 	switch(index) {
 		case 1: {return "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";}
-		case 2: {return "http://www.mycurrency.net/service/rates";}
-		case 3: {return "https://api.coinbase.com/v2/prices/spot?currency=EUR";}
+		case 2: {return "https://api.coinbase.com/v2/prices/spot?currency=EUR";}
+		//case 2: {return "http://www.mycurrency.net/service/rates";}
+		case 3: {return "https://www.mycurrency.net/=US";}
 		default: {}
 	}
 	return "";
@@ -9514,14 +10333,17 @@ size_t write_data(void *ptr, size_t size, size_t nmemb, string *sbuffer) {
 	sbuffer->append((char*) ptr, size * nmemb);
 	return size * nmemb;
 }
-bool Calculator::fetchExchangeRates(int timeout) {
+#define FETCH_FAIL_CLEANUP curl_easy_cleanup(curl); curl_global_cleanup(); time(&exchange_rates_check_time[0]); time(&exchange_rates_check_time[1]); time(&exchange_rates_check_time[2]);
+bool Calculator::fetchExchangeRates(int timeout, int n) {
 #ifdef HAVE_LIBCURL
-	makeDir(getLocalDataDir());
+	if(n <= 0) n = 3;
+	
+	recursiveMakeDir(getLocalDataDir());
 	string sbuffer;
 	char error_buffer[CURL_ERROR_SIZE];
 	CURL *curl;
 	CURLcode res;
-	long int file_time;
+	long int file_time = 0;
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 	curl = curl_easy_init();
 	if(!curl) {return false;}
@@ -9530,6 +10352,7 @@ bool Calculator::fetchExchangeRates(int timeout) {
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sbuffer);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
+	error_buffer[0] = 0;
 	curl_easy_setopt(curl, CURLOPT_FILETIME, &file_time);
 #ifdef _WIN32
 	char exepath[MAX_PATH];
@@ -9544,12 +10367,17 @@ bool Calculator::fetchExchangeRates(int timeout) {
 #endif
 	res = curl_easy_perform(curl);
 	
-	if(res != CURLE_OK) {error(true, _("Failed to download exchange rates from %s: %s."), "ECB", error_buffer, NULL); curl_easy_cleanup(curl); curl_global_cleanup(); return false;}
-	if(sbuffer.empty()) {error(true, _("Failed to download exchange rates from %s: %s."), "ECB", "Document empty", NULL); curl_easy_cleanup(curl); curl_global_cleanup(); return false;}
+	if(res != CURLE_OK) {
+		if(strlen(error_buffer)) error(true, _("Failed to download exchange rates from %s: %s."), "ECB", error_buffer, NULL);
+		else error(true, _("Failed to download exchange rates from %s: %s."), "ECB", curl_easy_strerror(res), NULL);
+		FETCH_FAIL_CLEANUP;
+		return false;
+	}
+	if(sbuffer.empty()) {error(true, _("Failed to download exchange rates from %s: %s."), "ECB", "Document empty", NULL); FETCH_FAIL_CLEANUP; return false;}
 	ofstream file(getExchangeRatesFileName(1).c_str(), ios::out | ios::trunc | ios::binary);
 	if(!file.is_open()) {
 		error(true, _("Failed to download exchange rates from %s: %s."), "ECB", strerror(errno), NULL);
-		curl_easy_cleanup(curl); curl_global_cleanup(); 
+		FETCH_FAIL_CLEANUP
 		return false;
 	}
 	file << sbuffer;
@@ -9568,45 +10396,53 @@ bool Calculator::fetchExchangeRates(int timeout) {
 		utime(getExchangeRatesFileName(1).c_str(), &new_times);
 #endif
 	}
-	
-	sbuffer = "";
-	curl_easy_setopt(curl, CURLOPT_URL, getExchangeRatesUrl(2).c_str());
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sbuffer);
-	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
-	res = curl_easy_perform(curl);
-	
-	if(res != CURLE_OK) {error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", error_buffer, NULL); curl_easy_cleanup(curl); curl_global_cleanup(); return false;}
-	if(sbuffer.empty()) {error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", "Document empty", NULL); curl_easy_cleanup(curl); curl_global_cleanup(); return false;}
-	ofstream file2(getExchangeRatesFileName(2).c_str(), ios::out | ios::trunc | ios::binary);
-	if(!file2.is_open()) {
-		error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", strerror(errno), NULL);
-		curl_easy_cleanup(curl); curl_global_cleanup(); 
-		return false;
-	}
-	file2 << sbuffer;
-	file2.close();
-	
-	sbuffer = "";
-	curl_easy_setopt(curl, CURLOPT_URL, getExchangeRatesUrl(3).c_str());
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sbuffer);
-	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
 
-	res = curl_easy_perform(curl);
-	
-	if(res != CURLE_OK) {error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", error_buffer, NULL); curl_easy_cleanup(curl); curl_global_cleanup(); return false;}
-	if(sbuffer.empty()) {error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", "Document empty", NULL); curl_easy_cleanup(curl); curl_global_cleanup(); return false;}
-	ofstream file3(getExchangeRatesFileName(3).c_str(), ios::out | ios::trunc | ios::binary);
-	if(!file3.is_open()) {
-		error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", strerror(errno), NULL);
-		curl_easy_cleanup(curl); curl_global_cleanup(); 
-		return false;
+	if(n >= 2) {
+
+		sbuffer = "";
+		curl_easy_setopt(curl, CURLOPT_URL, getExchangeRatesUrl(2).c_str());
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sbuffer);
+		curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
+
+		res = curl_easy_perform(curl);
+		
+		if(res != CURLE_OK) {error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", error_buffer, NULL); FETCH_FAIL_CLEANUP; return false;}
+		if(sbuffer.empty()) {error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", "Document empty", NULL); FETCH_FAIL_CLEANUP; return false;}
+		ofstream file3(getExchangeRatesFileName(2).c_str(), ios::out | ios::trunc | ios::binary);
+		if(!file3.is_open()) {
+			error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", strerror(errno), NULL);
+			FETCH_FAIL_CLEANUP
+			return false;
+		}
+		file3 << sbuffer;
+		file3.close();
+
 	}
-	file3 << sbuffer;
-	file3.close();
+
+	if(n >= 3) {
+
+		sbuffer = "";
+		curl_easy_setopt(curl, CURLOPT_URL, getExchangeRatesUrl(3).c_str());
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sbuffer);
+		curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
+		res = curl_easy_perform(curl);
+		
+		if(res != CURLE_OK) {error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", error_buffer, NULL); FETCH_FAIL_CLEANUP; return false;}
+		if(sbuffer.empty() || sbuffer.find("Internal Server Error") != string::npos) {error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", "Document empty", NULL); FETCH_FAIL_CLEANUP; return false;}
+		ofstream file2(getExchangeRatesFileName(3).c_str(), ios::out | ios::trunc | ios::binary);
+		if(!file2.is_open()) {
+			error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", strerror(errno), NULL);
+			FETCH_FAIL_CLEANUP
+			return false;
+		}
+		file2 << sbuffer;
+		file2.close();
+		
+	}
 	
 	curl_easy_cleanup(curl); curl_global_cleanup(); 
 	
@@ -9615,10 +10451,19 @@ bool Calculator::fetchExchangeRates(int timeout) {
 	return false;
 #endif
 }
-bool Calculator::checkExchangeRatesDate(unsigned int n_days, bool force_check, bool send_warning) {
-	if(exchange_rates_time > 0 && ((!force_check && exchange_rates_check_time > 0 && difftime(time(NULL), exchange_rates_check_time) < 86400 * n_days) || difftime(time(NULL), exchange_rates_time) < (86400 * n_days) + 3600)) return true;
-	time(&exchange_rates_check_time);
-	if(send_warning) error(false, _("It has been %s day(s) since the exchange rates last were updated."), i2s((int) floor(difftime(time(NULL), exchange_rates_time) / 86400)).c_str(), NULL);
+bool Calculator::checkExchangeRatesDate(unsigned int n_days, bool force_check, bool send_warning, int n) {
+	if(n <= 0) n = 3;
+	time_t extime = exchange_rates_time[0];
+	if(n > 1 && exchange_rates_time[1] < extime) extime = exchange_rates_time[1];
+	if(n > 2 && exchange_rates_time[2] < extime) extime = exchange_rates_time[2];
+	time_t cextime = exchange_rates_check_time[0];
+	if(n > 1 && exchange_rates_check_time[1] < cextime) cextime = exchange_rates_check_time[1];
+	if(n > 2 && exchange_rates_check_time[2] < cextime) cextime = exchange_rates_check_time[2];
+	if(extime > 0 && ((!force_check && cextime > 0 && difftime(time(NULL), cextime) < 86400 * n_days) || difftime(time(NULL), extime) < (86400 * n_days) + 3600)) return true;
+	time(&exchange_rates_check_time[0]);
+	if(n > 1) time(&exchange_rates_check_time[1]);
+	if(n > 2) time(&exchange_rates_check_time[2]);
+	if(send_warning) error(false, _("It has been %s day(s) since the exchange rates last were updated."), i2s((int) floor(difftime(time(NULL), extime) / 86400)).c_str(), NULL);
 	return false;
 }
 void Calculator::setExchangeRatesWarningEnabled(bool enable) {
@@ -9627,14 +10472,14 @@ void Calculator::setExchangeRatesWarningEnabled(bool enable) {
 bool Calculator::exchangeRatesWarningEnabled() const {
 	return b_exchange_rates_warning_enabled;
 }
-bool Calculator::exchangeRatesUsed() const {
+int Calculator::exchangeRatesUsed() const {
 	return b_exchange_rates_used;
 }
 void Calculator::resetExchangeRatesUsed() {
-	b_exchange_rates_used = false;
+	b_exchange_rates_used = 0;
 }
-void Calculator::setExchangeRatesUsed() {
-	b_exchange_rates_used = true;
+void Calculator::setExchangeRatesUsed(int index) {
+	if(index > b_exchange_rates_used) b_exchange_rates_used = index;
 	if(b_exchange_rates_warning_enabled) checkExchangeRatesDate(7, false, true);
 }
 
@@ -9737,10 +10582,12 @@ MathStructure Calculator::expressionToPlotVector(string expression, const MathSt
 	return y_vector;
 }
 
+extern bool testComplexZero(const Number *this_nr, const Number *i_nr);
+
 bool Calculator::plotVectors(PlotParameters *param, const vector<MathStructure> &y_vectors, const vector<MathStructure> &x_vectors, vector<PlotDataParameters*> &pdps, bool persistent, int msecs) {
 
 	string homedir = getLocalTmpDir();
-	makeDir(homedir);
+	recursiveMakeDir(homedir);
 
 	string commandline_extra;
 	string title;
@@ -9877,10 +10724,14 @@ bool Calculator::plotVectors(PlotParameters *param, const vector<MathStructure> 
 	}
 	if(param->grid) {
 		plot += "set grid\n";
+	
 	}
-	if(param->y_log) {
-		plot += "set logscale y ";
-		plot += i2s(param->y_log_base);
+	if(!param->auto_y_min || !param->auto_y_max) {
+		plot += "set yrange [";
+		if(!param->auto_y_min) plot += d2s(param->y_min);
+		plot += ":";
+		if(!param->auto_y_max) plot += d2s(param->y_max);
+		plot += "]";
 		plot += "\n";
 	}
 	if(param->x_log) {
@@ -9911,6 +10762,19 @@ bool Calculator::plotVectors(PlotParameters *param, const vector<MathStructure> 
 		}
 		plot += "set xtics nomirror\nset ytics nomirror\n";
 	}
+	size_t samples = 1000;
+	for(size_t i = 0; i < y_vectors.size(); i++) {
+		if(!y_vectors[i].isUndefined()) {
+			if(y_vectors[i].size() > 3000) {
+				samples = 6000;
+				break;
+			}
+			if(y_vectors[i].size() * 2 > samples) samples = y_vectors[i].size() * 2;
+		}
+	}
+	plot += "set samples ";
+	plot += i2s(samples);
+	plot += "\n";
 	plot += "plot ";
 	for(size_t i = 0; i < y_vectors.size(); i++) {
 		if(!y_vectors[i].isUndefined()) {
@@ -9987,37 +10851,67 @@ bool Calculator::plotVectors(PlotParameters *param, const vector<MathStructure> 
 			}
 			plot_data = "";
 			int non_numerical = 0, non_real = 0;
-			string str = "";
+			//string str = "";
 			if(msecs > 0) startControl(msecs);
+			ComparisonResult ct1 = COMPARISON_RESULT_EQUAL, ct2 = COMPARISON_RESULT_EQUAL;
+			size_t last_index = string::npos, last_index2 = string::npos;
+			bool check_continuous = pdps[serie]->test_continuous && (pdps[serie]->style == PLOT_STYLE_LINES || pdps[serie]->style == PLOT_STYLE_POINTS_LINES);
+			bool prev_failed = false;
 			for(size_t i = 1; i <= y_vectors[serie].countChildren(); i++) {
-				bool invalid_nr = false;
+				ComparisonResult ct = COMPARISON_RESULT_UNKNOWN;
+				bool invalid_nr = false, b_imagzero_x = false, b_imagzero_y = false;
 				if(!y_vectors[serie].getChild(i)->isNumber()) {
 					invalid_nr = true;
 					non_numerical++;
-					if(non_numerical == 1) str = y_vectors[serie].getChild(i)->print(po);
+					//if(non_numerical == 1) str = y_vectors[serie].getChild(i)->print(po);
 				} else if(!y_vectors[serie].getChild(i)->number().isReal()) {
-					invalid_nr = true;
-					non_real++;
-					if(non_numerical + non_real == 1) str = y_vectors[serie].getChild(i)->print(po);
+					b_imagzero_y = testComplexZero(&y_vectors[serie].getChild(i)->number(), y_vectors[serie].getChild(i)->number().internalImaginary());
+					if(!b_imagzero_y) {
+						invalid_nr = true;
+						non_real++;
+						//if(non_numerical + non_real == 1) str = y_vectors[serie].getChild(i)->print(po);
+					}
 				}
 				if(serie < x_vectors.size() && !x_vectors[serie].isUndefined() && x_vectors[serie].countChildren() == y_vectors[serie].countChildren()) {
 					if(!x_vectors[serie].getChild(i)->isNumber()) {
 						invalid_nr = true;
 						non_numerical++;
-						if(non_numerical == 1) str = x_vectors[serie].getChild(i)->print(po);
+						//if(non_numerical == 1) str = x_vectors[serie].getChild(i)->print(po);
 					} else if(!x_vectors[serie].getChild(i)->number().isReal()) {
-						invalid_nr = true;
-						non_real++;
-						if(non_numerical + non_real == 1) str = x_vectors[serie].getChild(i)->print(po);
+						b_imagzero_x = testComplexZero(&x_vectors[serie].getChild(i)->number(), x_vectors[serie].getChild(i)->number().internalImaginary());
+						if(!b_imagzero_x) {
+							invalid_nr = true;
+							non_real++;
+							//if(non_numerical + non_real == 1) str = x_vectors[serie].getChild(i)->print(po);
+						}
 					}
 					if(!invalid_nr) {
-						plot_data += x_vectors[serie].getChild(i)->print(po);
+						if(b_imagzero_y) plot_data += x_vectors[serie].getChild(i)->number().realPart().print(po);
+						else plot_data += x_vectors[serie].getChild(i)->print(po);
 						plot_data += " ";
 					}
-				}	
-				if(!invalid_nr) plot_data += y_vectors[serie].getChild(i)->print(po);
-				else plot_data += "  ";
-				plot_data += "\n";
+				}
+				if(!invalid_nr) {
+					if(check_continuous && !prev_failed) {
+						if(i == 1 || ct2 == COMPARISON_RESULT_UNKNOWN) ct = COMPARISON_RESULT_EQUAL;
+						else ct = y_vectors[serie].getChild(i - 1)->number().compare(y_vectors[serie].getChild(i)->number());
+						if((ct == COMPARISON_RESULT_GREATER || ct == COMPARISON_RESULT_LESS) && (ct1 == COMPARISON_RESULT_GREATER || ct1 == COMPARISON_RESULT_LESS) && (ct2 == COMPARISON_RESULT_GREATER || ct2 == COMPARISON_RESULT_LESS) && ct1 != ct2 && ct != ct2) {
+							if(last_index2 != string::npos) plot_data.insert(last_index2 + 1, "  \n");
+						}
+					}
+					if(b_imagzero_x) plot_data += y_vectors[serie].getChild(i)->number().realPart().print(po);
+					else plot_data += y_vectors[serie].getChild(i)->print(po);
+					plot_data += "\n";
+					prev_failed = false;
+				} else if(!prev_failed) {
+					ct = COMPARISON_RESULT_UNKNOWN;
+					plot_data += "  \n";
+					prev_failed = true;
+				}
+				last_index2 = last_index;
+				last_index = plot_data.length() - 1;
+				ct1 = ct2;
+				ct2 = ct;
 				if(aborted()) {
 					fclose(fdata);
 					if(msecs > 0) {
@@ -10110,501 +11004,5 @@ bool Calculator::closeGnuplot() {
 }
 bool Calculator::gnuplotOpen() {
 	return b_gnuplot_open && gnuplot_pipe;
-}
-
-bool isLeapYear(long int year) {
-	return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
-}
-int daysPerYear(long int year, int basis = 1) {
-	switch(basis) {
-		case 0: {
-			return 360;
-		}
-		case 1: {
-			if(isLeapYear(year)) {
-				return 366;
-			} else {
-				return 365;
-			}
-		}
-		case 2: {
-			return 360;
-		}		
-		case 3: {
-			return 365;
-		} 
-		case 4: {
-			return 360;
-		}
-	}
-	return -1;
-}
-
-int daysPerMonth(int month, long int year) {
-	switch(month) {
-		case 1: {} case 3: {} case 5: {} case 7: {} case 8: {} case 10: {} case 12: {
-			return 31;
-		}
-		case 2:	{
-			if(isLeapYear(year)) return 29;
-			else return 28;
-		}
-		default: {
-			return 30;
-		}
-	}
-}
-
-QalculateDate::QalculateDate() : i_year(0), i_month(1), i_day(1) {}
-QalculateDate::QalculateDate(long int initialyear, int initialmonth, int initialday) : i_year(0), i_month(1), i_day(1) {set(initialyear, initialmonth, initialday);}
-QalculateDate::QalculateDate(long int initialtimestamp) : i_year(0), i_month(1), i_day(1) {set(initialtimestamp);}
-QalculateDate::QalculateDate(string date_string) : i_year(0), i_month(1), i_day(1) {set(date_string);}
-void QalculateDate::setToCurrentDate() {
-	set((long int) time(NULL));
-}
-bool QalculateDate::operator > (const QalculateDate &date2) const {
-	if(i_year != date2.year()) return i_year > date2.year();
-	if(i_month != date2.month()) return i_month > date2.month();
-	return i_day > date2.day();
-}
-bool QalculateDate::operator < (const QalculateDate &date2) const {
-	if(i_year != date2.year()) return i_year < date2.year();
-	if(i_month != date2.month()) return i_month < date2.month();
-	return i_day < date2.day();
-}
-bool QalculateDate::operator >= (const QalculateDate &date2) const {
-	return !(*this < date2);
-}
-bool QalculateDate::operator <= (const QalculateDate &date2) const {
-	return !(*this > date2);
-}
-bool QalculateDate::operator != (const QalculateDate &date2) const  {
-	return i_year != date2.year() || i_month != date2.month() || i_day > date2.day();
-}
-bool QalculateDate::operator == (const QalculateDate &date2) const {
-	return i_year == date2.year() && i_month == date2.month() && i_day == date2.day();
-}
-bool QalculateDate::isFutureDate() const {
-	QalculateDate current_date;
-	current_date.setToCurrentDate();
-	return *this > current_date;
-}
-bool QalculateDate::isPastDate() const {
-	QalculateDate current_date;
-	current_date.setToCurrentDate();
-	return *this < current_date;
-}
-bool QalculateDate::set(long int newyear, int newmonth, int newday) {
-	if(newmonth < 1 || newmonth > 12) return false;
-	if(newday < 1 || newday > daysPerMonth(newmonth, newyear)) return false;
-	i_year = newyear;
-	i_month = newmonth;
-	i_day = newday;
-	return true;
-}
-bool QalculateDate::set(long int newtimestamp) {
-	i_year = 1970;
-	i_month = 1;
-	i_day = 1;
-	bool neg = newtimestamp < 0;
-	long int daytime = newtimestamp % 86400;
-	newtimestamp = newtimestamp / 86400;
-	if(!addDays(newtimestamp)) return false;
-	if(neg && daytime != 0 && !addDays(-1)) return false;
-	int yday = yearday() - 1;
-	time_t nulltime = (time_t) yday * 86400 + daytime;
-	if(i_year < 0) {
-		for(long int i = 1969; i >= i_year && i >= 1902; i--) {
-			nulltime -= (time_t) daysPerYear(i) * 86400;
-		}
-	} else if(i_year > 0) {
-		for(long int i = 1970; i < i_year && i < 2038; i++) {
-			nulltime += (time_t) daysPerYear(i) * 86400;
-		}
-	}
-	struct tm *tmdate = localtime(&nulltime);
-	if(tmdate->tm_yday > yday) return addDays(1);
-	return true;
-}
-bool QalculateDate::set(string str) {
-	remove_blank_ends(str);
-	if(equalsIgnoreCase(str, _("today")) || equalsIgnoreCase(str, "today") || equalsIgnoreCase(str, _("now")) || equalsIgnoreCase(str, "now")) {
-		set((long int) time(NULL));
-		return true;
-	} else if(equalsIgnoreCase(str, _("tomorrow")) || equalsIgnoreCase(str, "tomorrow")) {
-		set((long int) time(NULL));
-		addDays(1);
-		return true;
-	} else if(equalsIgnoreCase(str, _("yesterday")) || equalsIgnoreCase(str, "yesterday")) {
-		set((long int) time(NULL));
-		addDays(-1);
-		return true;
-	}
-	
-	long int newyear = 0, newmonth = 0, newday = 0;
-	if(sscanf(str.c_str(), "%ld-%lu-%lu", &newyear, &newmonth, &newday) != 3) {
-		if(sscanf(str.c_str(), "%4ld%2lu%2lu", &newyear, &newmonth, &newday) != 3) {
-#ifndef _WIN32
-			struct tm tmdate;
-			if(strptime(str.c_str(), "%x", &tmdate) || strptime(str.c_str(), "%Ex", &tmdate)) {
-				newyear = tmdate.tm_year + 1900;
-				newmonth = tmdate.tm_mon + 1;
-				newday = tmdate.tm_mday;
-			} else {
-#endif
-				if(sscanf(str.c_str(), "%ld/%ld/%ld", &newmonth, &newday, &newyear) != 3) {
-					if(sscanf(str.c_str(), "%2ld%2lu%2lu", &newyear, &newmonth, &newday) != 3) {
-						char c1, c2;
-						if(sscanf(str.c_str(), "%ld%1c%ld%1c%ld", &newday, &c1, &newmonth, &c2, &newyear) != 5) {
-							return false;
-						}
-					}
-					if(newday > 31) {
-						long int i = newday;
-						newday = newyear;
-						newyear = i;
-					}
-					if(newmonth > 12) {
-						long int i = newday;
-						newday = newmonth;
-						newmonth = i;
-					}
-				}
-				if(newmonth > 12) {
-					long int i = newday;
-					newday = newmonth;
-					newmonth = i;
-				}
-				if(newday > 31) {
-					long int i = newday;
-					newday = newyear;
-					newyear = i;
-				}
-				time_t rawtime;
-				time(&rawtime);
-				if(newyear >= 0 && newyear < 100) {
-					if(newyear + 70 > localtime(&rawtime)->tm_year) newyear += 1900;
-					else newyear += 2000;
-				}
-			}
-#ifndef _WIN32
-		}
-#endif
-	}
-	return set(newyear, newmonth, newday);
-}
-string QalculateDate::toISOString() const {
-	string str = i2s(i_year);
-	str += "-";
-	if(i_month < 10) {
-		str += "0";
-	}
-	str += i2s(i_month);
-	str += "-";
-	if(i_day < 10) {
-		str += "0";
-	}
-	str += i2s(i_day);
-	return str;
-}
-string QalculateDate::toLocalString() const {
-	struct tm tmdate;
-	tmdate.tm_year = i_year - 1900;
-	tmdate.tm_mon = i_month - 1;
-	tmdate.tm_mday = i_day;
-	char *buffer = (char*) malloc(100 * sizeof(char));
-	if(!strftime(buffer, 100, "%x", &tmdate)) {
-		return toISOString();
-	}
-	string str = buffer;
-	free(buffer);
-	return str;
-}
-long int QalculateDate::year() const {return i_year;}
-long int QalculateDate::month() const {return i_month;}
-long int QalculateDate::day() const {return i_day;}
-bool QalculateDate::addDays(long int days) {
-	long int newday = i_day, newmonth = i_month, newyear = i_year;
-	if(days > 0) {
-		if(i_day > 0 && (unsigned long int) days + i_day > (unsigned long int) LONG_MAX) return false;
-		newday += days;
-		bool check_aborted = days > 1000000L;
-		while(newday > daysPerYear(newyear)) {
-			newday -= daysPerYear(newyear);
-			newyear++;
-			if(check_aborted && CALCULATOR && CALCULATOR->aborted()) return false;
-		}
-		while(newday > daysPerMonth(newmonth, newyear)) {
-			newday -= daysPerMonth(newmonth, newyear);
-			newmonth++;
-			if(newmonth > 12) {
-				newyear++;
-				newmonth = 1;
-			}
-		}
-	} else if(days < 0) {
-		newday += days;
-		bool check_aborted = days < -1000000L;
-		while(-newday > daysPerYear(newyear - 1)) {
-			newyear--;
-			newday += daysPerYear(newyear);
-			if(check_aborted && CALCULATOR && CALCULATOR->aborted()) return false;
-		}
-		while(newday < 1) {
-			newmonth--;
-			if(newmonth < 1) {
-				newyear--;
-				newmonth = 12;
-			}
-			newday += daysPerMonth(newmonth, newyear);
-		}
-	}
-	i_day = newday;
-	i_month = newmonth;
-	i_year = newyear;
-	return true;
-}
-bool QalculateDate::addMonths(long int months) {
-	if(i_year > 0 && months > 0 && (unsigned long int) months / 12 + i_year > (unsigned long int) LONG_MAX) return false;
-	if(i_year < 0 && months < 0 && (unsigned long int) (-months / 12) - i_year > (unsigned long int) LONG_MAX) return false;
-	i_year += months / 12;
-	i_month += months % 12;
-	if(i_month > 12) {
-		i_month -= 12;
-		i_year += 1;
-	} else if(i_month < 1) {
-		i_month += 12;
-		i_year -= 1;
-	}
-	if(i_day > daysPerMonth(i_month, i_year)) {
-		i_day -= daysPerMonth(i_month, i_year);
-		i_month++;
-		if(i_month > 12) {
-			i_month -= 12;
-			i_year += 1;
-		}
-	}
-	return true;
-}
-bool QalculateDate::addYears(long int years) {
-	if(i_year > 0 && years > 0 && (unsigned long int) years + i_year > (unsigned long int) LONG_MAX) return false;
-	if(i_year < 0 && years < 0 && (unsigned long int) (-years) - i_year > (unsigned long int) LONG_MAX) return false;
-	i_year += years;
-	if(i_day > daysPerMonth(i_month, i_year)) {
-		i_day -= daysPerMonth(i_month, i_year);
-		i_month++;
-		if(i_month > 12) {
-			i_month -= 12;
-			i_year += 1;
-		}
-	}
-	return true;
-}
-int QalculateDate::weekday() const {
-	Number nr(daysTo(QalculateDate(2017, 7, 31)));
-	if(nr.isInfinite()) return -1;
-	nr.negate();
-	nr.rem(Number(7, 1));
-	if(nr.isNegative()) return 8 + nr.intValue();
-	return nr.intValue() + 1;
-}
-int QalculateDate::week(bool start_sunday) const {
-	if(start_sunday) {
-		int yday = yearday();
-		QalculateDate date1(i_year, 1, 1);
-		int wday = date1.weekday() + 1;
-		if(wday < 0) return -1;
-		if(wday == 8) wday = 1;
-		yday += (wday - 2);
-		int week = yday / 7 + 1;
-		if(week > 52) week = 1;
-		return week;
-	}
-	if(i_month == 12 && i_day >= 29 && weekday() <= i_day - 28) {
-		return 1;
-	} else {
-		QalculateDate date(i_year, i_month, i_day);
-		week_rerun:
-		int week1;
-		int day1 = date.yearday();
-		QalculateDate date1(date.year(), 1, 1);
-		int wday = date1.weekday();
-		if(wday < 0) return -1;
-		day1 -= (8 - wday);
-		if(wday <= 4) {
-			week1 = 1;
-		} else {
-			week1 = 0;
-		}
-		if(day1 > 0) {
-			day1--;
-			week1 += day1 / 7 + 1;
-		}
-		if(week1 == 0) {
-			date.set(date.year() - 1, 12, 31);
-			goto week_rerun;
-		}
-		return week1;
-	}
-}
-int QalculateDate::yearday() const {
-	int yday = 0;
-	for(long int i = 1; i < i_month; i++) {
-		yday += daysPerMonth(i, i_year);
-	}
-	return yday + i_day;
-}
-Number QalculateDate::timestamp() const {
-	QalculateDate date(0);
-	Number nr(date.daysTo(*this));
-	nr *= (60 * 60 * 24);
-	return nr;
-}
-Number QalculateDate::daysTo(const QalculateDate &date, int basis, bool date_func) const {
-	
-	Number nr;
-	
-	if(basis < 0 || basis > 4) basis = 1;
-	
-	bool neg = false;
-	bool isleap = false;
-	long int days, years;
-	
-	long int day1 = i_day, month1 = i_month, year1 = i_year;
-	long int day2 = date.day(), month2 = date.month(), year2 = date.year();
-
-	if(year1 > year2 || (year1 == year2 && month1 > month2) || (year1 == year2 && month1 == month2 && day1 > day2)) {
-		int year3 = year1, month3 = month1, day3 = day1;
-		year1 = year2; month1 = month2; day1 = day2;
-		year2 = year3; month2 = month3; day2 = day3;
-		neg = true;
-	}
-
-	years = year2  - year1;
-	days = day2 - day1;
-
-	isleap = isLeapYear(year1);
-
-	switch(basis) {
-		case 0: {
-			nr.set(years, 1, 0);
-			nr *= 12;
-			nr += (month2 - month1);
-			nr *= 30;
-			nr += days;
-			if(date_func) {
-				if(month1 == 2 && ((day1 == 28 && !isleap) || (day1 == 29 && isleap)) && !(month2 == month1 && day1 == day2 && year1 == year2)) {
-					if(isleap) nr -= 1;
-					else nr -= 2;
-				} else if(day1 == 31 && day2 < 31) {
-					nr++;
-				}
-			} else {
-				if(month1 == 2 && month2 != 2 && year1 == year2) {
-					if(isleap) nr -= 1;
-					else nr -= 2;
-				}
-			}
-			break;
-		}
-		case 1: {}
-		case 2: {}
-		case 3: {
-			int month4 = month2;
-			bool b;
-			if(years > 0) {
-				month4 = 12;
-				b = true;
-			} else {
-				b = false;
-			}
-			nr.set(days, 1, 0);
-			for(; month1 < month4 || b; month1++) {
-				if(month1 > month4 && b) {
-					b = false;
-					month1 = 1;
-					month4 = month2;
-					if(month1 == month2) break;
-				}
-				if(!b) {
-					nr += daysPerMonth(month1, year2);
-				} else {
-					nr += daysPerMonth(month1, year1);
-				}
-			}
-			if(years == 0) break;
-			bool check_aborted = years > 10000L;
-			for(year1 += 1; year1 < year2; year1++) {
-				if(check_aborted && CALCULATOR && CALCULATOR->aborted()) {
-					nr.setPlusInfinity();
-					return nr;
-				}
-				if(isLeapYear(year1)) nr += 366;
-				else nr += 365;
-			} 
-			break;
-		} 
-		case 4: {
-			nr.set(years, 1, 0);
-			nr *= 12;
-			nr += (month2 - month1);
-			if(date_func) {
-				if(day2 == 31 && day1 < 31) days--;
-				if(day1 == 31 && day2 < 31) days++;
-			}
-			nr *= 30;
-			nr += days;
-			break;
-		}
-	}
-	if(neg) nr.negate();
-	return nr;
-}
-Number QalculateDate::yearsTo(const QalculateDate &date, int basis, bool date_func) const {
-	Number nr;
-	if(basis < 0 || basis > 4) basis = 1;
-	if(basis == 1) {
-		if(date.year() == i_year) {
-			nr.set(daysTo(date, basis, date_func));
-			nr.divide(daysPerYear(i_year, basis));
-		} else {
-			bool neg = false;
-			long int day1 = i_day, month1 = i_month, year1 = i_year;
-			long int day2 = date.day(), month2 = date.month(), year2 = date.year();
-			if(year1 > year2) {
-				int year3 = year1, month3 = month1, day3 = day1;
-				year1 = year2; month1 = month2; day1 = day2;
-				year2 = year3; month2 = month3; day2 = day3;
-				neg = true;
-			}
-			for(int month = 12; month > month1; month--) {
-				nr += daysPerMonth(month, year1);
-			}
-			nr += daysPerMonth(month1, year1) - day1 + 1;
-			for(int month = 1; month < month2; month++) {
-				nr += daysPerMonth(month, year2);
-			}
-			nr += day2 - 1;
-			bool check_aborted = (year2 - year1) > 10000L;
-			Number days_of_years;
-			for(int year = year1; year <= year2; year++) {
-				if(check_aborted && CALCULATOR && CALCULATOR->aborted()) {
-					nr.setPlusInfinity();
-					return nr;
-				}
-				days_of_years += daysPerYear(year, basis);
-				if(year != year1 && year != year2) {
-					nr += daysPerYear(year, basis);
-				}
-			}
-			days_of_years /= year2 + 1 - year1;
-			nr /= days_of_years;
-			if(neg) nr.negate();
-		}
-	} else {
-		nr.set(daysTo(date, basis, date_func));
-		nr.divide(daysPerYear(0, basis));
-	}
-	return nr;
 }
 

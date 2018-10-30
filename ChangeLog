@@ -1,3 +1,501 @@
+2018-10-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Group options in qalc
+	* Fix values for x when log(x) and Li(x) represents positive
+	* Fix a*b^x+cx=d
+	* Fixes for interval calculations with complex derivative
+	* Improve trigonometric interval calculations
+
+2018-10-28 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Simplify e^(a*pi*i) to (-1)^a and apply further simplifications to (-1)^a instead
+	* raised the to power" => "raised to the power"
+	* Fix atanh(x)=a when im(a) < 0 (no solution exists)
+	* Fix temporarily activated interval arithmetics leading to lasting deactivation
+	* Fix magnitude() definition
+
+2018-10-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Solve a^(2x)+a^x=b, a^(-x)+a^x=b, and similar
+	* Solve a*sinh(x)+b*cosh(x)=c
+	* Fix atan(i) and atan(-i)
+	* Simplify e^(i*atan(a)) to (1+a*i)/sqrt(a^2+1)
+	* Generalize e^(a*pi*i) for all rational a
+	* Simplify (a/b)^c to a^c/b^c if a and b are integers
+	* Fix unrecognized gcd failure
+	* Fix segfault on n*1^infinity
+	* Fix atan(i) and atan(-i)
+	* Fix atanh(x)=a when im(a) < 0 (no solution exists)
+	* Fix temporarily activated interval arithmetics leading to lasting deactivation
+
+2018-10-26 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fixes for default angle unit other than radians
+	* Solve a^(b*x)+x=c in exact mode
+	* ln(a*i+b) interval fix
+	* Fix for trigonometric functions with division by argument
+	* Improve polynomial exponentiation limit calculation
+
+2018-10-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Simplify arg(e^(a*i)), ln(e^(a*i)) and (e^(a*i))^b
+	* Calculate approximate value to determine sign in abs(), arg(), sgn(), heaviside and dirac(), in exact mode
+	* Use ln()=ln(abs(x))+arg(x)i in more cases in exact mode
+	* Fix infinite loop in trigonometric simplifications
+	* Only remove near zero part of complex number interval if interval includes zero
+
+2018-10-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Remove probably zero imaginary part from numbers in plot data
+	* ln() simplifications for complex arguments
+	* Fix approximate comparison between rational number and interval
+	* Fix never ending loop in polynomial division
+	* Fix (-x)^(-2/3) and similar when x is assumed negative
+	* abs(a^(b*i))=1 if a is positive and b is real
+	* Fix endless loop with abs(interval) base and polynomial power
+
+2018-10-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix endless loop with (x^8)^(52^(1/10)) and similar if x is assumed negative
+	* Fix simplification of a*log(b)+c*log(d) when b or d is complex
+	* Fix "E-" in +/- number interval specification
+	* Fix segfault in interval variable factorization
+
+2018-10-22 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Simplify (e^(a*i))^(b) when a and b are real numbers, and b equals 1/2 or abs(a) < pi
+	* Test result for ln(x)=a if a is complex
+	* Solutions for x*ln(a*x)=b and x^2*ln(a*x)=b, and a*x+ln(b*x)=c
+	* Fix precision property for a^(+/-infinity)
+
+2018-10-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Newton-raphson fixes/improvements
+	* Use Lambert W branches for complex solutions
+	* Add solution for a*b^x+cx=d when d != 0
+	* Calculate all complex solutions for x^(a/b)=c
+	* Make n variable available to user
+
+2018-10-20 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Univariate factorization (non-square free) for polynomial factors with degree >= 2 (simple algorithm based on Kronecker method)
+	* Add branch argument to lambertw() (only the principal branch is calculated)
+	* Fix segfault in gcd with very large polynomial degree (restrict to < 1000)
+
+2018-10-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improve a*x*b^(c*x)=d
+	* Solve a*b^x+cx=0
+	* Improve x^(a*x^b)=c
+	* Simplification and factorization fixes
+	* sqrt(a)/a=1/sqrt(a) for rational numbers
+	* Fix a^x=b for complex x, and (-1)^x=1 and (-1)^x=1 for real x
+
+2018-10-17 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Allow interval and infinity when determining if equal for logical and, and or
+	* Improve a^x=b
+	* Return exact result for x^x=a in some cases
+
+2018-10-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix a^x=b when a is zero
+	* Fix abs(x)=-a
+	* Fix segfault on 1^(a/b) in exact mode when a or b are extremely large
+	* 1^a always exactly 1 if not a is infinite
+	* Set maximum argument for cosh and sinh calculation (< 2^28)
+	* Set maximum order for bessely() to 1000 (too slow above)
+	* Fix log(a^x, b) when a is negative or x is complex
+	* Fix parsing of thin space in numbers
+
+2018-10-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix adaptive interval display (when +/- in expression)
+	* Fix E-notation for +/- (parse 1E4+/-1E2 as 10000+/-100)
+	* Improve precision of asin(a*i); Fix ln(a*ln(pi))
+	* Fix segfault in polynomial division
+	* Fix polynomial division in some complex cases
+	
+2018-10-14 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* sin(i*x)=i*sinh(x), etc.
+	* a^(b*c)!=(a^b)^c if b is complex
+	* Replace with temporary variable in replace() if replacement value is interval
+	* Replace n with single possible value in equation result for unknown variable with interval
+	
+2018-10-13 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix radian unit with prefix in trigonometric functions
+	* Fix critically slow handling of many AND OR combinations
+	* Fix segfault in aborted sort
+	* Fix rounding in some cases with intervals
+	* Fix display of zero with strict exp mode
+	* Fix factorization segfault
+	* Trigonometric simplification fix
+
+2018-10-12 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix illegal vales for acos(x)=a
+	* Fix atanh(-infinity*i)
+	* Set exact value for atanh() with infinite argument
+	* Fix root(-ax, n) when n is even
+	* Fix sinh(x)=a
+	* Use parentheses for complex numbers (not used if formatted)
+	* Do not use prefixes for angle units by default
+	* Set PrintOptions for messages
+	* Fix 'n' and 'C' variable assumptions
+	* Fix various segfaults
+	* Always place number/zero on right side of comparison in formatted result
+
+2018-10-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Use quadratic equation formula directly for ax^d+bx^(2d)=c (solve for x^d)
+	* Fix/improve trigonometric transformations
+
+2018-10-10 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault in during formatting
+	* Fix 1/x=0 when x may be infinite
+	* Improve comparison tests
+	* Fix factorization segfault
+	* Fix MathStructure::unformat()
+
+2018-10-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improve precision of ax+bx^2=0
+	* Improve formatting of values in error/warning output
+	* Use kilo as prefix for gram if automatic prefix is off
+	* Set max exponent for use of mpfr_pow_z
+	* Fix logical AND segfaults
+	* asin() fixes for complex interval
+
+2018-10-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+	
+	* Fix acosh(x)=a
+	* Add random expression testing
+	* Fix segfault on 0^(-e) and similar
+	* Fix asin() and acos() for complex numbers
+	* Restrict maximum argument value for sin(), cos() and tan() using current precision
+	* Trigonometric simplification improvements
+	
+2018-10-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* sqrt(a)/a=1/sqrt(a) for integers
+
+2018-10-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* a*sin(x)+b*cos(x)=a*sqrt((b/a)^2+1)*sin(x+atan(b/a)); sin(sqrt(3)/2)=pi/3, tan(sqrt(3)/3)=pi/6, etc.
+
+2018-09-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* sin(acos(x))=sqrt(1-x^2) and similar
+	
+2018-09-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Solve equations with trigonometric functions
+	* sin(a*i)=i*sinh(a), cos(a*i)=cosh(a), tan(a*i)=i*tanh(a)
+
+2018-09-28 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* If x might be complex solution for a^x = b is x = (i*pi*n + ln(a)) / ln(b) and similar
+	* Add "C" (for integrals) and "n" (integer) unknown variables (not user accessible)
+	* Trigonometric functions improvements/fixes
+
+2018-09-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* f(a.b*pi+x) equals (-) f(0.b*pi+x) for sin(), cos() and tan(), e.g. sin(3.37pi+x)=-sin(0.37pi+x)
+
+2018-09-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Remove negative sign from trigonometric function argument (e.g. sin(-x)=-sin(x))
+
+2018-09-20 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Parse |x| and ||x|| as abs(x) and magnitude(x)
+	* Fix Avogadro constant uncertainty
+
+2018-09-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add magnitude(), entrywise() and hadamard() functions
+
+2018-08-10 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Option to disable automatic conversion to local currency (when optimal conversion activated)
+
+2018-08-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix f(x)+a=a (e.g. x+1=1)
+	* Fix automatic unit conversion after RPN stack calculations
+
+2018-08-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Polar and exponential complex number forms
+
+2018-08-01 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix ignore comma for RPN syntax
+
+2018-07-22 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix ln(-i)
+
+2018-07-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix display of negative number interval with +/- interval display when uncertainty is lower than global precision
+	* Fix display of addition with negative non-integer number (show "x - a" instead of "x + -a")
+
+2018-06-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Do not automatically update all exchange rates sources if not needed
+
+2018-06-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Use mycurrency.net html instead of the json data, which has not been for a month
+
+2018-06-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Only use two's complement representation for integers
+	* Use a * base^b for extremely long numbers in bases other than decimal
+
+2018-06-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* When using two's complement representation on negative non-integers,
+	  use the same number of decimals as without two's complement representation
+	* Fix round() for negative rational numbers!
+
+2018-06-01 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Interpret 5m 7cm (and similar, for m and L) as 5m+7cm, and 3h 5min (and similar) as 3h+5min
+	* Interpret m2 and m3 as m^2 and m^3 (as before), but m4 as m*4
+
+2018-05-31 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Treat definitions in non-standard user files as global (not directly editable), in order to avoid duplication
+	* Add Calculator::calculateAndPrint() function
+
+2018-05-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add "to base #" conversion
+	* Lunar phase functions
+
+2018-05-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Calendar conversion
+	* Add "to" conversion for display of numbers in roman, sexagesimal, or time format
+
+2018-05-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Search for matching functions, variables and units using 'list' (or 'find') command in qalc
+	* Improved ln() simplifications
+
+2018-05-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Do not automatically convert to broken down composite unit c for x*a+x*b (and similar),
+	  if a and b are both aliases for c
+	* Allow 1°2'3" format for degree, arminute and arcsecond
+	* Add arcsec and armin reference name to Arcminute and Arcsecond
+	* Use prime symbols for sexagesimal output format
+
+2018-05-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix crash when expression contains '>', '<' or '=', and libqalculate is compiled with -D_GLIBCXX_ASSERTIONS
+	* Allow 5'8" format for feet and inches
+
+2018-05-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Treat rates.json with "Internal Server Error" message as failed exchange rates download
+
+2018-05-14 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Ignore empty lines and lines beginning with # or // in batch file
+
+2018-05-13 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix never ending loop in (-x)^(2/3) if x is assumed negative
+	* Fix x/(x^(3/4)+x) and similar when x is assumed positive
+
+2018-05-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improved series titles in plot()
+	* Derivative for bessely()
+	* Improved product log deriative
+
+2018-05-03 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add titles to currency list in qalc
+
+2018-05-01 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add countries property to currencies
+	* Add "(obsolote)" to relevant currencies titles
+
+2018-04-26 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Enhanced interval arithmetic with dependent intervals
+
+2018-04-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* New currency names and titles (contributed by majumeke) 
+
+2018-04-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Two's complement representation
+	* bitcmp() function
+	* Option to interprete binary number using two's complement representation in bin()
+	* Allow all rational numbers for second argument of root()
+
+2018-04-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix a^infinity when a > 1
+	* limit() function
+
+2018-04-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault when prefix is set in some cases
+
+2018-04-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* "to"-conversion for physical constants
+
+2018-04-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Calculate each vector element (and each extra argument) separately in many functions
+	  (e.g. sin(5, 2, 3) = [-0.95892427, 0.90929743, 0.14112001])
+
+2018-04-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Only remove quotation marks at beginning and end of command line expression if they are the only ones
+
+2018-04-03 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Direct date and time calculation
+	* Return date and time in stamptodate()
+	* Time zone conversion
+
+2018-04-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Use local currency as "optimal" currency unit
+
+2018-04-01 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Allow user to change decimal separator (and consequently argument separator)
+	* Fix lambertw()
+
+2018-03-31 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix display of parsed sexagesimal number
+	* Do not remove spaces within quotation marks
+
+2018-02-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Change how percent (and permille, permyriad) addition and subtract is calculated (100+20%=120)
+
+2018-03-28 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Allow ParseOptions::comma_as_separator to have effect on unlocalizeExpression() and localizeExpression() 
+	  even if Calculator::useDecimalPoint(true) has not been called.
+
+2018-03-26 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix complex atan()
+	* Derivative of arg()
+	* ln(x^a)=ln(x)*a if 1>a>-1 and a!=0
+
+2018-03-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segmentation fault when calculating arg(-x)
+
+2018-03-22 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Derivative of gamma(), besselj(), heaviside(), Ci(), Si(), Shi(), Chi(), Ei(), Li(), li(), erf(), erfc(), sinc(),
+	  factorial and comparisons, and use dirac() for derative of sgn().
+	* Complete the square when factorizing
+
+2018-03-20 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* --version (-v) command line option for qalc
+	* Make data and config directories recursively
+
+2018-03-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Always display rational exponents as fractions if numerator and denominator is less than ten
+	* Fix endless loop when factorizing expression with sgn()
+	* Number display fixes
+
+2018-03-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix endless loop with (5^x)^(1/3)*5^x
+	* Precalculate in replace() function if original value not found
+
+2018-03-07 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segmentation fault root() in some cases
+
+2018-03-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* ln(x^a)=a*ln(x) only when x is positive
+
+2018-03-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Increase efficieny of trigonometric functions in some cases
+	* Fix 1^x
+	* Allow final interval expansion for high precision intervals
+
+2018-03-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix endless loop when solving (x^(1/3))^3 * (x^(1/3))^2 + (x^(1/3))^2!=0 and similar with variable substitution
+
+2018-02-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improved handling of blocked messages
+	* sin(x)^2+cos(x)^2=1
+
+2018-03-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Partial fractional decomposition
+	* << operator for MathStructure and Number
+
+2018-02-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Enhanced integration
+	* Numerical approximation of definitive integral (using Simpson's rule)
+	* Fix exact (-a)^(-b/c)
+	* Fix derivative of acosh
+
+2018-02-10 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* dsolve() function for differential equations
+	* Simplify result inbetween each run for high order derivatives to increase performance
+
+2018-02-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	Show a more informative message and fail in autogen.sh when doxygen and API docs is missing
+
+2018-02-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Icelandic Krónur added to ECB data
+
+2018-01-26 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	Use mpfr_rootn_ui with mpfr version >= 4.0.0
+
+2018-01-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support negative exponents and k > n in binomial function
+
+2018-01-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Set Gnuplot samples to avoid unsmooth smoothed curve
+
+2018-01-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Check if plot data is continuous
+
+2018-01-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Use auto_y_min/auto_y_max/y_min/y_max plot parameters
+	* Increase default number of plot samples
+
 2018-01-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Add vacuum_permeability and vacuum_permittivity as names for magnetic and electric constants
