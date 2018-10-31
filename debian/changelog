@@ -1,8 +1,18 @@
-libqalculate (2.8.0-1) unstable; urgency=medium
+libqalculate (2.8.0-1) experimental; urgency=medium
 
   * New upstream version
+  * Bump soname to 20
+    - rename lib and data packages
+    - libqalculate20: add Breaks and Replaces on libqalculate14
+    - libqalculate20-data: add Breaks and Replaces on older -data packages
+      (Closes: #894112)
+  * Add Build-Depends on doxygen and build documentation with it
+    - thanks to James Lu <james@overdrivenetworks.com>
+  * Add 2018 in debian/copyright
+  * Standards-Version 4.2.1
+  * Add Vcs fields to salsa
 
- -- Vincent Legout <vlegout@debian.org>  Tue, 30 Oct 2018 06:47:56 +0100
+ -- Vincent Legout <vlegout@debian.org>  Wed, 31 Oct 2018 06:05:01 +0100
 
 libqalculate (2.2.1-2) experimental; urgency=medium
 
