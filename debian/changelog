@@ -1,3 +1,9 @@
+libqalculate (2.8.0-2) unstable; urgency=medium
+
+  * Upload to unstable
+
+ -- Vincent Legout <vlegout@debian.org>  Sat, 24 Nov 2018 12:39:15 +0100
+
 libqalculate (2.8.0-1) experimental; urgency=medium
 
   * New upstream version
