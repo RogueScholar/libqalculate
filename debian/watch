@@ -1,3 +1,3 @@
-version=3
-opts=filenamemangle=s/.+\/v?(\d\S+)\.tar\.gz/<project>-$1\.tar\.gz/ \
-  https://github.com/Qalculate/libqalculate/tags .*/v?(\d\S+)\.tar\.gz
+version=4
+opts="filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%libqalculate-$1.tar.gz%" \
+   https://github.com/Qalculate/libqalculate/tags (?:.*?/)?v?(\d[\d.]*)\.tar\.gz

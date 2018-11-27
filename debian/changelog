@@ -1,6 +1,7 @@
 libqalculate (2.8.1-1) unstable; urgency=medium
 
   * New upstream release
+  * Fix debian/watch, use github example from uscan(1)
 
  -- Vincent Legout <vlegout@debian.org>  Tue, 27 Nov 2018 21:05:23 +0100
 
