@@ -2512,8 +2512,10 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 			evalops.parse_options.units_enabled = true;
 			evalops.auto_post_conversion = POST_CONVERSION_NONE;
 			evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_FORCE_INTEGER;
+		} else {
+			evalops.parse_options.units_enabled = true;
 		}
-	}		
+	}
 
 	mstruct = calculate(str, evalops);
 	
@@ -2624,10 +2626,10 @@ bool Calculator::hasToExpression(const string &str, bool allow_empty_from) const
 bool Calculator::separateToExpression(string &str, string &to_str, const EvaluationOptions &eo, bool keep_modifiers, bool allow_empty_from) const {
 	to_str = "";
 	size_t i = 0;
-	if(eo.parse_options.units_enabled && (i = str.find(_(" to "))) != string::npos) {
+	if((i = str.find(_(" to "))) != string::npos) {
 		size_t l = strlen(_(" to "));
 		to_str = str.substr(i + l, str.length() - i - l);
-	} else if(eo.parse_options.units_enabled && (i = str.find(" to ")) != string::npos) {
+	} else if((i = str.find(" to ")) != string::npos) {
 		size_t l = strlen(" to ");
 		to_str = str.substr(i + l, str.length() - i - l);
 	} else if(allow_empty_from && str.find("to ") == 0) {
@@ -4768,6 +4770,20 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					break;
 				}
 			}	
+		} else if(str[str_index] == '\\' && str_index + 1 < str.length() && is_not_in(NOT_IN_NAMES, str[str_index + 1])) {
+			stmp = LEFT_PARENTHESIS ID_WRAP_LEFT;
+			size_t l = 1;
+			if(str[str_index + l] < 0) {
+				do {
+					l++; 
+				} while(str_index + l < str.length() && str[str_index + l]);
+				l--;
+			}
+			MathStructure *mstruct = new MathStructure(str.substr(str_index + 1, l));
+			stmp += i2s(addId(mstruct));
+			stmp += ID_WRAP_RIGHT RIGHT_PARENTHESIS;
+			str.replace(str_index, l + 1, stmp);
+			str_index += stmp.length() - l;
 		} else if(((po.base >= 2 && po.base <= 10) || po.base == BASE_DUODECIMAL) && str[str_index] == '!' && po.functions_enabled) {
 			if(str_index > 0 && (str.length() - str_index == 1 || str[str_index + 1] != EQUALS_CH)) {
 				stmp = "";
@@ -7526,7 +7542,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 		xmlFreeDoc(doc);
 		return false;
 	}
-	int version_numbers[] = {2, 8, 0};
+	int version_numbers[] = {2, 8, 1};
 	parse_qalculate_version(version, version_numbers);
 
 	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);

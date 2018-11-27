@@ -2033,23 +2033,38 @@
     </unit>
     <unit type="alias">
       <title>Are</title>
+      <title xml:lang="sv">Ar</title>
       <names>ar:a,are,p:ares</names>
+      <names xml:lang="sv">a:a,ar,are</names>
       <base>
         <unit>m</unit>
         <relation>100</relation>
         <exponent>2</exponent>
       </base>
+      <use_with_prefixes>true</use_with_prefixes>
     </unit>
-    <unit type="composite">
+    <unit type="alias">
       <title>Hectare</title>
       <title xml:lang="sv">Hektar</title>
       <title xml:lang="zh_CN">公顷</title>
-      <names>r:ha</names>
-      <part>
+      <names>ar:ha,hectare,p:hectares</names>
+      <names xml:lang="sv">a:ha,hektar,hectare</names>
+      <base>
         <unit>a</unit>
-        <prefix>2</prefix>
+        <relation>100</relation>
         <exponent>1</exponent>
-      </part>
+      </base>
+    </unit>
+    <unit type="alias">
+      <title>Decare</title>
+      <title xml:lang="sv">Dekar</title>
+      <names>a:da,r:decare,p:decares</names>
+      <names xml:lang="sv">a:da,dekar,decare</names>
+      <base>
+        <unit>a</unit>
+        <relation>10</relation>
+        <exponent>1</exponent>
+      </base>
     </unit>
     <unit type="alias">
       <title>Barn</title>
