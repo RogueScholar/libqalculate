@@ -5334,7 +5334,9 @@ int MathStructure::merge_power(MathStructure &mstruct, const EvaluationOptions &
 							} else {
 								Number num_terms;
 								if(num_terms.binomial(i_pow + (long int) SIZE - 1, (long int) SIZE - 1)) {
-									size_t tc = countTotalChildren() / SIZE - 4;
+									size_t tc = countTotalChildren() / SIZE;
+									if(tc <= 4) tc = 0;
+									else tc -= 4;
 									b = num_terms.isLessThanOrEqualTo(tc > 1 ? 300 / tc : 300);
 								}
 							}
@@ -16506,6 +16508,60 @@ int idm3(MathStructure &mnum, Number &nr, bool expand) {
 	return 0;
 }
 
+bool displays_number_exact(Number nr, const PrintOptions &po, MathStructure *top_parent) {
+	if(po.base == BASE_ROMAN_NUMERALS) return true;
+	InternalPrintStruct ips_n;
+	if(top_parent && top_parent->isApproximate()) ips_n.parent_approximate = true;
+	if(top_parent && top_parent->precision() < 0) ips_n.parent_precision = top_parent->precision();
+	bool approximately_displayed = false;
+	PrintOptions po2 = po;
+	po2.is_approximate = &approximately_displayed;
+	nr.print(po2, ips_n);
+	return !approximately_displayed;
+}
+
+int idm3_test(bool &b_fail, const MathStructure &mnum, const Number &nr, bool expand, const PrintOptions &po, MathStructure *top_parent) {
+	switch(mnum.type()) {
+		case STRUCT_NUMBER: {
+			Number nr2(mnum.number());
+			nr2 *= nr;
+			b_fail = !displays_number_exact(nr2, po, top_parent);
+			break;
+		}
+		case STRUCT_MULTIPLICATION: {
+			if(mnum.size() > 0 && mnum[0].isNumber()) {
+				Number nr2(mnum[0].number());
+				nr2 *= nr;
+				b_fail = !nr2.isOne() && !displays_number_exact(nr2, po, top_parent);
+				return -1;
+			} else if(expand) {
+				for(size_t i = 0; i < mnum.size(); i++) {
+					if(mnum[i].isAddition()) {
+						idm3_test(b_fail, mnum[i], nr, true, po, top_parent);
+						return -1;
+					}
+				}
+			}
+			b_fail = !displays_number_exact(nr, po, top_parent);
+			return 1;
+		}
+		case STRUCT_ADDITION: {
+			if(expand) {
+				for(size_t i = 0; i < mnum.size(); i++) {
+					idm3_test(b_fail, mnum[i], nr, true, po, top_parent);
+					if(b_fail) break;
+				}
+				break;
+			}
+		}
+		default: {
+			b_fail = !displays_number_exact(nr, po, top_parent);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 bool is_unit_multiexp(const MathStructure &mstruct) {
 	if(mstruct.isUnit_exp()) return true;
 	if(mstruct.isMultiplication()) {
@@ -16528,6 +16584,7 @@ bool is_unit_multiexp(const MathStructure &mstruct) {
 	}
 	return false;
 }
+
 bool MathStructure::improve_division_multipliers(const PrintOptions &po) {
 	switch(m_type) {
 		case STRUCT_MULTIPLICATION: {
@@ -16582,9 +16639,19 @@ bool MathStructure::improve_division_multipliers(const PrintOptions &po) {
 				if(inum > 0) idm2(CHILD(index2), bfrac, bint, nr);
 				if(iden > 0) idm2(CHILD(index1)[0], bfrac, bint, nr);
 				if((bint || bfrac) && !nr.isOne()) {
-					if(bint) {
-						nr.recip();
+					if(bint) nr.recip();
+					
+					bool b_fail = false;
+					if(inum > 1 && !CHILD(index2).isNumber()) {
+						int i = idm3_test(b_fail, *this, nr, !po.allow_factorization, po, this);
+						if(i >= 0 && !b_fail && iden > 0) idm3_test(b_fail, CHILD(index1)[0], nr, !po.allow_factorization, po, this);
+					} else {
+						if(inum != 0) idm3_test(b_fail, CHILD(index2), nr, !po.allow_factorization, po, this);
+						if(!b_fail && iden > 0) idm3_test(b_fail, CHILD(index1)[0], nr, !po.allow_factorization, po, this);
 					}
+					if(b_fail) return false;
+					
+					b = true;
 					if(inum == 0) {
 						PREPEND(MathStructure(nr));
 						index1 += 1;
@@ -16623,9 +16690,14 @@ bool MathStructure::improve_division_multipliers(const PrintOptions &po) {
 				idm2(CHILD(0), bfrac, bint, nr);
 				idm2(CHILD(1), bfrac, bint, nr);
 				if((bint || bfrac) && !nr.isOne()) {
-					if(bint) {
-						nr.recip();
-					}
+					if(bint) nr.recip();
+					
+					bool b_fail = false;
+					idm3_test(b_fail, CHILD(0), nr, !po.allow_factorization, po, this);
+					if(b_fail) return false;
+					idm3_test(b_fail, CHILD(1), nr, !po.allow_factorization, po, this);
+					if(b_fail) return false;
+					
 					idm3(CHILD(0), nr, !po.allow_factorization);
 					idm3(CHILD(1), nr, !po.allow_factorization);
 					return true;
@@ -16640,6 +16712,10 @@ bool MathStructure::improve_division_multipliers(const PrintOptions &po) {
 				Number nr(1, 1);
 				idm2(CHILD(0), bfrac, bint, nr);
 				if((bint || bfrac) && !nr.isOne()) {
+					bool b_fail = false;
+					idm3_test(b_fail, CHILD(0), nr, !po.allow_factorization, po, this);
+					if(b_fail) return false;
+					
 					setToChild(1, true);
 					idm3(*this, nr, !po.allow_factorization);
 					transform_nocopy(STRUCT_DIVISION, new MathStructure(nr));
@@ -16657,6 +16733,10 @@ bool MathStructure::improve_division_multipliers(const PrintOptions &po) {
 					Number nr(1, 1);
 					idm2(CHILD(0), bfrac, bint, nr);
 					if((bint || bfrac) && !nr.isOne()) {
+						bool b_fail = false;
+						idm3_test(b_fail, CHILD(0), nr, !po.allow_factorization, po, this);
+						if(b_fail) return false;
+						
 						idm3(CHILD(0), nr, !po.allow_factorization);
 						transform(STRUCT_MULTIPLICATION);
 						PREPEND(MathStructure(nr));
@@ -16679,7 +16759,7 @@ bool MathStructure::improve_division_multipliers(const PrintOptions &po) {
 }
 
 bool use_prefix_with_unit(Unit *u, const PrintOptions &po) {
-	if(!po.prefix && !po.use_unit_prefixes) return u->referenceName() == "g";
+	if(!po.prefix && !po.use_unit_prefixes) {return u->referenceName() == "g" || u->referenceName() == "a";}
 	if(po.prefix) return true;
 	if(u->isCurrency()) return po.use_prefixes_for_currencies;
 	if(po.use_prefixes_for_all_units) return true;
@@ -16952,13 +17032,14 @@ void MathStructure::setPrefixes(const PrintOptions &po, MathStructure *parent, s
 						}
 					} else if(!po.use_unit_prefixes) {
 						Prefix *p = NULL;
-						if(munit->isUnit() && munit->unit()->referenceName() == "g") {
+						if((munit->isUnit() && munit->unit()->referenceName() == "g") || (munit->isPower() && (*munit)[0].unit()->referenceName() == "g")) {
 							p = CALCULATOR->getExactDecimalPrefix(3);
 							if(p) munit->setPrefix(p);
 							
-						} else if(munit->isPower() && (*munit)[0].unit()->referenceName() == "g") {
-							p = CALCULATOR->getExactDecimalPrefix(3);
-							if(p) (*munit)[0].setPrefix(p);
+						} else if((munit->isUnit() && munit->unit()->referenceName() == "a") || (munit->isPower() && (*munit)[0].unit()->referenceName() == "a")) {
+							p = CALCULATOR->getExactDecimalPrefix(2);
+							if(p) munit->setPrefix(p);
+							
 						}
 						if(p) {
 							if(CHILD(0).isNumber()) {
@@ -17904,26 +17985,32 @@ void MathStructure::formatsub(const PrintOptions &po, MathStructure *parent, siz
 					add_nocopy(num);
 				}
 			} else if((po.number_fraction_format == FRACTION_FRACTIONAL || po.base == BASE_ROMAN_NUMERALS || po.number_fraction_format == FRACTION_DECIMAL_EXACT) && po.base != BASE_SEXAGESIMAL && po.base != BASE_TIME && o_number.isRational() && !o_number.isInteger() && !o_number.isApproximate()) {
-				string str_den = "";
 				InternalPrintStruct ips_n;
 				if(isApproximate() || (top_parent && top_parent->isApproximate())) ips_n.parent_approximate = true;
 				ips_n.parent_precision = precision();
 				if(top_parent && top_parent->precision() < 0 && top_parent->precision() < ips_n.parent_precision) ips_n.parent_precision = top_parent->precision();
-				ips_n.den = &str_den;
+				Number num(o_number.numerator());
+				Number den(o_number.denominator());
+				if(isApproximate()) {
+					num.setApproximate();
+					den.setApproximate();
+				}
+				bool approximately_displayed = false;
 				PrintOptions po2 = po;
-				po2.is_approximate = NULL;
-				o_number.print(po2, ips_n);
-				if(!str_den.empty()) {
-					Number num(o_number.numerator());
-					Number den(o_number.denominator());
-					clear(true);
-					if(num.isOne()) {
-						m_type = STRUCT_INVERSE;
-					} else {
-						m_type = STRUCT_DIVISION;
-						APPEND_NEW(num);
+				po2.is_approximate = &approximately_displayed;
+				num.print(po2, ips_n);
+				if(!approximately_displayed || po.base == BASE_ROMAN_NUMERALS) {
+					den.print(po2, ips_n);
+					if(!approximately_displayed || po.base == BASE_ROMAN_NUMERALS) {
+						clear(true);
+						if(num.isOne()) {
+							m_type = STRUCT_INVERSE;
+						} else {
+							m_type = STRUCT_DIVISION;
+							APPEND_NEW(num);
+						}
+						APPEND_NEW(den);
 					}
-					APPEND_NEW(den);
 				}
 			} else if(o_number.hasImaginaryPart()) {
 				if(o_number.hasRealPart()) {
@@ -17996,7 +18083,7 @@ bool MathStructure::needsParenthesis(const PrintOptions &po, const InternalPrint
 		case STRUCT_MULTIPLICATION: {
 			switch(m_type) {
 				case STRUCT_MULTIPLICATION: {return true;}
-				case STRUCT_DIVISION: {return flat_division;}
+				case STRUCT_DIVISION: {return flat_division && (index < parent.size() || po.excessive_parenthesis);}
 				case STRUCT_INVERSE: {return flat_division;}
 				case STRUCT_ADDITION: {return true;}
 				case STRUCT_POWER: {return po.excessive_parenthesis;}
@@ -18348,7 +18435,7 @@ int MathStructure::neededMultiplicationSign(const PrintOptions &po, const Intern
 	switch(m_type) {
 		case STRUCT_MULTIPLICATION: {return MULTIPLICATION_SIGN_OPERATOR;}
 		case STRUCT_INVERSE: {}
-		case STRUCT_DIVISION: {if(flat_division) return MULTIPLICATION_SIGN_OPERATOR; return MULTIPLICATION_SIGN_SPACE;}
+		case STRUCT_DIVISION: {return MULTIPLICATION_SIGN_SPACE;}
 		case STRUCT_ADDITION: {return MULTIPLICATION_SIGN_OPERATOR;}
 		case STRUCT_POWER: {return CHILD(0).neededMultiplicationSign(po, ips, parent, index, par, par_prev, flat_division, flat_power);}
 		case STRUCT_NEGATE: {return MULTIPLICATION_SIGN_OPERATOR;}

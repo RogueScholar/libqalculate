@@ -1532,15 +1532,25 @@
         <relation>100</relation>
         <exponent>2</exponent>
       </base>
+      <use_with_prefixes>true</use_with_prefixes>
     </unit>
-    <unit type="composite">
+    <unit type="alias">
       <_title>Hectare</_title>
-      <names>r:ha</names>
-      <part>
+      <_names>ar:ha,hectare,p:hectares</_names>
+      <base>
         <unit>a</unit>
-        <prefix>2</prefix>
+        <relation>100</relation>
         <exponent>1</exponent>
-      </part>
+      </base>
+    </unit>
+    <unit type="alias">
+      <_title>Decare</_title>
+      <_names>a:da,r:decare,p:decares</_names>
+      <base>
+        <unit>a</unit>
+        <relation>10</relation>
+        <exponent>1</exponent>
+      </base>
     </unit>
     <unit type="alias">
       <_title>Barn</_title>
