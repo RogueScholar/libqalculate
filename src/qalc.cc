@@ -365,7 +365,7 @@ int countRows(const char *str, int cols) {
 			} while(i < l && str[i] != 'm');
 			if(i >= l) break;
 		}
-		if(str[i] > 0 || (unsigned char) str[i] >= 0xC2) {
+		if(str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
 			if(str[i] == '\n') {
 				r++;
 				c = 0;
@@ -381,15 +381,30 @@ int countRows(const char *str, int cols) {
 	return r;
 }
 
-int addLineBreaks(string &str, int cols, size_t indent = 0) {
+int addLineBreaks(string &str, int cols, bool expr = false, size_t indent = 0, size_t result_start = 0) {
 	if(cols <= 0) return 1;
 	int r = 1;
 	size_t c = 0;
 	size_t lb_point = string::npos;
+	size_t or_point = string::npos;
+	int b_or = 0;
+	if(expr && str.find("||") != string::npos) b_or = 2;
+	else if(expr && str.find(_("or")) != string::npos) b_or = 1;
 	for(size_t i = 0; i < str.length(); i++) {
-		if(r != 1 && c == indent && str[i] == ' ') {
-			str.erase(i, 1);
-			if(i >= str.length()) break;
+		if(r != 1 && c == indent) {
+			if(str[i] == ' ') {
+				str.erase(i, 1);
+				if(i < result_start) result_start--;
+				if(i >= str.length()) break;
+			} else if(expr && printops.use_unicode_signs && printops.digit_grouping != DIGIT_GROUPING_NONE && str[i] <= 0 && (unsigned char) str[i] >= 0xC0) {
+				size_t l = 1;
+				while(i + l < str.length() && str[i + l] <= 0 && (unsigned char) str[i + l] < 0xC0) l++;
+				if(str.substr(i, l) == " ") {
+					str.erase(i, l);
+					if(i < result_start) result_start--;
+					if(i >= str.length()) break;
+				}
+			}
 		}
 		if(str[i] == '\033') {
 			do {
@@ -397,19 +412,47 @@ int addLineBreaks(string &str, int cols, size_t indent = 0) {
 			} while(i < str.length() && str[i] != 'm');
 			if(i >= str.length()) break;
 		}
-		if(str[i] > 0 || (unsigned char) str[i] >= 0xC2) {
+		if(str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
 			if(str[i] == '\n') {
 				r++;
 				c = 0;
 				lb_point = string::npos;
 			} else {
-				if(c != 0 && is_in(" \t", str[i])) lb_point = i;
-				else if(c != 0 && c < (size_t) cols && is_in("+-*", str[i]) && i + 1 != str.length() && str[i - 1] != '^' && is_not_in(" \t.;,", str[i + 1])) lb_point = i + 1;
-				if(c == (size_t) cols) {
+				if(c > indent) {
+					if(is_in(" \t", str[i])) {
+						if(!expr || printops.digit_grouping == DIGIT_GROUPING_NONE || i + 1 == str.length() || is_not_in("0123456789", str[i + 1]) || is_not_in("0123456789", str[i - 1])) {
+							if(expr || (c - indent) > (cols - indent) / 2) lb_point = i;
+							if(i > result_start && b_or == 1 && str.length() > i + strlen("or") + 2 && str.substr(i + 1, strlen(_("or"))) == _("or") && str[i + strlen(_("or")) + 1] == ' ') or_point = i + strlen(_("or")) + 1;
+							else if(i > result_start && b_or == 2 && str.length() > i + 2 + 2 && str.substr(i + 1, 2) == "||" && str[i + 2 + 1] == ' ') or_point = i + 2 + 1;
+						}
+					} else if(expr && !printops.spacious && (c - indent) > (cols - indent) / 2 && c < (size_t) cols && is_in("+-*", str[i]) && i + 1 != str.length() && str[i - 1] != '^' && str[i - 1] != ' ' && str[i - 1] != '=' && is_not_in(" \t.;,", str[i + 1])) {
+						lb_point = i + 1;
+					}
+				}
+				if(c == (size_t) cols || or_point != string::npos) {
+					if(or_point != string::npos) lb_point = or_point;
 					if(lb_point == string::npos) {
+						if(expr && printops.digit_grouping != DIGIT_GROUPING_NONE) {
+							if(i > 3 && str[i] <= '9' && str[i] >= '0' && str[i - 1] <= '9' && str[i - 1] >= '0') {
+								if(str[i - 2] == ' ' && str[i - 3] <= '9' && str[i - 3] >= '0') i -= 2;
+								else if(str[i - 3] == ' ' && str[i - 4] <= '9' && str[i - 4] >= '0') i -= 3;
+								else if((str[i - 2] == '.' || str[i - 2] == ',') && str[i - 3] <= '9' && str[i - 3] >= '0') i--;
+								else if((str[i - 3] == '.' || str[i - 3] == ',') && str[i - 4] <= '9' && str[i - 4] >= '0') i -= 2;
+								else if(printops.use_unicode_signs && i > 6) {
+									size_t i2 = str.find(" ", i - 6);
+									if(i2 != string::npos && i2 > 0 && i2 < i && str[i2 - 1] <= '9' && str[i2 - 1] >= '0') {
+										i = i2;
+									}
+								}
+							} else if(i > 4 && (str[i] == '.' || str[i] == ',') && str[i - 1] <= '9' && str[i - 1] >= '0' && str[i - 4] == str[i] && str[i - 5] <= '9' && str[i - 5] >= '0') {
+								i -= 3;
+							}
+						}
 						str.insert(i, "\n");
+						result_start++;
 						for(size_t i2 = 0; i2 < indent; i2++) {
 							i++;
+							if(i < result_start) result_start++;
 							str.insert(i, " ");
 						}
 						c = indent;
@@ -417,31 +460,38 @@ int addLineBreaks(string &str, int cols, size_t indent = 0) {
 						str[lb_point] = '\n';
 						for(size_t i2 = 0; i2 < indent; i2++) {
 							lb_point++;
+							if(i < result_start) result_start++;
 							str.insert(lb_point, " ");
 						}
 						i = lb_point;
 						c = indent;
 					} else {
 						str.insert(lb_point, "\n");
+						result_start++;
 						for(size_t i2 = 0; i2 < indent; i2++) {
 							lb_point++;
+							if(i < result_start) result_start++;
 							str.insert(lb_point, " ");
 						}
 						i = lb_point;
 						c = indent;
 					}
 					lb_point = string::npos;
+					or_point = string::npos;
 					r++;
 				} else {
 					if(str[i] == '\t') c += 8;
 					else c++;
 				}
 			}
-		} else if(i + 1 < str.length() && (str[i + 1] > 0 || (unsigned char) str[i + 1] >= 0xC2)) {
-			if(c != 0 && is_not_in(" \t.;,", str[i + 1])) {
+		} else if(expr && !printops.spacious && printops.use_unicode_signs && i + 1 < str.length() && (str[i + 1] > 0 || (unsigned char) str[i + 1] >= 0xC0)) {
+			if(c > indent && (c - indent) > (cols - indent) / 2 && is_not_in(" \t.;,", str[i + 1])) {
 				size_t index = i;
-				while(index > 0 && str[index - 1] <= 0) index--;
-				if(index > 0 && str[index - 1] != '^') {
+				while(index > 0 && str[index - 1] <= 0) {
+					index--;
+					if((unsigned char) str[index] >= 0xC0) break;
+				}
+				if(index > 0 && str[index - 1] != '^' && str[index - 1] != ' ' && str[index - 1] != '=') {
 					string unichar = str.substr(index, i - index + 1);
 					if(unichar == SIGN_MULTIPLICATION || unichar == SIGN_MULTIDOT || unichar == SIGN_MIDDLEDOT || unichar == SIGN_MULTIBULLET || unichar == SIGN_SMALLCIRCLE || unichar == SIGN_DIVISION_SLASH || unichar == SIGN_DIVISION || unichar == SIGN_MINUS || unichar == SIGN_PLUS) lb_point = i + 1;
 				}
@@ -630,7 +680,7 @@ void set_option(string str) {
 		int v = -1;
 		if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "off", _("off"))) v = DIGIT_GROUPING_NONE;
 		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "none", _("none"))) v = DIGIT_GROUPING_NONE;
-		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "standard", _("standard"))) v = DIGIT_GROUPING_STANDARD;
+		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "standard", _("standard")) || EQUALS_IGNORECASE_AND_LOCAL(svalue, "on", _("on"))) v = DIGIT_GROUPING_STANDARD;
 		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "locale", _("locale"))) v = DIGIT_GROUPING_LOCALE;
 		else if(svalue.find_first_not_of(SPACES NUMBERS) == string::npos) {
 			v = s2i(svalue);
@@ -2094,7 +2144,7 @@ int main(int argc, char *argv[]) {
 					m = *CALCULATOR->getRPNRegister(i);
 					m.format(printops);
 					string regstr = m.print(printops);
-					replace_quotation_marks(regstr);
+					if(!cfile) replace_quotation_marks(regstr);
 					printf("  %i:\t%s\n", (int) i, regstr.c_str());
 				}
 				puts("");
@@ -2372,8 +2422,11 @@ int main(int argc, char *argv[]) {
 					setResult(NULL, false, true, 0, false, true);
 					base_str += result_text;
 				}
-				if(interactive_mode && !cfile) base_str += "\n";
-				if(interactive_mode && !cfile) addLineBreaks(base_str, cols, 2);
+				if(interactive_mode && !cfile) {
+					base_str += "\n";
+					addLineBreaks(base_str, cols, true, 2, base_str.length());
+					replace_quotation_marks(base_str);
+				}
 				PUTS_UNICODE(base_str.c_str());
 				printops.base = save_base;
 				result_text = save_result_text;
@@ -3582,12 +3635,12 @@ bool display_errors(bool goto_input, int cols) {
 			string str;
 			if(goto_input) str += "  ";
 			if(mtype == MESSAGE_ERROR) {
-				str = _("error"); str += ": ";
+				str += _("error"); str += ": ";
 			} else if(mtype == MESSAGE_WARNING) {
-				str = _("warning"); str += ": ";
+				str += _("warning"); str += ": ";
 			}
 			str += CALCULATOR->message()->message();
-			if(cols) addLineBreaks(str, cols, goto_input ? 2 : 0);
+			if(cols) addLineBreaks(str, cols, true, goto_input ? 2 : 0, str.length());
 			PUTS_UNICODE(str.c_str())
 		}
 		if(!CALCULATOR->nextMessage()) break;
@@ -3599,22 +3652,41 @@ void on_abort_display() {
 	CALCULATOR->abort();
 }
 
-void replace_quotation_marks(string &result_text) {
+void replace_quotation_marks(string &str) {
 	if(cfile) return;
 	size_t i1 = 0, i2 = 0;
-	while(true) {
-		i1 = result_text.find('\"', i1);
+	while(i1 + 2 < str.length()) {
+		i1 = str.find_first_of("\"\'", i1);
 		if(i1 == string::npos) break;
-		i2 = result_text.find('\"', i1 + 1);
+		i2 = str.find(str[i1], i1 + 1);
 		if(i2 == string::npos) break;
-		if(i1 > 1 && result_text[i1 - 1] == ' ' && is_not_in(OPERATORS, result_text[i1 - 2])) {
-			result_text.replace(i1 - 1, 2, "\033[3m");
-			i2 += 2;
+		if(i2 - i1 > 2) {
+			if(!text_length_is_one(str.substr(i1 + 1, i2 - i1 - 1))) {
+				i1 = i2 + 1;
+				continue;
+			}
+		}
+		if(i1 > 1 && str[i1 - 1] == ' ' && is_not_in(OPERATORS SPACES, str[i1 - 2])) {
+			if(printops.use_unicode_signs && str[i1 - 2] < 0) {
+				size_t i3 = i1 - 2;
+				while(i3 > 0 && str[i3] < 0 && (unsigned char) str[i3] < 0xC0) i3--;
+				string str2 = str.substr(i3, i1 - i3 - 1);
+				if(str2 != SIGN_DIVISION && str2 != SIGN_DIVISION_SLASH && str2 != SIGN_MULTIPLICATION && str2 != SIGN_MULTIDOT && str2 != SIGN_SMALLCIRCLE && str2 != SIGN_MULTIBULLET && str2 != SIGN_MINUS && str2 != SIGN_PLUS && str2 != SIGN_NOT_EQUAL && str2 != SIGN_GREATER_OR_EQUAL && str2 != SIGN_LESS_OR_EQUAL) {
+					str.replace(i1 - 1, 2, "\033[3m");
+					i2 += 2;
+				} else {
+					str.replace(i1, 1, "\033[3m");
+					i2 += 3;
+				}
+			} else {
+				str.replace(i1 - 1, 2, "\033[3m");
+				i2 += 2;
+			}
 		} else {
-			result_text.replace(i1, 1, "\033[3m");
+			str.replace(i1, 1, "\033[3m");
 			i2 += 3;
 		}
-		result_text.replace(i2, 1, "\033[23m");
+		str.replace(i2, 1, "\033[23m");
 		i1 = i2 + 5;
 	}
 }
@@ -3652,13 +3724,11 @@ void ViewThread::run() {
 			read(&po.is_approximate);
 			mp.format(po);
 			parsed_text = mp.print(po);
-			replace_quotation_marks(parsed_text);
 		}
 		printops.allow_non_usable = false;
 		
 		m.format(printops);
 		result_text = m.print(printops);
-		replace_quotation_marks(result_text);
 	
 		if(result_text == _("aborted")) {
 			*printops.is_approximate = false;
@@ -3792,6 +3862,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 #endif			
 					if(c == '\n') {
 						on_abort_display();
+						has_printed = false;
 					}
 				} else {
 					if(!result_only) {
@@ -3838,7 +3909,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 	} else {
 		string strout;
 		if(goto_input) strout += "  ";
-		size_t i_result = 0;
+		size_t i_result = 0, i_result_u = 0;
 		if(!result_only) {
 			if(mstruct->isComparison()) strout += LEFT_PARENTHESIS;
 			if(update_parse) {
@@ -3849,14 +3920,17 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 			if(mstruct->isComparison()) strout += RIGHT_PARENTHESIS;
 			if(!(*printops.is_approximate) && !mstruct->isApproximate()) {
 				strout += " = ";
-				i_result = unicode_length(strout);
+				i_result_u = unicode_length(strout);
+				i_result = strout.length();
 			} else {
 				if(printops.use_unicode_signs) {
 					strout += " " SIGN_ALMOST_EQUAL " ";
-					i_result = unicode_length(strout);
+					i_result_u = unicode_length(strout);
+					i_result = strout.length();
 				} else {
 					strout += " = ";
-					i_result = unicode_length(strout);
+					i_result_u = unicode_length(strout);
+					i_result = strout.length();
 					strout += _("approx.");
 					strout += " ";
 				}
@@ -3869,8 +3943,16 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 		} else {
 			strout += result_text.c_str();
 		}
-		if(goto_input) strout += "\n";
-		if(goto_input) addLineBreaks(strout, cols, (result_only || i_result > (size_t) cols / 2) ? 2 : i_result);
+		if(goto_input) {
+			if(!result_only && i_result_u > (size_t) cols / 2 && unicode_length(strout) > (size_t) cols) {
+				strout[i_result - 1] = '\n';
+				strout.insert(i_result, "  ");
+				i_result_u = 2;
+			}
+			addLineBreaks(strout, cols, true, result_only ? 2 : i_result_u, i_result);
+			replace_quotation_marks(strout);
+			strout += "\n";
+		}
 		PUTS_UNICODE(strout.c_str());
 	}
 
@@ -4443,6 +4525,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 					if(c == '\n') {
 						CALCULATOR->abort();
 						avoid_recalculation = true;
+						has_printed = false;
 					}
 				} else {
 					if(!result_only) {
@@ -4556,6 +4639,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 			}
 			base_str = prestr + base_str;
 		}
+		result_text = base_str;
 		if(goto_input) {
 			int cols = 0;
 #ifdef HAVE_LIBREADLINE
@@ -4564,11 +4648,11 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 #else
 			cols = 80;
 #endif
-			addLineBreaks(base_str, cols, 2);
+			addLineBreaks(base_str, cols, false, 2, base_str.length());
+			replace_quotation_marks(base_str);
 		}
 		PUTS_UNICODE(base_str.c_str());
 		printops.base = save_base;
-		result_text = base_str;
 		if(goto_input) printf("\n");
 	} else if(do_fraction) {
 		NumberFractionFormat save_format = printops.number_fraction_format;
@@ -4717,7 +4801,7 @@ void load_preferences() {
 #endif
 
 	
-	int version_numbers[] = {2, 8, 1};
+	int version_numbers[] = {2, 8, 2};
 	
 	if(file) {
 		char line[10000];
