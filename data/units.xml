@@ -2374,7 +2374,6 @@
         <system>US</system>
         <names>r:cup,p:cups</names>
         <names xml:lang="nl">kop,p:koppen</names>
-        <names xml:lang="sv">kopp,p:koppar</names>
         <base>
           <unit>L</unit>
           <relation>0.2365882365</relation>

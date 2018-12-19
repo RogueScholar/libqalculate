@@ -561,7 +561,7 @@ bool Calculator::utf8_pos_is_valid_in_name(char *pos) {
 	if((unsigned char) pos[0] >= 0xC0) {
 		string str;
 		str += pos[0];
-		while((unsigned char) pos[1] >= 0x80 && (unsigned char) pos[1] <= 0xBF) {
+		while((unsigned char) pos[1] >= 0x80 && (unsigned char) pos[1] < 0xC0) {
 			str += pos[1];
 			pos++;
 		}
@@ -1629,7 +1629,7 @@ void Calculator::addBuiltinFunctions() {
 }
 void Calculator::addBuiltinUnits() {
 	u_euro = addUnit(new Unit(_("Currency"), "EUR", "euros", "euro", "European Euros", false, true, true));
-	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "5612.58", 1, "", false, true, true));
+	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "3615.44", 1, "", false, true, true));
 	u_btc->setApproximate();
 	u_btc->setPrecision(-2);
 	u_btc->setChanged(false);
@@ -2959,6 +2959,18 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 	if(to_unit->subtype() == SUBTYPE_COMPOSITE_UNIT) cu = (CompositeUnit*) to_unit;
 	if(cu && cu->countUnits() == 0) return mstruct;
 	MathStructure mstruct_new(mstruct);
+	if(to_unit->hasComplexRelationTo(to_unit->baseUnit()) && to_unit->baseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {
+		mstruct_new = convert(mstruct, to_unit->baseUnit(), eo, always_convert, convert_to_mixed_units);
+		mstruct_new.calculateDivide(((CompositeUnit*) to_unit->baseUnit())->generateMathStructure(false, eo.keep_prefixes), eo);
+		to_unit->convertFromBaseUnit(mstruct_new);
+		mstruct_new.eval(eo);
+		mstruct_new.multiply(MathStructure(to_unit, eo.keep_prefixes ? decimal_null_prefix : NULL));
+		EvaluationOptions eo2 = eo;
+		eo2.sync_units = false;
+		eo2.keep_prefixes = true;
+		mstruct_new.eval(eo2);
+		return mstruct_new;
+	}
 	//bool b_simple = !cu && (to_unit->subtype() != SUBTYPE_ALIAS_UNIT || (((AliasUnit*) to_unit)->baseUnit()->subtype() != SUBTYPE_COMPOSITE_UNIT && ((AliasUnit*) to_unit)->baseExponent() == 1));
 
 	bool b_changed = false;
@@ -4776,7 +4788,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 			if(str[str_index + l] < 0) {
 				do {
 					l++; 
-				} while(str_index + l < str.length() && str[str_index + l]);
+				} while(str_index + l < str.length() && str[str_index + l] < 0 && (unsigned char) str[str_index + l] < 0xC0);
 				l--;
 			}
 			MathStructure *mstruct = new MathStructure(str.substr(str_index + 1, l));
@@ -7542,7 +7554,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 		xmlFreeDoc(doc);
 		return false;
 	}
-	int version_numbers[] = {2, 8, 1};
+	int version_numbers[] = {2, 8, 2};
 	parse_qalculate_version(version, version_numbers);
 
 	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);
