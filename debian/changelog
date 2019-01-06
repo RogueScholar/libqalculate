@@ -2,8 +2,10 @@ libqalculate (2.8.2-1) unstable; urgency=medium
 
   * New upstream release
   * Fix debian/watch, use github example from uscan(1)
+  * Standards-Version 4.3.0
+  * Add gitlab-ci.yml
 
- -- Vincent Legout <vlegout@debian.org>  Wed, 19 Dec 2018 07:50:03 +0100
+ -- Vincent Legout <vlegout@debian.org>  Sun, 06 Jan 2019 08:21:01 +0100
 
 libqalculate (2.8.0-2) unstable; urgency=medium
 
