@@ -19,15 +19,15 @@ Description: Powerful and easy to use command line calculator
  .
  This package contains the command line version of Qalculate!.
 
-Package: libqalculate20
+Package: libqalculate21
 Section: libs
 Architecture: any
 Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
-Depends: ${shlibs:Depends}, ${misc:Depends}, libqalculate20-data
+Depends: ${shlibs:Depends}, ${misc:Depends}, libqalculate21-data
 Breaks: qalc (<< 0.9.7-2)
-Replaces: libqalculate5, libqalculate5v5, qalc (<< 0.9.7-2), libqalculate14
-Conflicts: libqalculate5, libqalculate5v5, libqalculate14
+Replaces: libqalculate5, libqalculate5v5, qalc (<< 0.9.7-2), libqalculate14, libqalculate20
+Conflicts: libqalculate5, libqalculate5v5, libqalculate14, libqalculate20
 Description: Powerful and easy to use desktop calculator - library
  Qalculate! is small and simple to use but with much power and versatility
  underneath.  Features include customizable functions, units, arbitrary
@@ -37,13 +37,13 @@ Description: Powerful and easy to use desktop calculator - library
  .
  This package contains the shared library used by all Qalculate! frontends.
 
-Package: libqalculate20-data
+Package: libqalculate21-data
 Section: libs
 Architecture: all
 Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Breaks: libqalculate5v5 (<< 0.9.7-7), libqalculate5-data, libqalculate6-data, libqalculate14-data
-Replaces: libqalculate5v5 (<< 0.9.7-7), libqalculate5-data, libqalculate6-data, libqalculate14-data
+Breaks: libqalculate5v5 (<< 0.9.7-7), libqalculate5-data, libqalculate6-data, libqalculate14-data, libqalculate20-data
+Replaces: libqalculate5v5 (<< 0.9.7-7), libqalculate5-data, libqalculate6-data, libqalculate14-data, libqalculate20-data
 Description: Powerful and easy to use desktop calculator - data
  Qalculate! is small and simple to use but with much power and versatility
  underneath.  Features include customizable functions, units, arbitrary
@@ -57,7 +57,7 @@ Package: libqalculate-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libqalculate20 (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}, libcln-dev (>> 1.2), libxml2-dev, libmpfr-dev
+Depends: libqalculate21 (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}, libcln-dev (>> 1.2), libxml2-dev, libmpfr-dev
 Description: Powerful and easy to use desktop calculator - development
  Qalculate! is small and simple to use but with much power and versatility
  underneath.  Features include customizable functions, units, arbitrary

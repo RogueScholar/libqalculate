@@ -1,6 +1,11 @@
 libqalculate (3.1.0-1) experimental; urgency=medium
 
   * New upstream release
+    - refresh patches
+  * Bump soname to 21
+    - rename lib and data packages
+    - libqalculate21: add Breaks and Replaces on libqalculate20
+    - libqalculate21-data: add Breaks and Replaces on older -data packages
 
  -- Vincent Legout <vlegout@debian.org>  Fri, 10 May 2019 07:38:34 +0200
 
