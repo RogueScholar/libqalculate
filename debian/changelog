@@ -1,3 +1,9 @@
+libqalculate (3.1.0-1) experimental; urgency=medium
+
+  * New upstream release
+
+ -- Vincent Legout <vlegout@debian.org>  Fri, 10 May 2019 07:38:34 +0200
+
 libqalculate (2.8.2-1) unstable; urgency=medium
 
   * New upstream release
