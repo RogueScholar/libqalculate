@@ -2,6 +2,7 @@ libqalculate (3.1.0-1) experimental; urgency=medium
 
   * New upstream release
     - refresh patches
+    - refresh copyright years
   * Bump soname to 21
     - rename lib and data packages
     - libqalculate21: add Breaks and Replaces on libqalculate20
