@@ -6,7 +6,7 @@ Index: libqalculate/configure.ac
 ===================================================================
 --- libqalculate.orig/configure.ac
 +++ libqalculate/configure.ac
-@@ -246,8 +246,6 @@ AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GET
+@@ -247,8 +247,6 @@ AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GET
  
  dnl Please keep this in alphabetical order
  ALL_LINGUAS="fr nl sv zh_CN"
@@ -47,7 +47,7 @@ Index: libqalculate/libqalculate/Makefile.am
 ===================================================================
 --- libqalculate.orig/libqalculate/Makefile.am
 +++ libqalculate/libqalculate/Makefile.am
-@@ -21,7 +21,7 @@ libqalculateinclude_HEADERS = \
+@@ -22,7 +22,7 @@ libqalculateinclude_HEADERS = \
  libqalculate_la_LDFLAGS = -version-info $(QALCULATE_CURRENT):$(QALCULATE_REVISION):$(QALCULATE_AGE) -no-undefined
  
  libqalculate_la_LIBADD = \
