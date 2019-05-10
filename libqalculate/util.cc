@@ -149,24 +149,8 @@ string p2s(void *o) {
 	string stmp = buffer;
 	return stmp;
 }
-string i2s(int value) {
-	// char buffer[10];
-	sprintf(buffer, "%i", value);
-	string stmp = buffer;
-	return stmp;
-}
 string i2s(long int value) {
 	sprintf(buffer, "%li", value);
-	string stmp = buffer;
-	return stmp;
-}
-string i2s(unsigned int value) {
-	sprintf(buffer, "%u", value);
-	string stmp = buffer;
-	return stmp;
-}
-string i2s(unsigned long int value) {
-	sprintf(buffer, "%lu", value);
 	string stmp = buffer;
 	return stmp;
 }
@@ -194,10 +178,10 @@ const char *b2oo(bool b, bool capital) {
 	if(b) return _("on");
 	return _("off");
 }
-int s2i(const string& str) {
+long int s2i(const string& str) {
 	return strtol(str.c_str(), NULL, 10);
 }
-int s2i(const char *str) {
+long int s2i(const char *str) {
 	return strtol(str, NULL, 10);
 }
 void *s2p(const string& str) {
@@ -459,10 +443,19 @@ string getOldLocalDir() {
 }
 string getLocalDir() {
 #ifdef _WIN32
+#	ifdef WIN_PORTABLE
+	char exepath[MAX_PATH];
+	GetModuleFileName(NULL, exepath, MAX_PATH);
+	string str(exepath);
+	str.resize(str.find_last_of('\\'));
+	_mkdir(str.c_str());
+	return str + "\\user";
+#	else
 	char path[MAX_PATH];
 	SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path);
 	string str = path;
 	return str + "\\Qalculate";
+#	endif
 #else
 	const char *homedir;
 	if((homedir = getenv("XDG_CONFIG_HOME")) == NULL) {
@@ -473,10 +466,19 @@ string getLocalDir() {
 }
 string getLocalDataDir() {
 #ifdef _WIN32
+#	ifdef WIN_PORTABLE
+	char exepath[MAX_PATH];
+	GetModuleFileName(NULL, exepath, MAX_PATH);
+	string str(exepath);
+	str.resize(str.find_last_of('\\'));
+	_mkdir(str.c_str());
+	return str + "\\user";
+#	else
 	char path[MAX_PATH];
 	SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path);
 	string str = path;
 	return str + "\\Qalculate";
+#	endif
 #else
 	const char *homedir;
 	if((homedir = getenv("XDG_DATA_HOME")) == NULL) {
@@ -487,12 +489,21 @@ string getLocalDataDir() {
 }
 string getLocalTmpDir() {
 #ifdef _WIN32
+#	ifdef WIN_PORTABLE
+	char exepath[MAX_PATH];
+	GetModuleFileName(NULL, exepath, MAX_PATH);
+	string str(exepath);
+	str.resize(str.find_last_of('\\'));
+	_mkdir(str.c_str());
+	return str + "\\tmp";
+#	else
 	char path[MAX_PATH];
 	SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path);
 	string str = path;
 	str += "\\cache";
 	_mkdir(str.c_str());
 	return str + "\\Qalculate";
+#	endif
 #else
 	const char *homedir;
 	if((homedir = getenv("XDG_CACHE_HOME")) == NULL) {
@@ -595,7 +606,7 @@ string getPackageLocaleDir() {
 	GetModuleFileName(NULL, exepath, MAX_PATH);
 	string datadir(exepath);
 	datadir.resize(datadir.find_last_of('\\'));
-	if (datadir.substr(datadir.length() - 4) == "\\bin" || datadir.substr(datadir.length() - 6) == "\\.libs") {
+	if(datadir.substr(datadir.length() - 4) == "\\bin" || datadir.substr(datadir.length() - 6) == "\\.libs") {
 		datadir.resize(datadir.find_last_of('\\'));
 		return datadir + "\\share\\locale";
 	}
@@ -711,18 +722,22 @@ char *utf8_strdown(const char *str, int l) {
 	size_t inlength = l <= 0 ? strlen(str) : (size_t) l;
 	size_t outlength = inlength + 4;
 	char *buffer = (char*) malloc(outlength * sizeof(char));
+	if(!buffer) return NULL;
 	int32_t length = ucasemap_utf8ToLower(ucm, buffer, outlength, str, inlength, &err);
 	if(U_SUCCESS(err)) {
 		return buffer;
 	} else if(err == U_BUFFER_OVERFLOW_ERROR) {
 		outlength = length + 4;
-		buffer = (char*) realloc(buffer, outlength * sizeof(char));
+		char *buffer_realloc = (char*) realloc(buffer, outlength * sizeof(char));
+		if(buffer_realloc) buffer = buffer_realloc;
+		else {free(buffer); return NULL;}
 		err = U_ZERO_ERROR;
 		ucasemap_utf8ToLower(ucm, buffer, outlength, str, inlength, &err);
 		if(U_SUCCESS(err)) {
 			return buffer;
 		}
 	}
+	free(buffer);
 	return NULL;
 #else
 	return NULL;

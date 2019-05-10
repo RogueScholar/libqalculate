@@ -1,7 +1,7 @@
 /*
     Qalculate    
 
-    Copyright (C) 2003-2007, 2008, 2016-2018  Hanna Knutsson (hanna.knutsson@protonmail.com)
+    Copyright (C) 2003-2007, 2008, 2016-2019  Hanna Knutsson (hanna.knutsson@protonmail.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -93,8 +93,16 @@
 #define XML_GET_LOCALE_STRING_FROM_TEXT(node, str, best, next_best)		value = xmlNodeListGetString(doc, node->xmlChildrenNode, 1); lang = xmlNodeGetLang(node); if(!best) {if(!lang) {if(!next_best) {if(value) {str = (char*) value; remove_blank_ends(str);} else str = ""; if(locale.empty()) {best = true;}}} else {if(locale == (char*) lang) {best = true; if(value) {str = (char*) value; remove_blank_ends(str);} else str = "";} else if(!next_best && strlen((char*) lang) >= 2 && fulfilled_translation == 0 && lang[0] == localebase[0] && lang[1] == localebase[1]) {next_best = true; if(value) {str = (char*) value; remove_blank_ends(str);} else str = "";} else if(!next_best && str.empty() && value) {str = (char*) value; remove_blank_ends(str);}}} if(value) xmlFree(value); if(lang) xmlFree(lang);
 #define XML_GET_LOCALE_STRING_FROM_TEXT_REQ(node, str, best, next_best)		value = xmlNodeListGetString(doc, node->xmlChildrenNode, 1); lang = xmlNodeGetLang(node); if(!best) {if(!lang) {if(!next_best) {if(value) {str = (char*) value; remove_blank_ends(str);} else str = ""; if(locale.empty()) {best = true;}}} else {if(locale == (char*) lang) {best = true; if(value) {str = (char*) value; remove_blank_ends(str);} else str = "";} else if(!next_best && strlen((char*) lang) >= 2 && fulfilled_translation == 0 && lang[0] == localebase[0] && lang[1] == localebase[1]) {next_best = true; if(value) {str = (char*) value; remove_blank_ends(str);} else str = "";} else if(!next_best && str.empty() && value && !require_translation) {str = (char*) value; remove_blank_ends(str);}}} if(value) xmlFree(value); if(lang) xmlFree(lang);
 
+PrintOptions::PrintOptions() : min_exp(EXP_PRECISION), base(BASE_DECIMAL), lower_case_numbers(false), lower_case_e(false), number_fraction_format(FRACTION_DECIMAL), indicate_infinite_series(false), show_ending_zeroes(true), abbreviate_names(true), use_reference_names(false), place_units_separately(true), use_unit_prefixes(true), use_prefixes_for_all_units(false), use_prefixes_for_currencies(false), use_all_prefixes(false), use_denominator_prefix(true), negative_exponents(false), short_multiplication(true), limit_implicit_multiplication(false), allow_non_usable(false), use_unicode_signs(false), multiplication_sign(MULTIPLICATION_SIGN_DOT), division_sign(DIVISION_SIGN_DIVISION_SLASH), spacious(true), excessive_parenthesis(false), halfexp_to_sqrt(true), min_decimals(0), max_decimals(-1), use_min_decimals(true), use_max_decimals(true), round_halfway_to_even(false), improve_division_multipliers(true), prefix(NULL), is_approximate(NULL), can_display_unicode_string_function(NULL), can_display_unicode_string_arg(NULL), hide_underscore_spaces(false), preserve_format(false), allow_factorization(false), spell_out_logical_operators(false), restrict_to_parent_precision(true), restrict_fraction_length(false), exp_to_root(false), preserve_precision(false), interval_display(INTERVAL_DISPLAY_INTERVAL), digit_grouping(DIGIT_GROUPING_NONE), date_time_format(DATE_TIME_FORMAT_ISO), time_zone(TIME_ZONE_LOCAL), custom_time_zone(0), twos_complement(true), hexadecimal_twos_complement(false), binary_bits(0) {}
+
 const string &PrintOptions::comma() const {if(comma_sign.empty()) return CALCULATOR->getComma(); return comma_sign;}
 const string &PrintOptions::decimalpoint() const {if(decimalpoint_sign.empty()) return CALCULATOR->getDecimalPoint(); return decimalpoint_sign;}
+
+InternalPrintStruct::InternalPrintStruct() : depth(0), power_depth(0), division_depth(0), wrap(false), num(NULL), den(NULL), re(NULL), im(NULL), exp(NULL), minus(NULL), exp_minus(NULL), parent_approximate(false), parent_precision(-1), iexp(NULL) {}
+
+ParseOptions::ParseOptions() : variables_enabled(true), functions_enabled(true), unknowns_enabled(true), units_enabled(true), rpn(false), base(BASE_DECIMAL), limit_implicit_multiplication(false), read_precision(DONT_READ_PRECISION), dot_as_separator(false), brackets_as_parentheses(false), angle_unit(ANGLE_UNIT_NONE), unended_function(NULL), preserve_format(false), default_dataset(NULL), parsing_mode(PARSING_MODE_ADAPTIVE), twos_complement(false), hexadecimal_twos_complement(false) {}
+
+EvaluationOptions::EvaluationOptions() : approximation(APPROXIMATION_TRY_EXACT), sync_units(true), sync_nonlinear_unit_relations(true), keep_prefixes(false), calculate_variables(true), calculate_functions(true), test_comparisons(true), isolate_x(true), expand(true), combine_divisions(false), reduce_divisions(true), allow_complex(true), allow_infinite(true), assume_denominators_nonzero(true), warn_about_denominators_assumed_nonzero(false), split_squares(true), keep_zero_units(true), auto_post_conversion(POST_CONVERSION_OPTIMAL), mixed_units_conversion(MIXED_UNITS_CONVERSION_DEFAULT), structuring(STRUCTURING_SIMPLIFY), isolate_var(NULL), do_polynomial_division(true), protected_function(NULL), complex_number_form(COMPLEX_NUMBER_FORM_RECTANGULAR), local_currency_conversion(true), transform_trigonometric_functions(true), interval_calculation(INTERVAL_CALCULATION_VARIANCE_FORMULA) {}
 
 /*#include <time.h>
 #include <sys/time.h>
@@ -224,7 +232,7 @@ void autoConvert(const MathStructure &morig, MathStructure &mconv, const Evaluat
 	}
 	switch(eo.auto_post_conversion) {
 		case POST_CONVERSION_OPTIMAL: {
-			mconv.set(CALCULATOR->convertToBestUnit(morig, eo, false));
+			mconv.set(CALCULATOR->convertToOptimalUnit(morig, eo, false));
 			break;
 		}
 		case POST_CONVERSION_BASE: {
@@ -232,7 +240,7 @@ void autoConvert(const MathStructure &morig, MathStructure &mconv, const Evaluat
 			break;
 		}
 		case POST_CONVERSION_OPTIMAL_SI: {
-			mconv.set(CALCULATOR->convertToBestUnit(morig, eo, true));
+			mconv.set(CALCULATOR->convertToOptimalUnit(morig, eo, true));
 			break;
 		}
 		default: {
@@ -315,19 +323,37 @@ class Calculator_p {
 		size_t ids_i;
 };
 
-Calculator::Calculator() {	
+Calculator::Calculator() : Calculator(false) {}
+Calculator::Calculator(bool ignore_locale) {
+
+	b_ignore_locale = ignore_locale;
 
 #ifdef ENABLE_NLS
-	bindtextdomain (GETTEXT_PACKAGE, getPackageLocaleDir().c_str());
-	bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+	if(!b_ignore_locale) {
+		bindtextdomain(GETTEXT_PACKAGE, getPackageLocaleDir().c_str());
+		bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+	}
 #endif
+
+	if(b_ignore_locale) {
+		char *current_lc_monetary = setlocale(LC_MONETARY, "");
+		if(current_lc_monetary) saved_locale = strdup(current_lc_monetary);
+		else saved_locale = NULL;
+		setlocale(LC_ALL, "C");
+		if(saved_locale) {
+			setlocale(LC_MONETARY, saved_locale);
+			free(saved_locale);
+			saved_locale = NULL;
+		}
+	} else {
+		setlocale(LC_ALL, "");
+	}
+
 
 	gmp_randinit_default(randstate);
 	gmp_randseed_ui(randstate, (unsigned long int) time(NULL));
 
 	priv = new Calculator_p;
-
-	setlocale(LC_ALL, "");
 
 #ifdef HAVE_ICU
 	UErrorCode err = U_ZERO_ERROR;
@@ -335,7 +361,7 @@ Calculator::Calculator() {
 #endif
 
 	srand(time(NULL));
-
+	
 	exchange_rates_time[0] = 0;
 	exchange_rates_time[1] = 0;
 	exchange_rates_time[2] = 0;
@@ -350,8 +376,9 @@ Calculator::Calculator() {
 	i_timeout = 0;
 	
 	setPrecision(DEFAULT_PRECISION);
-	b_interval = false;
+	b_interval = true;
 	i_stop_interval = 0;
+	i_start_interval = 0;
 	
 	b_var_units = true;
 
@@ -405,8 +432,8 @@ Calculator::Calculator() {
 	OR_str_len = OR_str.length();
 	XOR_str = "XOR";
 	XOR_str_len = OR_str.length();
-
-	char *current_lc_numeric = setlocale(LC_NUMERIC, "");
+	
+	char *current_lc_numeric = setlocale(LC_NUMERIC, NULL);
 	if(current_lc_numeric) saved_locale = strdup(current_lc_numeric);
 	else saved_locale = NULL;
 	struct lconv *lc = localeconv();
@@ -414,18 +441,18 @@ Calculator::Calculator() {
 		setlocale(LC_NUMERIC, "C");
 		lc = localeconv();
 	}
-#ifdef HAVE_STRUCT_LCONV_INT_N_CS_PRECEDES
- 	place_currency_code_before = lc->int_p_cs_precedes;
-#else
-	place_currency_code_before = 1;
-#endif
-#ifdef HAVE_STRUCT_LCONV_INT_P_CS_PRECEDES
-	place_currency_code_before_negative = lc->int_n_cs_precedes;
-#else
-	place_currency_code_before_negative = 1;
-#endif	
 	place_currency_sign_before = lc->p_cs_precedes;
 	place_currency_sign_before_negative = lc->n_cs_precedes;
+#ifdef HAVE_STRUCT_LCONV_INT_P_CS_PRECEDES
+ 	place_currency_code_before = lc->int_p_cs_precedes;
+#else
+	place_currency_code_before = place_currency_sign_before;
+#endif
+#ifdef HAVE_STRUCT_LCONV_INT_N_CS_PRECEDES
+	place_currency_code_before_negative = lc->int_n_cs_precedes;
+#else
+	place_currency_code_before_negative = place_currency_sign_before_negative;
+#endif	
 	local_digit_group_separator = lc->thousands_sep;
 	local_digit_group_format = lc->grouping;
 	remove_blank_ends(local_digit_group_format);
@@ -485,11 +512,14 @@ Calculator::Calculator() {
 	save_printoptions.spacious = false;
 	save_printoptions.number_fraction_format = FRACTION_FRACTIONAL;
 	save_printoptions.short_multiplication = false;
+	save_printoptions.show_ending_zeroes = false;
 	
 	message_printoptions.interval_display = INTERVAL_DISPLAY_PLUSMINUS;
 	message_printoptions.spell_out_logical_operators = true;
 	message_printoptions.number_fraction_format = FRACTION_FRACTIONAL;
-
+	
+	default_user_evaluation_options.structuring = STRUCTURING_SIMPLIFY;
+	
 	default_assumptions = new Assumptions;
 	default_assumptions->setType(ASSUMPTION_TYPE_REAL);
 	default_assumptions->setSign(ASSUMPTION_SIGN_UNKNOWN);
@@ -532,7 +562,7 @@ Calculator::~Calculator() {
 Unit *Calculator::getGraUnit() {
 	if(!u_gra) u_gra = getUnit("gra");
 	if(!u_gra) {
-		CALCULATOR->error(true, _("Gradians unit is missing. Creating one for this session."), NULL);
+		error(true, _("Gradians unit is missing. Creating one for this session."), NULL);
 		u_gra = addUnit(new AliasUnit(_("Angle/Plane Angle"), "gra", "gradians", "gradian", "Gradian", getRadUnit(), "pi/200", 1, "", false, true, true));	
 	}
 	return u_gra;
@@ -540,7 +570,7 @@ Unit *Calculator::getGraUnit() {
 Unit *Calculator::getRadUnit() {
 	if(!u_rad) u_rad = getUnit("rad");
 	if(!u_rad) {
-		CALCULATOR->error(true, _("Radians unit is missing. Creating one for this session."), NULL);
+		error(true, _("Radians unit is missing. Creating one for this session."), NULL);
 		u_rad = addUnit(new Unit(_("Angle/Plane Angle"), "rad", "radians", "radian", "Radian", false, true, true));
 	}
 	return u_rad;
@@ -548,7 +578,7 @@ Unit *Calculator::getRadUnit() {
 Unit *Calculator::getDegUnit() {
 	if(!u_deg) u_deg = getUnit("deg");
 	if(!u_deg) {
-		CALCULATOR->error(true, _("Degrees unit is missing. Creating one for this session."), NULL);
+		error(true, _("Degrees unit is missing. Creating one for this session."), NULL);
 		u_deg = addUnit(new AliasUnit(_("Angle/Plane Angle"), "deg", "degrees", "degree", "Degree", getRadUnit(), "pi/180", 1, "", false, true, true));
 	}
 	return u_deg;
@@ -845,7 +875,7 @@ DecimalPrefix *Calculator::getNearestDecimalPrefix(int exp10, int exp) const {
 	}
 	return decimal_prefixes[decimal_prefixes.size() - 1];
 }
-DecimalPrefix *Calculator::getBestDecimalPrefix(int exp10, int exp, bool all_prefixes) const {
+DecimalPrefix *Calculator::getOptimalDecimalPrefix(int exp10, int exp, bool all_prefixes) const {
 	if(decimal_prefixes.size() <= 0 || exp10 == 0) return NULL;
 	int i = 0;
 	if(exp < 0) {
@@ -897,7 +927,7 @@ DecimalPrefix *Calculator::getBestDecimalPrefix(int exp10, int exp, bool all_pre
 	}
 	return p_prev;
 }
-DecimalPrefix *Calculator::getBestDecimalPrefix(const Number &exp10, const Number &exp, bool all_prefixes) const {
+DecimalPrefix *Calculator::getOptimalDecimalPrefix(const Number &exp10, const Number &exp, bool all_prefixes) const {
 	if(decimal_prefixes.size() <= 0 || exp10.isZero()) return NULL;
 	int i = 0;
 	ComparisonResult c;
@@ -977,7 +1007,7 @@ BinaryPrefix *Calculator::getNearestBinaryPrefix(int exp2, int exp) const {
 	}
 	return binary_prefixes[binary_prefixes.size() - 1];
 }
-BinaryPrefix *Calculator::getBestBinaryPrefix(int exp2, int exp) const {
+BinaryPrefix *Calculator::getOptimalBinaryPrefix(int exp2, int exp) const {
 	if(binary_prefixes.size() <= 0 || exp2 == 0) return NULL;
 	int i = 0;
 	if(exp < 0) {
@@ -1027,7 +1057,7 @@ BinaryPrefix *Calculator::getBestBinaryPrefix(int exp2, int exp) const {
 	}
 	return p_prev;
 }
-BinaryPrefix *Calculator::getBestBinaryPrefix(const Number &exp2, const Number &exp) const {
+BinaryPrefix *Calculator::getOptimalBinaryPrefix(const Number &exp2, const Number &exp) const {
 	if(binary_prefixes.size() <= 0 || exp2.isZero()) return NULL;
 	int i = 0;
 	ComparisonResult c;
@@ -1241,6 +1271,7 @@ string Calculator::localToString(bool include_spaces) const {
 	else return _("to");
 }
 void Calculator::setLocale() {
+	if(b_ignore_locale) return;
 	if(saved_locale) setlocale(LC_NUMERIC, saved_locale);
 	lconv *locale = localeconv();
 	if(strcmp(locale->decimal_point, ",") == 0) {
@@ -1255,6 +1286,45 @@ void Calculator::setLocale() {
 		COMMA_S = ",;";
 	}
 	setlocale(LC_NUMERIC, "C");
+}
+void Calculator::setIgnoreLocale() {
+	if(saved_locale) {
+		free(saved_locale);
+		saved_locale = NULL;
+	}
+	char *current_lc_monetary = setlocale(LC_MONETARY, NULL);
+	if(current_lc_monetary) saved_locale = strdup(current_lc_monetary);
+	else saved_locale = NULL;
+	setlocale(LC_ALL, "C");
+#ifdef ENABLE_NLS
+#	ifdef _WIN32
+	bindtextdomain(GETTEXT_PACKAGE, "NULL");
+	bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+#	endif
+#endif
+	if(saved_locale) {
+		setlocale(LC_MONETARY, saved_locale);
+		free(saved_locale);
+		saved_locale = NULL;
+	}
+	b_ignore_locale = true;
+	per_str = "per";
+	per_str_len = per_str.length();
+	times_str = "times";
+	times_str_len = times_str.length();
+	plus_str = "plus";
+	plus_str_len = plus_str.length();
+	minus_str = "minus";
+	minus_str_len = minus_str.length();
+	and_str = "and";
+	and_str_len = and_str.length();
+	or_str = "or";
+	or_str_len = or_str.length();
+	local_to = false;
+	unsetLocale();
+}
+bool Calculator::getIgnoreLocale() {
+	return b_ignore_locale;
 }
 void Calculator::useDecimalComma() {
 	DOT_STR = ",";
@@ -1483,6 +1553,7 @@ void Calculator::addBuiltinFunctions() {
 	f_denominator = addFunction(new DenominatorFunction());
 	
 	f_interval = addFunction(new IntervalFunction());
+	f_uncertainty = addFunction(new UncertaintyFunction());
 
 	f_sqrt = addFunction(new SqrtFunction());
 	f_cbrt = addFunction(new CbrtFunction());
@@ -1629,7 +1700,7 @@ void Calculator::addBuiltinFunctions() {
 }
 void Calculator::addBuiltinUnits() {
 	u_euro = addUnit(new Unit(_("Currency"), "EUR", "euros", "euro", "European Euros", false, true, true));
-	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "3615.44", 1, "", false, true, true));
+	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "4483.91", 1, "", false, true, true));
 	u_btc->setApproximate();
 	u_btc->setPrecision(-2);
 	u_btc->setChanged(false);
@@ -1747,6 +1818,18 @@ CalculatorMessage* Calculator::nextMessage() {
 		}
 	}
 	return NULL;
+}
+void Calculator::cleanMessages(const MathStructure &mstruct, size_t first_message) {
+	if(first_message > 0) first_message--;
+	if(messages.size() <= first_message) return;
+	if(mstruct.containsInterval(true, false, false, -2, true) <= 0) {
+		for(size_t i = messages.size() - 1; ; i--) {
+			if(messages[i].category() == MESSAGE_CATEGORY_WIDE_INTERVAL) {
+				messages.erase(messages.begin() + i);
+			}
+			if(i == first_message) break;
+		}
+	}
 }
 void Calculator::deleteName(string name_, ExpressionItem *object) {
 	Variable *v2 = getVariable(name_);
@@ -2257,7 +2340,7 @@ MathStructure *Calculator::calculateRPN(MathFunction *f, const EvaluationOptions
 		for(size_t i = 0; i < iregs - 1 && rpn_stack.size() > 1; i++) {
 			rpn_stack.back()->unref();
 			rpn_stack.pop_back();
-			CALCULATOR->deleteRPNRegister(1);
+			deleteRPNRegister(1);
 		}
 		rpn_stack.back()->unref();
 		rpn_stack.back() = mstruct;
@@ -2326,7 +2409,7 @@ bool Calculator::RPNStackEnter(string str, int msecs, const EvaluationOptions &e
 void Calculator::RPNStackEnter(MathStructure *mstruct, bool eval, const EvaluationOptions &eo) {
 	if(eval) {
 		current_stage = MESSAGE_STAGE_CALCULATION;
-		mstruct->eval();
+		mstruct->eval(eo);
 		current_stage = MESSAGE_STAGE_CONVERSION;
 		autoConvert(*mstruct, *mstruct, eo);
 		current_stage = MESSAGE_STAGE_UNSET;
@@ -2357,7 +2440,7 @@ void Calculator::setRPNRegister(size_t index, MathStructure *mstruct, bool eval,
 	}
 	if(eval) {
 		current_stage = MESSAGE_STAGE_CALCULATION;
-		mstruct->eval();
+		mstruct->eval(eo);
 		current_stage = MESSAGE_STAGE_CONVERSION;
 		autoConvert(*mstruct, *mstruct, eo);
 		current_stage = MESSAGE_STAGE_UNSET;
@@ -2481,6 +2564,34 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 		} else if(equalsIgnoreCase(to_str, "utc") || equalsIgnoreCase(to_str, "gmt")) {
 			str = from_str;
 			printops.time_zone = TIME_ZONE_UTC;
+		} else if(to_str.length() > 3 && (equalsIgnoreCase(to_str.substr(0, 3), "utc") || equalsIgnoreCase(to_str.substr(0, 3), "gmt"))) {
+			to_str = to_str.substr(3);
+			remove_blanks(to_str);
+			bool b_minus = false;
+			if(to_str[0] == '+') {
+				to_str.erase(0, 1);
+			} else if(to_str[0] == '-') {
+				b_minus = true;
+				to_str.erase(0, 1);
+			} else if(to_str.find(SIGN_MINUS) == 0) {
+				b_minus = true;
+				to_str.erase(0, strlen(SIGN_MINUS));
+			}
+			unsigned int tzh = 0, tzm = 0;
+			int itz = 0;
+			if(!to_str.empty() && sscanf(to_str.c_str(), "%2u:%2u", &tzh, &tzm) > 0) {
+				itz = tzh * 60 + tzm;
+				if(b_minus) itz = -itz;
+			} else {
+				error(true, _("Time zone parsing failed."), NULL);
+			}
+			printops.time_zone = TIME_ZONE_CUSTOM;
+			printops.custom_time_zone = itz;
+			str = from_str;
+		} else if(to_str == "CET") {
+			printops.time_zone = TIME_ZONE_CUSTOM;
+			printops.custom_time_zone = 60;
+			str = from_str;
 		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "fraction", _("fraction"))) {
 			str = from_str;
 			do_fraction = true;
@@ -2564,6 +2675,7 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 		if(mstruct.isNumber()) printops.number_fraction_format = FRACTION_COMBINED;
 		else printops.number_fraction_format = FRACTION_FRACTIONAL;
 	}
+	mstruct.removeDefaultAngleUnit(evalops);
 	mstruct.format(printops);
 	str = mstruct.print(printops);
 	stopControl();
@@ -2672,6 +2784,7 @@ MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, Mat
 	}
 	MathStructure mstruct;
 	current_stage = MESSAGE_STAGE_PARSING;
+	size_t n_messages = messages.size();
 	parse(&mstruct, str, eo.parse_options);
 	if(parsed_struct) {
 		beginTemporaryStopMessages();
@@ -2683,7 +2796,7 @@ MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, Mat
 	current_stage = MESSAGE_STAGE_CALCULATION;
 
 	mstruct.eval(eo);
-
+	
 	current_stage = MESSAGE_STAGE_UNSET;
 	if(aborted()) return mstruct;
 	bool b_units = mstruct.containsType(STRUCT_UNIT, true);
@@ -2691,15 +2804,14 @@ MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, Mat
 		current_stage = MESSAGE_STAGE_CONVERSION;
 		if(to_struct) to_struct->set(u);
 		mstruct.set(convert(mstruct, u, eo, false, false));
+		if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
 	} else if(!str2.empty()) {
-		return convert(mstruct, str2, eo);
-	} else if(!b_units) {
-		return mstruct;
-	} else {
+		mstruct.set(convert(mstruct, str2, eo));
+	} else if(b_units) {
 		current_stage = MESSAGE_STAGE_CONVERSION;
 		switch(eo.auto_post_conversion) {
 			case POST_CONVERSION_OPTIMAL: {
-				mstruct.set(convertToBestUnit(mstruct, eo, false));
+				mstruct.set(convertToOptimalUnit(mstruct, eo, false));
 				break;
 			}
 			case POST_CONVERSION_BASE: {
@@ -2707,14 +2819,15 @@ MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, Mat
 				break;
 			}
 			case POST_CONVERSION_OPTIMAL_SI: {
-				mstruct.set(convertToBestUnit(mstruct, eo, true));
+				mstruct.set(convertToOptimalUnit(mstruct, eo, true));
 				break;
 			}
 			default: {}
 		}
+		if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
 	}
-
-	if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
+	
+	cleanMessages(mstruct, n_messages + 1);
 
 	current_stage = MESSAGE_STAGE_UNSET;
 	return mstruct;
@@ -2725,15 +2838,16 @@ MathStructure Calculator::calculate(const MathStructure &mstruct_to_calculate, c
 	
 	MathStructure mstruct(mstruct_to_calculate);
 	current_stage = MESSAGE_STAGE_CALCULATION;
+	size_t n_messages = messages.size();
 	mstruct.eval(eo);
 	
 	current_stage = MESSAGE_STAGE_CONVERSION;
 	if(!to_str.empty()) {
-		return convert(mstruct, to_str, eo);
+		mstruct.set(convert(mstruct, to_str, eo));
 	} else {
 		switch(eo.auto_post_conversion) {
 			case POST_CONVERSION_OPTIMAL: {
-				mstruct.set(convertToBestUnit(mstruct, eo, false));
+				mstruct.set(convertToOptimalUnit(mstruct, eo, false));
 				break;
 			}
 			case POST_CONVERSION_BASE: {
@@ -2741,13 +2855,16 @@ MathStructure Calculator::calculate(const MathStructure &mstruct_to_calculate, c
 				break;
 			}
 			case POST_CONVERSION_OPTIMAL_SI: {
-				mstruct.set(convertToBestUnit(mstruct, eo, true));
+				mstruct.set(convertToOptimalUnit(mstruct, eo, true));
 				break;
 			}
 			default: {}
 		}
+		if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
 	}
-	if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
+	
+	cleanMessages(mstruct, n_messages + 1);
+	
 	current_stage = MESSAGE_STAGE_UNSET;
 	return mstruct;
 }
@@ -2768,6 +2885,7 @@ MathStructure Calculator::convertToMixedUnits(const MathStructure &mstruct, cons
 	if(eo.mixed_units_conversion == MIXED_UNITS_CONVERSION_NONE) return mstruct;
 	if(!mstruct.isMultiplication()) return mstruct;
 	if(mstruct.size() != 2) return mstruct;
+	size_t n_messages = messages.size();
 	if(mstruct[1].isUnit() && (!mstruct[1].prefix() || mstruct[1].prefix() == decimal_null_prefix) && mstruct[0].isNumber()) {
 		Prefix *p = mstruct[1].prefix();
 		MathStructure mstruct_new(mstruct);
@@ -2867,18 +2985,27 @@ MathStructure Calculator::convertToMixedUnits(const MathStructure &mstruct, cons
 				mstruct_new.add(mstruct_term, true);
 			}
 		}
+		cleanMessages(mstruct_new, n_messages + 1);
 		return mstruct_new;
 	}
 	return mstruct;
 }
 
 MathStructure Calculator::convert(double value, Unit *from_unit, Unit *to_unit, const EvaluationOptions &eo) {
+	size_t n_messages = messages.size();
 	MathStructure mstruct(value);
 	mstruct *= from_unit;
 	mstruct.eval(eo);
-	mstruct.convert(to_unit, true);
+	if(eo.approximation == APPROXIMATION_EXACT) {
+		EvaluationOptions eo2 = eo;
+		eo2.approximation = APPROXIMATION_TRY_EXACT;
+		mstruct.convert(to_unit, true, NULL, false, eo2);
+	} else {
+		mstruct.convert(to_unit, true, NULL, false, eo);
+	}
 	mstruct.divide(to_unit, true);
 	mstruct.eval(eo);
+	cleanMessages(mstruct, n_messages + 1);
 	return mstruct;
 
 }
@@ -2907,7 +3034,13 @@ MathStructure Calculator::convertTimeOut(string str, Unit *from_unit, Unit *to_u
 		mstruct.setAborted();
 		return mstruct;
 	}
-	mstruct.convert(to_unit, true);
+	if(eo.approximation == APPROXIMATION_EXACT) {
+		EvaluationOptions eo2 = eo;
+		eo2.approximation = APPROXIMATION_TRY_EXACT;
+		mstruct.convert(to_unit, true, NULL, false, eo2);
+	} else {
+		mstruct.convert(to_unit, true, NULL, false, eo);
+	}
 	mstruct.divide(to_unit, true);
 	b_busy = true;
 	if(!calculate_thread->write(b_parse)) {calculate_thread->cancel(); return mstruct;}
@@ -2924,33 +3057,46 @@ MathStructure Calculator::convertTimeOut(string str, Unit *from_unit, Unit *to_u
 	return mstruct;
 }
 MathStructure Calculator::convert(string str, Unit *from_unit, Unit *to_unit, const EvaluationOptions &eo) {
+	size_t n_messages = messages.size();
 	MathStructure mstruct;
 	parse(&mstruct, str, eo.parse_options);
 	mstruct *= from_unit;
 	mstruct.eval(eo);
-	mstruct.convert(to_unit, true);
+	if(eo.approximation == APPROXIMATION_EXACT) {
+		EvaluationOptions eo2 = eo;
+		eo2.approximation = APPROXIMATION_TRY_EXACT;
+		mstruct.convert(to_unit, true, NULL, false, eo2);
+	} else {
+		mstruct.convert(to_unit, true, NULL, false, eo);
+	}
 	mstruct.divide(to_unit, true);
 	mstruct.eval(eo);
+	cleanMessages(mstruct, n_messages + 1);
 	return mstruct;
 }
 MathStructure Calculator::convert(const MathStructure &mstruct, KnownVariable *to_var, const EvaluationOptions &eo) {
 	if(mstruct.contains(to_var, true) > 0) return mstruct;
-	if(!to_var->unit().empty() && to_var->isExpression()) {
+	size_t n_messages = messages.size();
+	if(b_var_units && !to_var->unit().empty() && to_var->isExpression()) {
 		CompositeUnit cu("", "temporary_composite_convert", "", to_var->unit());
 		if(cu.countUnits() > 0) {
 			AliasUnit au("", "temporary_alias_convert", "", "", "", &cu, to_var->expression());
-			au.setUncertainty(to_var->uncertainty());
+			bool unc_rel = false;
+			if(!to_var->uncertainty(&unc_rel).empty()) au.setUncertainty(to_var->uncertainty(), unc_rel);
 			au.setApproximate(to_var->isApproximate());
 			au.setPrecision(to_var->precision());
 			MathStructure mstruct_new(convert(mstruct, &au, eo, false, false));
-			mstruct_new.replace(&au, to_var);
-			return mstruct_new;
+			if(mstruct_new.contains(&au)) {
+				mstruct_new.replace(&au, to_var);
+				return mstruct_new;
+			}
 		}
 	}
 	MathStructure mstruct_new(mstruct);
 	mstruct_new /= to_var->get();
 	mstruct_new.eval(eo);
 	mstruct_new *= to_var;
+	cleanMessages(mstruct, n_messages + 1);
 	return mstruct_new;
 }
 MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, const EvaluationOptions &eo, bool always_convert, bool convert_to_mixed_units) {
@@ -2959,7 +3105,8 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 	if(to_unit->subtype() == SUBTYPE_COMPOSITE_UNIT) cu = (CompositeUnit*) to_unit;
 	if(cu && cu->countUnits() == 0) return mstruct;
 	MathStructure mstruct_new(mstruct);
-	if(to_unit->hasComplexRelationTo(to_unit->baseUnit()) && to_unit->baseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {
+	size_t n_messages = messages.size();
+	if(to_unit->hasNonlinearRelationTo(to_unit->baseUnit()) && to_unit->baseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {
 		mstruct_new = convert(mstruct, to_unit->baseUnit(), eo, always_convert, convert_to_mixed_units);
 		mstruct_new.calculateDivide(((CompositeUnit*) to_unit->baseUnit())->generateMathStructure(false, eo.keep_prefixes), eo);
 		to_unit->convertFromBaseUnit(mstruct_new);
@@ -2969,6 +3116,7 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 		eo2.sync_units = false;
 		eo2.keep_prefixes = true;
 		mstruct_new.eval(eo2);
+		cleanMessages(mstruct, n_messages + 1);
 		return mstruct_new;
 	}
 	//bool b_simple = !cu && (to_unit->subtype() != SUBTYPE_ALIAS_UNIT || (((AliasUnit*) to_unit)->baseUnit()->subtype() != SUBTYPE_COMPOSITE_UNIT && ((AliasUnit*) to_unit)->baseExponent() == 1));
@@ -2996,6 +3144,7 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 				eo2.sync_units = false;
 				eo2.keep_prefixes = true;
 				mstruct_new.eval(eo2);
+				cleanMessages(mstruct, n_messages + 1);
 			}
 			return mstruct_new;
 		}
@@ -3003,6 +3152,7 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 		EvaluationOptions eo2 = eo;
 		eo2.keep_prefixes = true;
 		bool b = false;
+		if(eo.approximation == APPROXIMATION_EXACT) eo2.approximation = APPROXIMATION_TRY_EXACT;
 		if(mstruct_new.convert(to_unit, true, NULL, false, eo2, eo.keep_prefixes ? decimal_null_prefix : NULL) || always_convert) {
 			b = true;
 		} else {
@@ -3040,12 +3190,19 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 				}
 			}
 		}
-
 		if(b) {
+			eo2.approximation = eo.approximation;
 			eo2.sync_units = true;
 			eo2.keep_prefixes = false;
+			MathStructure mbak(mstruct_new);
 			mstruct_new.divide(MathStructure(to_unit, NULL));
 			mstruct_new.eval(eo2);
+			if(mstruct_new.containsType(STRUCT_UNIT)) {
+				mbak.inverse();
+				mbak.divide(MathStructure(to_unit, NULL));
+				mbak.eval(eo2);
+				if(!mbak.containsType(STRUCT_UNIT)) mstruct_new = mbak;
+			}
 
 			if(cu) {
 				MathStructure mstruct_cu(cu->generateMathStructure(false, eo.keep_prefixes));
@@ -3065,6 +3222,8 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 			eo2.sync_units = false;
 			eo2.keep_prefixes = true;
 			mstruct_new.eval(eo2);
+			
+			cleanMessages(mstruct, n_messages + 1);
 
 			if(convert_to_mixed_units && eo2.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) {
 				eo2.mixed_units_conversion = MIXED_UNITS_CONVERSION_DOWNWARDS_KEEP;
@@ -3080,34 +3239,52 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit, c
 }
 MathStructure Calculator::convertToBaseUnits(const MathStructure &mstruct, const EvaluationOptions &eo) {
 	if(!mstruct.containsType(STRUCT_UNIT, true)) return mstruct;
+	size_t n_messages = messages.size();
 	MathStructure mstruct_new(mstruct);
 	mstruct_new.convertToBaseUnits(true, NULL, true, eo);
 	if(!mstruct_new.equals(mstruct, true, true)) {
 		EvaluationOptions eo2 = eo;
+		eo2.approximation = eo.approximation;
 		eo2.keep_prefixes = false;
 		eo2.isolate_x = false;
 		eo2.test_comparisons = false;
 		//eo2.calculate_functions = false;
 		mstruct_new.eval(eo2);
+		cleanMessages(mstruct, n_messages + 1);
 	}
 	return mstruct_new;
 }
 Unit *Calculator::findMatchingUnit(const MathStructure &mstruct) {
 	switch(mstruct.type()) {
 		case STRUCT_POWER: {
-			if(mstruct.base()->isUnit() && mstruct.base()->unit()->subtype() != SUBTYPE_COMPOSITE_UNIT && mstruct.exponent()->isNumber() && mstruct.exponent()->number().isInteger()) {
+			if(mstruct.base()->isUnit() && mstruct.exponent()->isNumber() && mstruct.exponent()->number().isInteger() && mstruct.exponent()->number() < 10 && mstruct.exponent()->number() > -10) {
 				Unit *u_base = mstruct.base()->unit();
-				if(u_base->subtype() == SUBTYPE_ALIAS_UNIT) {
-					if(((AliasUnit*) u_base)->baseExponent() == 1) return u_base;
-					else u_base = u_base->baseUnit();
-				}
 				int exp = mstruct.exponent()->number().intValue();
+				if(u_base->subtype() == SUBTYPE_ALIAS_UNIT) {
+					u_base = u_base->baseUnit();
+					exp *= ((AliasUnit*) u_base)->baseExponent();
+				}
 				for(size_t i = 0; i < units.size(); i++) {
 					Unit *u = units[i];
 					if(u->subtype() == SUBTYPE_ALIAS_UNIT && u->baseUnit() == u_base && ((AliasUnit*) u)->baseExponent() == exp) {
 						return u;
 					}
 				}
+				CompositeUnit *cu = new CompositeUnit("", "temporary_find_matching_unit");
+				cu->add(u_base, exp);
+				Unit *u = getOptimalUnit(cu);
+				if(u != cu && !u->isRegistered()) {
+					delete u;
+				} else if(u != cu) {
+					MathStructure mtest(mstruct);
+					mtest.divide(u);
+					mtest.eval();
+					if(mtest.isNumber()) {
+						delete cu;
+						return u;
+					}
+				}
+				delete cu;
 			}
 			return findMatchingUnit(mstruct[0]);
 		}
@@ -3146,11 +3323,15 @@ Unit *Calculator::findMatchingUnit(const MathStructure &mstruct) {
 							for(size_t i2 = 1; i2 <= cu->countUnits(); i2++) {
 								int exp1 = 1, exp2 = 1;
 								Unit *ui1 = cu->get(i2, &exp1);
-								Unit *ui2 = ((CompositeUnit*) u)->get(i2, &exp2);
-								if(ui1 != ui2->baseUnit() || exp1 != exp2) {
-									b = false;
-									break;
+								b = false;
+								for(size_t i3 = 1; i3 <= cu->countUnits(); i3++) {
+									Unit *ui2 = ((CompositeUnit*) u)->get(i3, &exp2);
+									if(ui1 == ui2->baseUnit()) {
+										b = (exp1 == exp2);
+										break;
+									}
 								}
+								if(!b) break;
 							}
 							if(b) {
 								delete cu;
@@ -3160,25 +3341,54 @@ Unit *Calculator::findMatchingUnit(const MathStructure &mstruct) {
 					}
 				}
 			}
+			Unit *u = getOptimalUnit(cu);
+			if(u != cu && !u->isRegistered()) {
+				if(cu->countUnits() > 1 && u->subtype() == SUBTYPE_COMPOSITE_UNIT) {
+					MathStructure m_u = ((CompositeUnit*) u)->generateMathStructure();
+					if(m_u != cu->generateMathStructure()) {
+						Unit *u2 = findMatchingUnit(m_u);
+						MathStructure mtest(mstruct);
+						mtest.divide(u2);
+						mtest.eval();
+						if(mtest.isNumber()) {
+							delete cu;
+							delete u;
+							return u2;
+						}
+					}
+				}
+				delete u;
+			} else if(u != cu) {
+				MathStructure mtest(mstruct);
+				mtest.divide(u);
+				mtest.eval();
+				if(mtest.isNumber()) {
+					delete cu;
+					return u;
+				}
+			}
 			delete cu;
 			break;
 		}
 		default: {
 			for(size_t i = 0; i < mstruct.size(); i++) {
 				if(mstruct.size() > 100 && aborted()) return NULL;
-				Unit *u = findMatchingUnit(mstruct[i]);
-				if(u) return u;
+				if(!mstruct.isFunction() || !mstruct.function()->getArgumentDefinition(i + 1) || mstruct.function()->getArgumentDefinition(i + 1)->type() != ARGUMENT_TYPE_ANGLE) { 
+					Unit *u = findMatchingUnit(mstruct[i]);
+					if(u) return u;
+				}
 			}
 			break;
 		}
 	}
 	return NULL;
 }
-Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_local_currency) {
+Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_local_currency) {return getOptimalUnit(u, allow_only_div, convert_to_local_currency);}
+Unit *Calculator::getOptimalUnit(Unit *u, bool allow_only_div, bool convert_to_local_currency) {
 	switch(u->subtype()) {
 		case SUBTYPE_BASE_UNIT: {
 			if(convert_to_local_currency && u->isCurrency()) {
-				Unit *u_local_currency = CALCULATOR->getLocalCurrency();
+				Unit *u_local_currency = getLocalCurrency();
 				if(u_local_currency) return u_local_currency;
 			}
 			return u;
@@ -3188,14 +3398,14 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_loca
 			if(au->baseExponent() == 1 && au->baseUnit()->subtype() == SUBTYPE_BASE_UNIT) {
 				if(au->isCurrency()) {
 					if(!convert_to_local_currency) return u;
-					Unit *u_local_currency = CALCULATOR->getLocalCurrency();
+					Unit *u_local_currency = getLocalCurrency();
 					if(u_local_currency) return u_local_currency;
 				}
 				return (Unit*) au->baseUnit();
 			} else if(au->isSIUnit() && (au->firstBaseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT || au->firstBaseExponent() != 1)) {
 				return u;
 			} else {
-				return getBestUnit((Unit*) au->firstBaseUnit());
+				return getOptimalUnit((Unit*) au->firstBaseUnit());
 			}
 		}
 		case SUBTYPE_COMPOSITE_UNIT: {
@@ -3244,7 +3454,7 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_loca
 				u2 = units[i];
 				if(u2->subtype() == SUBTYPE_BASE_UNIT && (points == 0 || (points == 1 && minus))) {
 					for(size_t i2 = 1; i2 <= cu->countUnits(); i2++) {
-						if(cu->get(i2, &exp)->baseUnit() == u2 && !cu->get(i2)->hasComplexRelationTo(u2)) {
+						if(cu->get(i2, &exp)->baseUnit() == u2 && !cu->get(i2)->hasNonlinearRelationTo(u2)) {
 							points = 1;
 							best_u = u2;
 							minus = !has_positive && (exp < 0);
@@ -3258,7 +3468,7 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_loca
 					b_exp = au->baseExponent();
 					new_points = 0;
 					new_points_m = 0;
-					if((b_exp != 1 || bu->subtype() == SUBTYPE_COMPOSITE_UNIT) && !au->hasComplexRelationTo(bu)) {
+					if((b_exp != 1 || bu->subtype() == SUBTYPE_COMPOSITE_UNIT) && !au->hasNonlinearRelationTo(bu)) {
 						if(bu->subtype() == SUBTYPE_BASE_UNIT) {
 							for(size_t i2 = 1; i2 <= cu->countUnits(); i2++) {
 								if(cu->get(i2, &exp) == bu) {
@@ -3291,7 +3501,18 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_loca
 							}
 						} else if(au->firstBaseExponent() != 1 || au->firstBaseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {
 							MathStructure cu_mstruct = ((CompositeUnit*) bu)->generateMathStructure();
-							cu_mstruct.raise(b_exp);
+							if(b_exp != 1) {
+								if(cu_mstruct.isMultiplication()) {
+									for(size_t i2 = 0; i2 < cu_mstruct.size(); i2++) {
+										if(cu_mstruct[i2].isPower()) cu_mstruct[i2][1].number() *= b_exp;
+										else cu_mstruct[i2].raise(b_exp);
+									}
+								} else if(cu_mstruct.isPower()) {
+									cu_mstruct[1].number() *= b_exp;
+								} else {
+									cu_mstruct.raise(b_exp);
+								}
+							}
 							cu_mstruct = convertToBaseUnits(cu_mstruct);
 							if(cu_mstruct.isMultiplication()) {
 								for(size_t i2 = 1; i2 <= cu_mstruct.countChildren(); i2++) {
@@ -3361,7 +3582,7 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_loca
 				if(points >= max_points && !minus) break;
 			}
 			if(!best_u) return u;
-			best_u = getBestUnit(best_u, false, convert_to_local_currency);
+			best_u = getOptimalUnit(best_u, false, convert_to_local_currency);
 			if(points > 1 && points < max_points - 1) {
 				CompositeUnit *cu_new = new CompositeUnit("", "temporary_composite_convert");
 				bool return_cu = minus;
@@ -3374,7 +3595,7 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_loca
 				if(minus) cu_mstruct *= best_u;
 				else cu_mstruct /= best_u;
 				cu_mstruct = convertToBaseUnits(cu_mstruct);
-				CompositeUnit *cu2 = new CompositeUnit("", "temporary_composite_convert_to_best_unit");
+				CompositeUnit *cu2 = new CompositeUnit("", "temporary_composite_convert_to_optimal_unit");
 				bool b = false;
 				for(size_t i = 1; i <= cu_mstruct.countChildren(); i++) {
 					if(cu_mstruct.getChild(i)->isUnit()) {
@@ -3392,7 +3613,7 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_loca
 					}
 				}
 				if(b) {
-					Unit *u2 = getBestUnit(cu2, true, convert_to_local_currency);
+					Unit *u2 = getOptimalUnit(cu2, true, convert_to_local_currency);
 					b = false;
 					if(u2->subtype() == SUBTYPE_COMPOSITE_UNIT) {
 						for(size_t i3 = 1; i3 <= ((CompositeUnit*) u2)->countUnits(); i3++) {
@@ -3439,7 +3660,8 @@ Unit *Calculator::getBestUnit(Unit *u, bool allow_only_div, bool convert_to_loca
 	}
 	return u;
 }
-MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const EvaluationOptions &eo, bool convert_to_si_units) {
+MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const EvaluationOptions &eo, bool convert_to_si_units) {return convertToOptimalUnit(mstruct, eo, convert_to_si_units);}
+MathStructure Calculator::convertToOptimalUnit(const MathStructure &mstruct, const EvaluationOptions &eo, bool convert_to_si_units) {
 	EvaluationOptions eo2 = eo;
 	//eo2.calculate_functions = false;
 	eo2.sync_units = false;
@@ -3447,11 +3669,13 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 	eo2.test_comparisons = false;
 	switch(mstruct.type()) {
 		case STRUCT_POWER: {
-			if(mstruct.base()->isUnit() && mstruct.exponent()->isNumber() && mstruct.exponent()->number().isRational()) {
+			if(mstruct.base()->isUnit() && mstruct.exponent()->isNumber() && mstruct.exponent()->number().isRational() && !mstruct.exponent()->number().isZero()) {
 				MathStructure mstruct_new(mstruct);
 				int old_points = 0;
-				if(mstruct_new.exponent()->isInteger()) old_points = mstruct_new.exponent()->number().intValue();
-				else old_points = mstruct_new.exponent()->number().numerator().intValue() + mstruct_new.exponent()->number().denominator().intValue() * (mstruct_new.exponent()->number().isNegative() ? -1 : 1);
+				bool overflow = false;
+				if(mstruct_new.exponent()->isInteger()) old_points = mstruct_new.exponent()->number().intValue(&overflow);
+				else old_points = mstruct_new.exponent()->number().numerator().intValue(&overflow) + mstruct_new.exponent()->number().denominator().intValue() * (mstruct_new.exponent()->number().isNegative() ? -1 : 1);
+				if(overflow) return mstruct_new;
 				bool old_minus = false;
 				if(old_points < 0) {
 					old_points = -old_points;
@@ -3459,19 +3683,30 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 				}
 				bool is_si_units = mstruct_new.base()->unit()->isSIUnit();
 				if(mstruct_new.base()->unit()->baseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {
-					mstruct_new = convertToBestUnit(convertToBaseUnits(mstruct_new, eo), eo, convert_to_si_units);
-					if(mstruct_new == mstruct) return mstruct_new;
+					mstruct_new.convertToBaseUnits(true, NULL, true, eo2, true);
+					if(mstruct_new.equals(mstruct, true, true)) {
+						return mstruct_new;
+					} else {
+						mstruct_new.eval(eo2);
+					}
+					mstruct_new = convertToOptimalUnit(mstruct_new, eo, convert_to_si_units);
+					if(mstruct_new.equals(mstruct, true, true)) return mstruct_new;
 				} else {
-					CompositeUnit *cu = new CompositeUnit("", "temporary_composite_convert_to_best_unit");
-					cu->add(mstruct_new.base()->unit(), mstruct_new.exponent()->number().intValue());
-					Unit *u = getBestUnit(cu, false, eo.local_currency_conversion);
+					CompositeUnit *cu = new CompositeUnit("", "temporary_composite_convert_to_optimal_unit");
+					cu->add(mstruct_new.base()->unit(), mstruct_new.exponent()->number().numerator().intValue());
+					Unit *u = getOptimalUnit(cu, false, eo.local_currency_conversion);
 					if(u == cu) {
 						delete cu;
 						return mstruct_new;
 					}
+					if(eo.approximation == APPROXIMATION_EXACT && cu->hasApproximateRelationTo(u, true)) {
+						if(!u->isRegistered()) delete u;
+						delete cu;
+						return mstruct_new;
+					}
+					delete cu;
 					mstruct_new = convert(mstruct_new, u, eo, true);
 					if(!u->isRegistered()) delete u;
-					delete cu;
 				}
 				int new_points = 0;
 				bool new_is_si_units = true;
@@ -3539,8 +3774,10 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 			bool b = false;
 			for(size_t i = 0; i < mstruct_new.size(); i++) {
 				if(mstruct_new.size() > 100 && aborted()) return mstruct;
-				mstruct_new[i] = convertToBestUnit(mstruct_new[i], eo, convert_to_si_units);
-				if(!b && !mstruct_new[i].equals(mstruct[i], true, true)) b = true;
+				if(!mstruct_new.isFunction() || !mstruct_new.function()->getArgumentDefinition(i + 1) || mstruct_new.function()->getArgumentDefinition(i + 1)->type() != ARGUMENT_TYPE_ANGLE) { 
+					mstruct_new[i] = convertToOptimalUnit(mstruct_new[i], eo, convert_to_si_units);
+					if(!b && !mstruct_new[i].equals(mstruct[i], true, true)) b = true;
+				}
 			}
 			if(b) {
 				mstruct_new.childrenUpdated();
@@ -3550,11 +3787,14 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 		}
 		case STRUCT_UNIT: {
 			if((!mstruct.unit()->isCurrency() || !eo.local_currency_conversion) && (!convert_to_si_units || mstruct.unit()->isSIUnit())) return mstruct;
-			Unit *u = getBestUnit(mstruct.unit(), false, eo.local_currency_conversion);
-			if(u != mstruct.unit() && (u->isSIUnit() || (u->isCurrency() && eo.local_currency_conversion))) {
-				MathStructure mstruct_new = convert(mstruct, u, eo, true);
+			Unit *u = getOptimalUnit(mstruct.unit(), false, eo.local_currency_conversion);
+			if(u != mstruct.unit()) {
+				if((u->isSIUnit() || (u->isCurrency() && eo.local_currency_conversion)) && (eo.approximation != APPROXIMATION_EXACT || !mstruct.unit()->hasApproximateRelationTo(u, true))) {
+					MathStructure mstruct_new = convert(mstruct, u, eo, true);
+					if(!u->isRegistered()) delete u;
+					return mstruct_new;
+				}
 				if(!u->isRegistered()) delete u;
-				return mstruct_new;
 			}
 			break;
 		}
@@ -3586,7 +3826,7 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 						old_minus = false;
 					}
 				} else if(mstruct_old.getChild(i)->size() > 0) {
-					mstruct_old[i - 1] = convertToBestUnit(mstruct_old[i - 1], eo, convert_to_si_units);
+					mstruct_old[i - 1] = convertToOptimalUnit(mstruct_old[i - 1], eo, convert_to_si_units);
 					mstruct_old.childUpdated(i);
 					if(!mstruct_old[i - 1].equals(mstruct[i - 1], true, true)) child_updated = true;
 				}
@@ -3595,11 +3835,15 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 			if((!is_currency || !eo.local_currency_conversion) && (!convert_to_si_units || is_si_units) && old_points <= 1 && !old_minus) {
 				return mstruct_old;
 			}
-			MathStructure mstruct_new(convertToBaseUnits(mstruct_old, eo));	
+			MathStructure mstruct_new(mstruct_old);
+			mstruct_new.convertToBaseUnits(true, NULL, true, eo2, true);
+			if(!mstruct_new.equals(mstruct, true, true)) {
+				mstruct_new.eval(eo2);
+			}
 			if(mstruct_new.type() != STRUCT_MULTIPLICATION) {
-				mstruct_new = convertToBestUnit(mstruct_new, eo, convert_to_si_units);
+				mstruct_new = convertToOptimalUnit(mstruct_new, eo, convert_to_si_units);
 			} else {
-				CompositeUnit *cu = new CompositeUnit("", "temporary_composite_convert_to_best_unit");
+				CompositeUnit *cu = new CompositeUnit("", "temporary_composite_convert_to_optimal_unit");
 				bool b = false;
 				child_updated = false;
 				for(size_t i = 1; i <= mstruct_new.countChildren(); i++) {
@@ -3612,18 +3856,20 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 						cu->add(mstruct_new.getChild(i)->base()->unit(), mstruct_new.getChild(i)->exponent()->number().intValue());
 					} else if(mstruct_new.getChild(i)->size() > 0) {
 						MathStructure m_i_old(mstruct_new[i - 1]);
-						mstruct_new[i - 1] = convertToBestUnit(mstruct_new[i - 1], eo, convert_to_si_units);
+						mstruct_new[i - 1] = convertToOptimalUnit(mstruct_new[i - 1], eo, convert_to_si_units);
 						mstruct_new.childUpdated(i);
 						if(!mstruct_new[i - 1].equals(m_i_old, true, true)) child_updated = true;
 					}
 				}
 				bool is_converted = false;
 				if(b) {
-					Unit *u = getBestUnit(cu, false, eo.local_currency_conversion);
+					Unit *u = getOptimalUnit(cu, false, eo.local_currency_conversion);
 					if(u != cu) {
-						mstruct_new = convert(mstruct_new, u, eo, true);
+						if(eo.approximation != APPROXIMATION_EXACT || !cu->hasApproximateRelationTo(u, true)) {
+							mstruct_new = convert(mstruct_new, u, eo, true);
+							is_converted = true;
+						}
 						if(!u->isRegistered()) delete u;
-						is_converted = true;
 					}
 				}
 				delete cu;
@@ -3632,7 +3878,8 @@ MathStructure Calculator::convertToBestUnit(const MathStructure &mstruct, const 
 				}
 				if(child_updated) mstruct_new.eval(eo2);
 			}
-			if(mstruct_new == mstruct_old) return mstruct_old;
+			if((eo.approximation == APPROXIMATION_EXACT && !mstruct_old.isApproximate()) && (mstruct_new.isApproximate() || (mstruct_old.containsInterval(true, true, false, 0, true) <= 0 && mstruct_new.containsInterval(true, true, false, 0, true) > 0))) return mstruct_old;
+			if(mstruct_new.equals(mstruct_old, true, true)) return mstruct_old;
 			int new_points = 0;
 			bool new_minus = true;
 			bool new_is_si_units = true;
@@ -3709,6 +3956,7 @@ MathStructure Calculator::convert(const MathStructure &mstruct_to_convert, strin
 	MathStructure mstruct;
 	bool b = false;
 	Unit *u = getUnit(str2);
+	if(!u) u = getCompositeUnit(str2);
 	Variable *v = NULL;
 	if(!u) v = getVariable(str2);
 	if(!u && !v) {
@@ -3720,7 +3968,7 @@ MathStructure Calculator::convert(const MathStructure &mstruct_to_convert, strin
 			}
 		}
 	}
-	if(v && (!v->isKnown() || ((KnownVariable*) v)->unit().empty())) v = NULL;
+	if(v && !v->isKnown()) v = NULL;
 	if(u) {
 		if(to_struct) to_struct->set(u);
 		mstruct.set(convert(mstruct_to_convert, u, eo2, false, false));
@@ -3862,7 +4110,7 @@ Unit* Calculator::getLocalCurrency() {
 		string local_currency = lc->int_curr_symbol;
 		remove_blank_ends(local_currency);
 		if(!local_currency.empty()) {
-			return CALCULATOR->getActiveUnit(local_currency);
+			return getActiveUnit(local_currency);
 		}
 	}
 	return NULL;
@@ -5304,7 +5552,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 									}
 									if(f == f_vector) {
 										stmp += i2s(parseAddVectorId(stmp2, po));
-									} else if(f == f_interval && po.read_precision != DONT_READ_PRECISION) {
+									} else if((f == f_interval || f == f_uncertainty) && po.read_precision != DONT_READ_PRECISION) {
 										ParseOptions po2 = po;
 										po2.read_precision = DONT_READ_PRECISION;
 										stmp += i2s(parseAddId(f, stmp2, po2));
@@ -5350,7 +5598,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 									}
 									if(f == f_vector) {
 										stmp += i2s(parseAddVectorId(stmp2, po));
-									} else if(f == f_interval && po.read_precision != DONT_READ_PRECISION) {
+									} else if((f == f_interval || f == f_uncertainty) && po.read_precision != DONT_READ_PRECISION) {
 										ParseOptions po2 = po;
 										po2.read_precision = DONT_READ_PRECISION;
 										stmp += i2s(parseAddId(f, stmp2, po2));
@@ -5882,7 +6130,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		str2 = str.substr(i + 1, i2 - (i + 1));
 		MathStructure *mstruct2 = new MathStructure();
 		if(str2.empty()) {
-			CALCULATOR->error(false, "Empty expression in parentheses interpreted as zero.", NULL);
+			error(false, "Empty expression in parentheses interpreted as zero.", NULL);
 		} else {
 			parseOperators(mstruct2, str2, po);
 		}
@@ -6320,14 +6568,14 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 							}
 							if(mstruct->last()[0].isNumber()) {
 								if(b_neg) mstruct->last()[0].number().negate();
-								if(v == CALCULATOR->v_percent) mstruct->last()[0].number().add(100);
-								else if(v == CALCULATOR->v_permille) mstruct->last()[0].number().add(1000);
+								if(v == v_percent) mstruct->last()[0].number().add(100);
+								else if(v == v_permille) mstruct->last()[0].number().add(1000);
 								else mstruct->last()[0].number().add(10000);
 							} else {
 								if(b_neg && po.preserve_format) mstruct->last()[0].transform(STRUCT_NEGATE);
 								else if(b_neg) mstruct->last()[0].negate();
-								if(v == CALCULATOR->v_percent) mstruct->last()[0] += Number(100, 1);
-								else if(v == CALCULATOR->v_permille) mstruct->last()[0] += Number(1000, 1);
+								if(v == v_percent) mstruct->last()[0] += Number(100, 1);
+								else if(v == v_permille) mstruct->last()[0] += Number(1000, 1);
 								else mstruct->last()[0] += Number(10000, 1);
 								mstruct->last()[0].swapChildren(1, 2);
 							}
@@ -6398,14 +6646,14 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 						}
 						if(mstruct->last()[0].isNumber()) {
 							if(b_neg) mstruct->last()[0].number().negate();
-							if(v == CALCULATOR->v_percent) mstruct->last()[0].number().add(100);
-							else if(v == CALCULATOR->v_permille) mstruct->last()[0].number().add(1000);
+							if(v == v_percent) mstruct->last()[0].number().add(100);
+							else if(v == v_permille) mstruct->last()[0].number().add(1000);
 							else mstruct->last()[0].number().add(10000);
 						} else {
 							if(b_neg && po.preserve_format) mstruct->last()[0].transform(STRUCT_NEGATE);
 							else if(b_neg) mstruct->last()[0].negate();
-							if(v == CALCULATOR->v_percent) mstruct->last()[0] += Number(100, 1);
-							else if(v == CALCULATOR->v_permille) mstruct->last()[0] += Number(1000, 1);
+							if(v == v_percent) mstruct->last()[0] += Number(100, 1);
+							else if(v == v_permille) mstruct->last()[0] += Number(1000, 1);
 							else mstruct->last()[0] += Number(10000, 1);
 							mstruct->last()[0].swapChildren(1, 2);
 						}
@@ -6423,7 +6671,6 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 			return true;
 		}
 	}
-
 	if(!po.rpn && po.parsing_mode == PARSING_MODE_ADAPTIVE && (i = str.find(DIVISION_CH, 1)) != string::npos && i + 1 != str.length()) {
 		while(i != string::npos && i + 1 != str.length()) {
 			bool b = false;
@@ -6483,7 +6730,10 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 				}
 				b = had_unit;
 				if(b) {
-					if(i3 < str.length() - 2 && str[i3 + 1] == POWER_CH && is_in(NUMBERS INTERNAL_NUMBER_CHARS, str[i3 + 2])) i3 += 2;
+					if(i3 < str.length() - 2 && str[i3 + 1] == POWER_CH && is_in(NUMBERS INTERNAL_NUMBER_CHARS, str[i3 + 2])) {
+						i3 += 2;
+						while(i3 < str.length() - 1 && is_in(NUMBERS INTERNAL_NUMBER_CHARS, str[i3 + 1])) i3++;
+					}
 					if(i3 == str.length() - 1 || (str[i3 + 1] != POWER_CH && str[i3 + 1] != DIVISION_CH)) {
 						MathStructure *mstruct2 = new MathStructure();
 						str2 = str.substr(i2, i - i2);
@@ -6526,11 +6776,10 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		}
 	}
 	if(po.parsing_mode == PARSING_MODE_ADAPTIVE && !po.rpn) remove_blanks(str);
-	
 	if(po.parsing_mode == PARSING_MODE_CONVENTIONAL) {
 		if((i = str.find(ID_WRAP_RIGHT_CH, 1)) != string::npos && i + 1 != str.length()) {
 			while(i != string::npos && i + 1 != str.length()) {
-				if(is_in(NUMBERS INTERNAL_NUMBER_CHARS ID_WRAP_LEFT, str[i + 1])) {
+				if(is_in(NUMBERS ID_WRAP_LEFT, str[i + 1])) {
 					str.insert(i + 1, 1, MULTIPLICATION_CH);
 					i++;
 				}
@@ -6539,7 +6788,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		}
 		if((i = str.find(ID_WRAP_LEFT_CH, 1)) != string::npos) {
 			while(i != string::npos) {
-				if(is_in(NUMBERS INTERNAL_NUMBER_CHARS, str[i - 1])) {
+				if(is_in(NUMBERS, str[i - 1])) {
 					str.insert(i, 1, MULTIPLICATION_CH);
 					i++;
 				}
@@ -6601,7 +6850,6 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		}
 	}
 
-
 	if(str.empty()) return false;
 	if(str.find_first_not_of(OPERATORS SPACE) == string::npos) {
 		error(false, _("Misplaced operator(s) \"%s\" ignored"), str.c_str(), NULL);
@@ -6646,7 +6894,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 	if((i = str.find(ID_WRAP_RIGHT_CH, 1)) != string::npos && i + 1 != str.length()) {
 		bool b = false, append = false;
 		while(i != string::npos && i + 1 != str.length()) {
-			if(str[i + 1] != POWER_CH) {
+			if(str[i + 1] != POWER_CH && str[i + 1] != '\b') {
 				str2 = str.substr(0, i + 1);
 				str = str.substr(i + 1, str.length() - (i + 1));
 				if(b) {
@@ -6718,7 +6966,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 	if((i = str.find(ID_WRAP_LEFT_CH, 1)) != string::npos) {
 		bool b = false, append = false;
 		while(i != string::npos) {
-			if(str[i - 1] != POWER_CH && (i < 2 || str[i - 1] != MINUS_CH || str[i - 2] != POWER_CH)) {
+			if(str[i - 1] != POWER_CH && (i < 2 || str[i - 1] != MINUS_CH || str[i - 2] != POWER_CH) && str[i - 1] != '\b') {
 				str2 = str.substr(0, i);
 				str = str.substr(i, str.length() - i);
 				if(b) {
@@ -6751,6 +6999,22 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		str = str.substr(i + 1, str.length() - (i + 1));
 		parseAdd(str2, mstruct, po);
 		parseAdd(str, mstruct, po, OPERATION_RAISE);
+	} else if((i = str.find("\b", 1)) != string::npos && i + 1 != str.length()) {
+		str2 = str.substr(0, i);
+		str = str.substr(i + 1, str.length() - (i + 1));
+		MathStructure *mstruct2 = new MathStructure;
+		if(po.read_precision != DONT_READ_PRECISION) {
+			ParseOptions po2 = po;
+			po2.read_precision = DONT_READ_PRECISION;
+			parseAdd(str2, mstruct, po2);
+			parseAdd(str, mstruct2, po2);
+		} else {
+			parseAdd(str2, mstruct, po);
+			parseAdd(str, mstruct2, po);
+		}
+		mstruct->transform(f_uncertainty);
+		mstruct->addChild_nocopy(mstruct2);
+		mstruct->addChild(m_zero);
 	} else if(po.base >= 2 && po.base <= 10 && (i = str.find_first_of(EXPS, 1)) != string::npos && i + 1 != str.length() && str.find("\b") == string::npos) {
 		str2 = str.substr(0, i);
 		str = str.substr(i + 1, str.length() - (i + 1));
@@ -6871,12 +7135,14 @@ string Calculator::getName(string name, ExpressionItem *object, bool force, bool
 
 bool Calculator::loadGlobalDefinitions() {
 	bool b = true;
+	QalculateDateTime date("2019-05-20T00:00:00Z");
+	bool use_new_si = !date.isFutureDate();
 	if(!loadDefinitions(buildPath(getGlobalDefinitionsDir(), "prefixes.xml").c_str(), false)) b = false;
 	if(!loadDefinitions(buildPath(getGlobalDefinitionsDir(), "currencies.xml").c_str(), false)) b = false;
-	if(!loadDefinitions(buildPath(getGlobalDefinitionsDir(), "units.xml").c_str(), false)) b = false;
+	if(!loadDefinitions(buildPath(getGlobalDefinitionsDir(), use_new_si ? "units.xml" : "units-old_SI.xml").c_str(), false)) b = false;
 	if(!loadDefinitions(buildPath(getGlobalDefinitionsDir(), "functions.xml").c_str(), false)) b = false;
 	if(!loadDefinitions(buildPath(getGlobalDefinitionsDir(), "datasets.xml").c_str(), false)) b = false;
-	if(!loadDefinitions(buildPath(getGlobalDefinitionsDir(), "variables.xml").c_str(), false)) b = false;
+	if(!loadDefinitions(buildPath(getGlobalDefinitionsDir(), use_new_si ? "variables.xml" : "variables-old_SI.xml").c_str(), false)) b = false;
 	return b;
 }
 bool Calculator::loadGlobalDefinitions(string filename) {
@@ -6890,10 +7156,14 @@ bool Calculator::loadGlobalCurrencies() {
 }
 bool Calculator::loadGlobalUnits() {
 	bool b = loadGlobalDefinitions("currencies.xml");
-	return loadGlobalDefinitions("units.xml") && b;
+	QalculateDateTime date("2019-05-20T00:00:00Z");
+	bool use_new_si = !date.isFutureDate();
+	return loadGlobalDefinitions(use_new_si ? "units.xml" : "units-old_SI.xml") && b;
 }
 bool Calculator::loadGlobalVariables() {
-	return loadGlobalDefinitions("variables.xml");
+	QalculateDateTime date("2019-05-20T00:00:00Z");
+	bool use_new_si = !date.isFutureDate();
+	return loadGlobalDefinitions(use_new_si ? "variables.xml" : "variables-old_SI.xml");
 }
 bool Calculator::loadGlobalFunctions() {
 	return loadGlobalDefinitions("functions.xml");
@@ -7462,6 +7732,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 	xmlDocPtr doc;
 	xmlNodePtr cur, child, child2, child3;
 	string version, stmp, name, uname, type, svalue, sexp, plural, countries, singular, category_title, category, description, title, inverse, suncertainty, base, argname, usystem;
+	bool unc_rel;
 	bool best_title, next_best_title, best_category_title, next_best_category_title, best_description, next_best_description;
 	bool best_plural, next_best_plural, best_singular, next_best_singular, best_argname, next_best_argname, best_countries, next_best_countries;
 	bool best_proptitle, next_best_proptitle, best_propdescr, next_best_propdescr;
@@ -7483,11 +7754,11 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 	if(LCIDToLocaleName(LOCALE_USER_DEFAULT, wlocale, LOCALE_NAME_MAX_LENGTH, 0) != 0) locale = utf8_encode(wlocale);
 	gsub("-", "_", locale);
 #else
-	char *clocale = setlocale(LC_MESSAGES, "");
+	char *clocale = setlocale(LC_MESSAGES, NULL);
 	if(clocale) locale = clocale;
 #endif
 
-	if(locale == "POSIX" || locale == "C") {
+	if(b_ignore_locale || locale == "POSIX" || locale == "C") {
 		locale = "";
 	} else {
 		size_t i = locale.find('.');
@@ -7554,7 +7825,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 		xmlFreeDoc(doc);
 		return false;
 	}
-	int version_numbers[] = {2, 8, 2};
+	int version_numbers[] = {3, 1, 0};
 	parse_qalculate_version(version, version_numbers);
 
 	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);
@@ -8303,7 +8574,11 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 				while(child != NULL) {
 					if(!xmlStrcmp(child->name, (const xmlChar*) "value")) {
 						XML_DO_FROM_TEXT(child, ((KnownVariable*) v)->set);
-						XML_DO_FROM_PROP(child, "uncertainty", ((KnownVariable*) v)->setUncertainty)
+						XML_GET_STRING_FROM_PROP(child, "relative_uncertainty", suncertainty)
+						unc_rel = false;
+						if(suncertainty.empty()) {XML_GET_STRING_FROM_PROP(child, "uncertainty", suncertainty)}
+						else unc_rel = true;
+						((KnownVariable*) v)->setUncertainty(suncertainty, unc_rel);
 						XML_DO_FROM_PROP(child, "unit", ((KnownVariable*) v)->setUnit)
 						XML_GET_PREC_FROM_PROP(child, prec)
 						v->setPrecision(prec);
@@ -8460,6 +8735,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							svalue = "";
 							inverse = "";
 							suncertainty = "";
+							unc_rel = false;
 							b = true;
 							while(child2 != NULL) {
 								if(!xmlStrcmp(child2->name, (const xmlChar*) "unit")) {
@@ -8473,7 +8749,9 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 									XML_GET_STRING_FROM_TEXT(child2, svalue);
 									XML_GET_APPROX_FROM_PROP(child2, b)
 									XML_GET_PREC_FROM_PROP(child2, prec)
-									XML_GET_STRING_FROM_PROP(child2, "uncertainty", suncertainty)
+									XML_GET_STRING_FROM_PROP(child2, "relative_uncertainty", suncertainty)
+									if(suncertainty.empty()) {XML_GET_STRING_FROM_PROP(child2, "uncertainty", suncertainty)}
+									else unc_rel = true;
 								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "reverse_relation")) {
 									XML_GET_STRING_FROM_TEXT(child2, inverse);
 								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "inverse_relation")) {
@@ -8536,7 +8814,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 						au->setDescription(description);
 						au->setPrecision(prec);
 						if(b) au->setApproximate(true);
-						au->setUncertainty(suncertainty);
+						au->setUncertainty(suncertainty, unc_rel);
 						au->setHidden(hidden);
 						au->setSystem(usystem);
 						if(use_with_prefixes_set) {
@@ -8558,7 +8836,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							au->destroy();
 							au = NULL;
 						} else {
-							if(!is_user_defs && au->baseUnit() == CALCULATOR->u_second) {
+							if(!is_user_defs && au->baseUnit() == u_second) {
 								if(au->referenceName() == "d" || au->referenceName() == "day") u_day = au;
 								else if(au->referenceName() == "year") u_year = au;
 								else if(au->referenceName() == "month") u_month = au;
@@ -9047,8 +9325,9 @@ int Calculator::saveVariables(const char* file_name, bool save_global) {
 						save_printoptions.is_approximate = &is_approx;
 						if(((KnownVariable*) variables[i])->isExpression()) {
 							newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "value", (xmlChar*) ((KnownVariable*) variables[i])->expression().c_str());
-							if(!((KnownVariable*) variables[i])->uncertainty().empty()) xmlNewProp(newnode2, (xmlChar*) "uncertainty", (xmlChar*) ((KnownVariable*) variables[i])->uncertainty().c_str());
-							if(!((KnownVariable*) variables[i])->unit().empty()) xmlNewProp(newnode2, (xmlChar*) "unit", (xmlChar*) ((KnownVariable*) variables[i])->uncertainty().c_str());
+							bool unc_rel = false;
+							if(!((KnownVariable*) variables[i])->uncertainty(&unc_rel).empty()) xmlNewProp(newnode2, (xmlChar*) (unc_rel ? "relative_uncertainty" : "uncertainty"), (xmlChar*) ((KnownVariable*) variables[i])->uncertainty().c_str());
+							if(!((KnownVariable*) variables[i])->unit().empty()) xmlNewProp(newnode2, (xmlChar*) "unit", (xmlChar*) ((KnownVariable*) variables[i])->unit().c_str());
 						} else {
 							newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "value", (xmlChar*) ((KnownVariable*) variables[i])->get().print(save_printoptions).c_str());
 						}
@@ -9274,7 +9553,8 @@ int Calculator::saveUnits(const char* file_name, bool save_global) {
 						newnode3 = xmlNewTextChild(newnode2, NULL, (xmlChar*) "relation", (xmlChar*) au->expression().c_str());
 						if(au->isApproximate()) xmlNewProp(newnode3, (xmlChar*) "approximate", (xmlChar*) "true");
 						if(au->precision() >= 0) xmlNewProp(newnode3, (xmlChar*) "precision", (xmlChar*) i2s(u->precision()).c_str());
-						if(!au->uncertainty().empty()) xmlNewProp(newnode3, (xmlChar*) "uncertainty", (xmlChar*) au->uncertainty().c_str());
+						bool unc_rel = false;
+						if(!au->uncertainty(&unc_rel).empty()) xmlNewProp(newnode3, (xmlChar*) (unc_rel ? "relative_uncertainty" : "uncertainty"), (xmlChar*) au->uncertainty().c_str());
 						if(!au->inverseExpression().empty()) {
 							xmlNewTextChild(newnode2, NULL, (xmlChar*) "inverse_relation", (xmlChar*) au->inverseExpression().c_str());
 						}
@@ -9758,7 +10038,7 @@ bool Calculator::importCSV(MathStructure &mstruct, const char *file_name, int fi
 						str1 = stmp.substr(is, is_n - is);
 						is = is_n + delimiter.length();
 					}
-					CALCULATOR->parse(&mstruct[rows - 1][column - 1], str1);
+					parse(&mstruct[rows - 1][column - 1], str1);
 					column++;
 					if(is_n == string::npos) {
 						break;
@@ -9854,9 +10134,9 @@ bool Calculator::importCSV(const char *file_name, int first_row, bool headers, s
 						is = is_n + delimiter.length();
 					}
 					if(to_matrix) {
-						CALCULATOR->parse(&mstruct[rows - 1][column - 1], str1);
+						parse(&mstruct[rows - 1][column - 1], str1);
 					} else {
-						vectors[column - 1].addChild(CALCULATOR->parse(str1));
+						vectors[column - 1].addChild(parse(str1));
 					}
 					column++;
 					if(is_n == string::npos) {
@@ -10522,27 +10802,46 @@ bool Calculator::canPlot() {
 	return pclose(pipe) == 0;
 #endif
 }
+
+extern bool fix_intervals(MathStructure &mstruct, const EvaluationOptions &eo, bool *failed = NULL, long int min_precision = 2, bool function_middle = false);
+void parse_and_precalculate_plot(string &expression, MathStructure &mstruct, const ParseOptions &po, EvaluationOptions &eo) {
+	eo.approximation = APPROXIMATION_APPROXIMATE;
+	ParseOptions po2 = po;
+	po2.read_precision = DONT_READ_PRECISION;
+	eo.parse_options = po2;
+	eo.interval_calculation = INTERVAL_CALCULATION_NONE;
+	mstruct = CALCULATOR->parse(expression, po2);
+	MathStructure mbak(mstruct);
+	eo.calculate_functions = false;
+	eo.expand = false;
+	CALCULATOR->beginTemporaryStopMessages();
+	mstruct.eval(eo);
+	int im = 0;
+	if(CALCULATOR->endTemporaryStopMessages(NULL, &im) > 0 || im > 0) mstruct = mbak;
+	eo.calculate_functions = true;
+	eo.expand = true;
+}
+
 MathStructure Calculator::expressionToPlotVector(string expression, const MathStructure &min, const MathStructure &max, int steps, MathStructure *x_vector, string x_var, const ParseOptions &po, int msecs) {
 	Variable *v = getActiveVariable(x_var);
 	MathStructure x_mstruct;
 	if(v) x_mstruct = v;
 	else x_mstruct = x_var;
 	EvaluationOptions eo;
-	eo.approximation = APPROXIMATION_APPROXIMATE;
-	ParseOptions po2 = po;
-	po2.read_precision = DONT_READ_PRECISION;
-	eo.parse_options = po2;
+	MathStructure mparse;
 	if(msecs > 0) startControl(msecs);
-	MathStructure mparse(parse(expression, po2));
-	CALCULATOR->beginTemporaryStopMessages();
+	beginTemporaryStopIntervalArithmetic();
+	parse_and_precalculate_plot(expression, mparse, po, eo);
+	beginTemporaryStopMessages();
 	MathStructure y_vector(mparse.generateVector(x_mstruct, min, max, steps, x_vector, eo));
-	CALCULATOR->endTemporaryStopMessages();
+	endTemporaryStopMessages();
+	endTemporaryStopIntervalArithmetic();
 	if(msecs > 0) {
 		if(aborted()) error(true, _("It took too long to generate the plot data."), NULL);
 		stopControl();
 	}
 	if(y_vector.size() == 0) {
-		CALCULATOR->error(true, _("Unable to generate plot data with current min, max and sampling rate."), NULL);
+		error(true, _("Unable to generate plot data with current min, max and sampling rate."), NULL);
 	}
 	return y_vector;
 }
@@ -10559,23 +10858,20 @@ MathStructure Calculator::expressionToPlotVector(string expression, const MathSt
 	if(v) x_mstruct = v;
 	else x_mstruct = x_var;
 	EvaluationOptions eo;
-	eo.approximation = APPROXIMATION_APPROXIMATE;
-	ParseOptions po2 = po;
-	po2.read_precision = DONT_READ_PRECISION;
-	eo.parse_options = po2;
+	MathStructure mparse;
 	if(msecs > 0) startControl(msecs);
-	MathStructure mparse(parse(expression, po2));
-	CALCULATOR->beginTemporaryStopMessages();
-	CALCULATOR->beginTemporaryStopIntervalArithmetic();
+	beginTemporaryStopIntervalArithmetic();
+	parse_and_precalculate_plot(expression, mparse, po, eo);
+	beginTemporaryStopMessages();
 	MathStructure y_vector(mparse.generateVector(x_mstruct, min, max, step, x_vector, eo));
-	CALCULATOR->endTemporaryStopIntervalArithmetic();
-	CALCULATOR->endTemporaryStopMessages();
+	endTemporaryStopMessages();
+	endTemporaryStopIntervalArithmetic();
 	if(msecs > 0) {
 		if(aborted()) error(true, _("It took too long to generate the plot data."), NULL);
 		stopControl();
 	}
 	if(y_vector.size() == 0) {
-		CALCULATOR->error(true, _("Unable to generate plot data with current min, max and step size."), NULL);
+		error(true, _("Unable to generate plot data with current min, max and step size."), NULL);
 	}
 	return y_vector;
 }
@@ -10592,17 +10888,14 @@ MathStructure Calculator::expressionToPlotVector(string expression, const MathSt
 	if(v) x_mstruct = v;
 	else x_mstruct = x_var;
 	EvaluationOptions eo;
-	eo.approximation = APPROXIMATION_APPROXIMATE;
-	ParseOptions po2 = po;
-	po2.read_precision = DONT_READ_PRECISION;
-	eo.parse_options = po2;
+	MathStructure mparse;
 	if(msecs > 0) startControl(msecs);
-	MathStructure mparse(parse(expression, po2));
-	CALCULATOR->beginTemporaryStopMessages();
-	CALCULATOR->beginTemporaryStopIntervalArithmetic();
+	beginTemporaryStopIntervalArithmetic();
+	parse_and_precalculate_plot(expression, mparse, po, eo);
+	beginTemporaryStopMessages();
 	MathStructure y_vector(mparse.generateVector(x_mstruct, x_vector, eo).eval(eo));
-	CALCULATOR->endTemporaryStopIntervalArithmetic();
-	CALCULATOR->endTemporaryStopMessages();
+	endTemporaryStopMessages();
+	endTemporaryStopIntervalArithmetic();
 	if(msecs > 0) {
 		if(aborted()) error(true, _("It took too long to generate the plot data."), NULL);
 		stopControl();

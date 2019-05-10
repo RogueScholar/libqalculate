@@ -763,9 +763,12 @@
       <builtin_function name="hex">
         <_title>Hexadecimal</_title>
         <_names>r:hex</_names>
-        <_description>Returns a value from a hexadecimal expression.</_description>
+        <_description>Returns a value from a hexadecimal expression. If two's complement is true, numbers beginning with 8 or higher is interpreted as negative hexadecimal numbers using two's complement.</_description>
         <argument index="1">
           <_title>Hexadecimal number</_title>
+        </argument>
+        <argument index="2">
+          <_title>Two's complement</_title>
         </argument>
       </builtin_function>
     </category>
@@ -786,66 +789,6 @@
         </argument>
       </builtin_function>
     </category>
-  </category>
-  <category>
-    <_title>Step Functions</_title>
-    <builtin_function name="heaviside">
-      <_title>Heaviside Step Function</_title>
-      <_names>r:heaviside,au:&#x03B8;</_names>
-      <_description>Discontinuous function also known as "unit step function". Returns 0 if x &lt; 0, 1 if x &gt; 0, and 1/2 if x = 0.</_description>
-    </builtin_function>
-    <builtin_function name="dirac">
-      <_title>Dirac Delta Function</_title>
-      <_names>r:dirac,au:&#x3B4;</_names>
-      <_description>Returns 0 if x is non-zero, and infinity if x is zero.</_description>
-    </builtin_function>
-    <function>
-      <_title>Ramp Function</_title>
-      <_names>r:ramp</_names>
-      <expression>(\x+abs(\x))/2</expression>
-      <argument type="number" index="1">
-        <_title>Value</_title>
-        <complex_allowed>false</complex_allowed>
-        <test>false</test>
-      </argument>
-    </function>
-    <function>
-      <_title>Rectangular Function</_title>
-      <_names>r:rectangular</_names>
-      <expression>heaviside(\x+(1/2))-heaviside(\x-(1/2))</expression>
-      <argument type="number" index="1">
-        <_title>Value</_title>
-        <complex_allowed>false</complex_allowed>
-        <test>false</test>
-      </argument>
-    </function>
-    <function>
-      <_title>Sigmoid Function</_title>
-      <_names>r:sigmoid</_names>
-      <expression>1/(1+e^(-\x))</expression>
-      <argument type="number" index="1">
-        <_title>Value</_title>
-        <test>false</test>
-      </argument>
-    </function>
-    <function>
-      <_title>Logit Transformation</_title>
-      <_names>r:logit</_names>
-      <expression>ln(\x/(1-\x))</expression>
-      <argument type="number" index="1">
-        <_title>Value</_title>
-      </argument>
-    </function>
-    <function>
-      <_title>Triangular Function</_title>
-      <_names>r:triangular</_names>
-      <expression>if(abs(\x)&lt;1,1-abs(\x),0)</expression>
-      <argument type="number" index="1">
-        <_title>Value</_title>
-        <complex_allowed>false</complex_allowed>
-        <test>false</test>
-      </argument>
-    </function>
   </category>
   <category>
     <_title>Special Functions</_title>
@@ -926,6 +869,66 @@
         <test>false</test>
       </argument>
     </function>
+    <function>
+      <_title>Logit Transformation</_title>
+      <_names>r:logit</_names>
+      <expression>ln(\x/(1-\x))</expression>
+      <argument type="number" index="1">
+        <_title>Value</_title>
+      </argument>
+    </function>
+    <function>
+      <_title>Sigmoid Function</_title>
+      <_names>r:sigmoid</_names>
+      <expression>1/(1+e^(-\x))</expression>
+      <argument type="number" index="1">
+        <_title>Value</_title>
+        <test>false</test>
+      </argument>
+    </function>
+    <category>
+    <_title>Step Functions</_title>
+      <builtin_function name="heaviside">
+        <_title>Heaviside Step Function</_title>
+        <_names>r:heaviside,au:&#x03B8;</_names>
+        <_description>Discontinuous function also known as "unit step function". Returns 0 if x &lt; 0, 1 if x &gt; 0, and 1/2 if x = 0.</_description>
+      </builtin_function>
+      <builtin_function name="dirac">
+        <_title>Dirac Delta Function</_title>
+        <_names>r:dirac,au:&#x3B4;</_names>
+        <_description>Returns 0 if x is non-zero, and infinity if x is zero.</_description>
+      </builtin_function>
+      <function>
+        <_title>Ramp Function</_title>
+        <_names>r:ramp</_names>
+        <expression>(\x+abs(\x))/2</expression>
+        <argument type="number" index="1">
+          <_title>Value</_title>
+          <complex_allowed>false</complex_allowed>
+          <test>false</test>
+        </argument>
+      </function>
+      <function>
+        <_title>Rectangular Function</_title>
+        <_names>r:rectangular</_names>
+        <expression>heaviside(\x+(1/2))-heaviside(\x-(1/2))</expression>
+        <argument type="number" index="1">
+          <_title>Value</_title>
+          <complex_allowed>false</complex_allowed>
+          <test>false</test>
+        </argument>
+      </function>
+      <function>
+        <_title>Triangular Function</_title>
+        <_names>r:triangular</_names>
+        <expression>if(abs(\x)&lt;1,1-abs(\x),0)</expression>
+        <argument type="number" index="1">
+          <_title>Value</_title>
+          <complex_allowed>false</complex_allowed>
+          <test>false</test>
+        </argument>
+      </function>
+    </category>
   </category>
   <category>
     <_title>Complex Numbers</_title>
@@ -1306,6 +1309,27 @@
         <handle_vector>true</handle_vector>
       </argument>
     </function>
+    <function>
+      <_title>RAID Space</_title>
+      <_names>r:raid</_names>
+      <_description>Calculates RAID array disk capacity usable for data storage. If the combination of number of disks and RAID level is invalid, zero is returned. Supported RAID levels are 0, 1, 2, 3, 4, 5, 6, 1+0/10, 0+1, 5+0/50, 6+0/60, and 1+6. Stripes are optional and only used for nested RAID levels (except 1+0).</_description>
+      <example>$name(4, 12, 5) = 12</example>
+      <expression>if([\x="0",\x="1"||\x="1E",\x="2",\x="3"||\x="4"||\x="5",\x="6",\x="10"||\x="1+0",\x="01"||\x="0+1",\x="1+6",\x="50"||\x="5+0",\x="60"||\x="6+0"],[\z*\y,if(\z&gt;=2,\y,0),if(\z&gt;=3,(\z-log(\z+1,2))*\y,0),if(\z&gt;=3,(\z-1)*\y,0),if(\z&gt;=4,(\z-2)*\y,0),if(\z&gt;=4&amp;&amp;even(\z),\z/2*\y,0),if(\z&gt;=4,\z/\A{2}*\y,0),if(\z&gt;=8,(\A-2)*\y,0),if(\z&gt;=6,(\z-\A)*\y,0),if(\z&gt;=8,(\z-\A*2)*\y,0)],error("Unknown RAID level"),1)</expression>
+      <argument type="text" index="1">
+        <_title>RAID level</_title>
+      </argument>
+      <argument type="free" index="2">
+        <_title>Capacity of each disk</_title>
+      </argument>
+      <argument type="integer" index="3">
+        <_title>Number of disks</_title>
+        <min>1</min>
+      </argument>
+      <argument type="integer" index="4">
+        <_title>Stripes</_title>
+        <min>2</min>
+      </argument>
+    </function>
     <builtin_function name="roman">
       <_title>Roman Number</_title>
       <_names>r:roman</_names>
@@ -1336,7 +1360,7 @@
           <_title>Percentile (%)</_title>
         </argument>
         <argument index="3">
-          <_title>Quantile Algorithm (as in R)</_title>
+          <_title>Quantile algorithm (as in R)</_title>
         </argument>
       </builtin_function>
       <builtin_function name="min">
@@ -2266,12 +2290,26 @@
         <_title>Upper endpoint</_title>
       </argument>
     </builtin_function>
+    <builtin_function name="uncertainty">
+      <_title>Uncertainty</_title>
+      <_names>r:uncertainty</_names>
+      <argument index="1">
+        <_title>Value</_title>
+      </argument>
+      <argument index="2">
+        <_title>Uncertainty</_title>
+      </argument>
+      <argument index="2">
+        <_title>Uncertainty is relative</_title>
+      </argument>
+    </builtin_function>
   </category>
   <category>
     <_title>Logical</_title>
     <builtin_function name="for">
       <_title>For...Do</_title>
       <_names>r:for</_names>
+      <example>$name(1, x, x &lt; 10, x + 1, 2, y * x, y) = 72 576</example>
       <argument index="1">
         <_title>Initial value of counter</_title>
       </argument>
@@ -2297,7 +2335,7 @@
     <builtin_function name="if">
       <_title>If...Then...Else</_title>
       <_names>r:if</_names>
-      <_description>Tests a condition and returns a value depending on the result.</_description>
+      <_description>Tests a condition and returns a value depending on the result. Vectors can be used for argument 1 and 2, instead of nested functions.</_description>
       <argument index="1">
         <_title>Condition</_title>
       </argument>
@@ -2306,6 +2344,9 @@
       </argument>
       <argument index="3">
         <_title>Expression if condition is NOT met</_title>
+      </argument>
+      <argument index="4">
+        <_title>Assume false if not true</_title>
       </argument>
     </builtin_function>
     <builtin_function name="xor">
@@ -2473,6 +2514,9 @@
       <argument index="3">
         <_title>Order</_title>
       </argument>
+      <argument index="4">
+        <_title>Variable value</_title>
+      </argument>
     </builtin_function>
     <builtin_function name="integrate">
       <_title>Integrate</_title>
@@ -2533,17 +2577,11 @@
       <builtin_function name="Si">
         <_title>Sine Integral</_title>
         <_names>rc:Si,sinint</_names>
-        <argument index="1">
-          <_title>Angle</_title>
-        </argument>
         <_description>The integral of sin(x)/x.</_description>
       </builtin_function>
       <builtin_function name="Ci">
         <_title>Cosine Integral</_title>
         <_names>rc:Ci,cosint</_names>
-        <argument index="1">
-          <_title>Angle</_title>
-        </argument>
         <_description>The integral of cos(x)/x.</_description>
       </builtin_function>
       <builtin_function name="Shi">
@@ -3283,7 +3321,7 @@
       <argument type="integer" index="5">
         <_title>Day counting basis</_title>
         <min>0</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
     </function>
     <function>
