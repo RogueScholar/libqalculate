@@ -81,18 +81,7 @@ void generate_units_tree_struct() {
 	ia_units.clear();
 	list<tree_struct>::iterator it;	
 	for(size_t i = 0; i < CALCULATOR->units.size(); i++) {
-		if(!CALCULATOR->units[i]->isActive()) {
-			b = false;
-			for(size_t i3 = 0; i3 < ia_units.size(); i3++) {
-				u = (Unit*) ia_units[i3];
-				if(CALCULATOR->units[i]->title() < u->title()) {
-					b = true;
-					ia_units.insert(ia_units.begin() + i3, (void*) CALCULATOR->units[i]);
-					break;
-				}
-			}
-			if(!b) ia_units.push_back((void*) CALCULATOR->units[i]);
-		} else {
+		if(CALCULATOR->units[i]->isActive() && CALCULATOR->units[i]->subtype() != SUBTYPE_COMPOSITE_UNIT) {
 			tree_struct *item = &unit_cats;
 			if(!CALCULATOR->units[i]->category().empty()) {
 				cat = CALCULATOR->units[i]->category();
@@ -137,7 +126,7 @@ void generate_units_tree_struct() {
 					break;
 				}
 			}
-			if(!b) item->objects.push_back((void*) CALCULATOR->units[i]);		
+			if(!b) item->objects.push_back((void*) CALCULATOR->units[i]);
 		}
 	}
 	
@@ -156,19 +145,7 @@ void generate_variables_tree_struct() {
 	ia_variables.clear();
 	list<tree_struct>::iterator it;	
 	for(size_t i = 0; i < CALCULATOR->variables.size(); i++) {
-		if(!CALCULATOR->variables[i]->isActive()) {
-			//deactivated variable
-			b = false;
-			for(size_t i3 = 0; i3 < ia_variables.size(); i3++) {
-				v = (Variable*) ia_variables[i3];
-				if(CALCULATOR->variables[i]->title() < v->title()) {
-					b = true;
-					ia_variables.insert(ia_variables.begin() + i3, (void*) CALCULATOR->variables[i]);
-					break;
-				}
-			}
-			if(!b) ia_variables.push_back((void*) CALCULATOR->variables[i]);
-		} else {
+		if(CALCULATOR->variables[i]->isActive()) {
 			tree_struct *item = &variable_cats;
 			if(!CALCULATOR->variables[i]->category().empty()) {
 				cat = CALCULATOR->variables[i]->category();
@@ -233,19 +210,7 @@ void generate_functions_tree_struct() {
 	list<tree_struct>::iterator it;
 
 	for(size_t i = 0; i < CALCULATOR->functions.size(); i++) {
-		if(!CALCULATOR->functions[i]->isActive()) {
-			//deactivated function
-			b = false;
-			for(size_t i3 = 0; i3 < ia_functions.size(); i3++) {
-				f = (MathFunction*) ia_functions[i3];
-				if(CALCULATOR->functions[i]->title() < f->title()) {
-					b = true;
-					ia_functions.insert(ia_functions.begin() + i3, (void*) CALCULATOR->functions[i]);
-					break;
-				}
-			}
-			if(!b) ia_functions.push_back((void*) CALCULATOR->functions[i]);
-		} else {
+		if(CALCULATOR->functions[i]->isActive()) {
 			tree_struct *item = &function_cats;
 			if(!CALCULATOR->functions[i]->category().empty()) {
 				cat = CALCULATOR->functions[i]->category();
@@ -455,6 +420,7 @@ void print_variable(Variable *v) {
 		}
 		fprintf(vfile, "<entry><para>%s</para></entry>\n", str.c_str());
 		value = "";
+		bool is_relative = false;
 		if(is_answer_variable(v)) {
 			value = _("a previous result");
 		} else if(v->isKnown()) {
@@ -462,17 +428,19 @@ void print_variable(Variable *v) {
 				value = _("current precision");
 			} else if(((KnownVariable*) v)->isExpression()) {
 				value = fix(CALCULATOR->localizeExpression(((KnownVariable*) v)->expression()));
-				if(!((KnownVariable*) v)->uncertainty().empty()) {
-					value += "±";
+				if(!((KnownVariable*) v)->uncertainty(&is_relative).empty()) {
+					if(is_relative) {value += " ("; value += _("relative uncertainty"); value += ": ";}
+					else value += SIGN_PLUSMINUS;
 					value += fix(CALCULATOR->localizeExpression(((KnownVariable*) v)->uncertainty()));
+					if(is_relative) {value += ")";}
 				}
-				if(!((KnownVariable*) v)->unit().empty()) {
-					value += " ";
-					value += fix(CALCULATOR->localizeExpression(((KnownVariable*) v)->unit()));
-				}
-				if(value.length() > 40) {
+				if(((KnownVariable*) v)->expression().find_first_not_of(NUMBER_ELEMENTS EXPS) == string::npos && value.length() > 40) {
 					value = value.substr(0, 30);
 					value += "...";
+				}
+				if(!((KnownVariable*) v)->unit().empty() && ((KnownVariable*) v)->unit() != "auto") {
+					value += " ";
+					value += fix(CALCULATOR->localizeExpression(((KnownVariable*) v)->unit()));
 				}
 			} else {
 				if(((KnownVariable*) v)->get().isMatrix()) {
@@ -508,7 +476,7 @@ void print_variable(Variable *v) {
 				value = _("default assumptions");
 			}		
 		}
-		if(v->isApproximate()) {
+		if(v->isApproximate() && !is_relative && value.find(SIGN_PLUSMINUS) == string::npos) {
 			if(v == CALCULATOR->v_pi || v == CALCULATOR->v_e || v == CALCULATOR->v_euler || v == CALCULATOR->v_catalan) {
 				value += " (";
 				value += _("variable precision");
@@ -524,6 +492,7 @@ void print_variable(Variable *v) {
 }
 
 void print_unit(Unit *u) {
+		if(u->subtype() == SUBTYPE_COMPOSITE_UNIT) return;
 		string str, base_unit, relation;
 		fputs("<row valign=\"top\">\n", ufile);
 		fprintf(ufile, "<entry><para>%s</para></entry>\n", u->title().c_str());
@@ -548,24 +517,29 @@ void print_unit(Unit *u) {
 			}
 			case SUBTYPE_ALIAS_UNIT: {
 				AliasUnit *au = (AliasUnit*) u;
-				base_unit = au->firstBaseUnit()->preferredDisplayName(printops.abbreviate_names, printops.use_unicode_signs).name;
+				if(au->firstBaseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) base_unit = fix(((CompositeUnit*) au->firstBaseUnit())->print(false, true, printops.use_unicode_signs));
+				else base_unit = au->firstBaseUnit()->preferredDisplayName(printops.abbreviate_names, printops.use_unicode_signs).name;
 				if(au->firstBaseExponent() != 1) {
+					if(au->firstBaseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {base_unit.insert(0, 1, '('); base_unit += ")";}
 					base_unit += POWER;
 					base_unit += i2s(au->firstBaseExponent());
 				}
+				bool is_relative = false;
 				if(au->baseUnit() == CALCULATOR->u_euro && au->isBuiltin()) {
 					relation = "exchange rate";
 				} else {
 					relation = fix(CALCULATOR->localizeExpression(au->expression()).c_str());
-					if(!au->uncertainty().empty()) {
-						relation += "±";
+					if(!au->uncertainty(&is_relative).empty()) {
+						if(is_relative) {relation += " ("; relation += _("relative uncertainty"); relation += ": ";}
+						else relation += SIGN_PLUSMINUS;
 						relation += fix(CALCULATOR->localizeExpression(au->uncertainty()));
+						if(is_relative) {relation += ")";}
 					}
-				}
-				if(u->isApproximate()) {
-					relation += " (";
-					relation += _("approximate");
-					relation += ")";
+					if(u->isApproximate() && !is_relative && relation.find(SIGN_PLUSMINUS) == string::npos) {
+						relation += " (";
+						relation += _("approximate");
+						relation += ")";
+					}
 				}
 				break;
 			}

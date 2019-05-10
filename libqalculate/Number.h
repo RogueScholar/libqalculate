@@ -105,7 +105,7 @@ class Number {
 		void setInternal(const mpq_t &mpq_value, bool keep_precision = false, bool keep_imag = false);
 		void setInternal(const mpz_t &mpz_num, const mpz_t &mpz_den, bool keep_precision = false, bool keep_imag = false);
 		void setInternal(const mpfr_t &mpfr_value, bool merge_precision = false, bool keep_imag = false);
-
+		
 		void setImaginaryPart(const Number &o);
 		void setImaginaryPart(long int numerator, long int denominator = 1, long int exp_10 = 0);
 		void set(const Number &o, bool merge_precision = false, bool keep_imag = false);
@@ -129,7 +129,8 @@ class Number {
 		void splitInterval(unsigned int nr_of_parts, vector<Number> &v) const;
 		bool getCentralInteger(Number &nr_int, bool *b_multiple = NULL, vector<Number> *v = NULL) const;
 		bool mergeInterval(const Number &o, bool set_to_overlap = false);
-		void setUncertainty(const Number &o, bool force_interval = false);
+		void setUncertainty(const Number &o, bool to_precision = false);
+		void setRelativeUncertainty(const Number &o, bool to_precision = false);
 		Number uncertainty() const;
 		Number relativeUncertainty() const;
 		

@@ -117,7 +117,11 @@ class Unit : public ExpressionItem {
 	* Equivalent to u->isChildOf(this).
 	*/
 	virtual bool isParentOf(Unit *u) const;
-	virtual bool hasComplexRelationTo(Unit *u) const;
+	virtual bool hasNonlinearRelationTo(Unit *u) const;
+	virtual bool hasApproximateRelationTo(Unit *u, bool check_variables = false, bool ignore_high_precision_intervals = false) const;
+	virtual bool containsRelativeTo(Unit *u) const;
+	virtual bool hasNonlinearRelationToBase() const;
+	virtual bool hasApproximateRelationToBase(bool check_variables = false, bool ignore_high_precision_intervals = false) const;
 	/** Converts a value from specified unit and exponent to this unit.
 	* value * (unit^exponent) = new value * (this^new exponent)
 	* This function cannot convert to or from CompositeUnit.
@@ -170,6 +174,7 @@ class AliasUnit : public Unit {
   protected:
 
 	string svalue, sinverse, suncertainty;
+	bool b_relative_uncertainty;
 	int i_exp, i_mix, i_mix_min;
 	Unit *o_unit;
 
@@ -188,7 +193,7 @@ class AliasUnit : public Unit {
 	virtual void setBaseUnit(Unit *alias);
 	virtual string expression() const;
 	virtual string inverseExpression() const;
-	virtual string uncertainty() const;
+	virtual string uncertainty(bool *is_relative = NULL) const;
 	/**
 	* Sets the relation expression.
 	*/
@@ -197,7 +202,7 @@ class AliasUnit : public Unit {
 	* Sets the inverse relation expression.
 	*/
 	virtual void setInverseExpression(string inverse);
-	virtual void setUncertainty(string standard_uncertainty);
+	virtual void setUncertainty(string standard_uncertainty, bool is_relative = false);
 	virtual MathStructure &convertToFirstBaseUnit(MathStructure &mvalue, MathStructure &mexp) const;
 	virtual MathStructure &convertFromFirstBaseUnit(MathStructure &mvalue, MathStructure &mexp) const;
 	virtual MathStructure &convertToBaseUnit(MathStructure &mvalue, MathStructure &mexp) const;
@@ -216,8 +221,13 @@ class AliasUnit : public Unit {
 	virtual int subtype() const;
 	virtual bool isChildOf(Unit *u) const;
 	virtual bool isParentOf(Unit *u) const;
-	virtual bool hasComplexExpression() const;
-	virtual bool hasComplexRelationTo(Unit *u) const;
+	virtual bool hasNonlinearExpression() const;
+	virtual bool hasNonlinearRelationTo(Unit *u) const;
+	virtual bool hasApproximateExpression(bool check_variables = false, bool ignore_high_precision_intervals = false) const;
+	virtual bool hasApproximateRelationTo(Unit *u, bool check_variables = false, bool ignore_high_precision_intervals = false) const;
+	virtual bool containsRelativeTo(Unit *u) const;
+	virtual bool hasNonlinearRelationToBase() const;
+	virtual bool hasApproximateRelationToBase(bool check_variables = false, bool ignore_high_precision_intervals = false) const;
 
 };
 
@@ -305,6 +315,8 @@ class CompositeUnit : public Unit {
 		/** If this unit contains a sub/base unit with a relation to the specified unit.
 		 */
 		virtual bool containsRelativeTo(Unit *u) const;
+		virtual bool hasNonlinearRelationToBase() const;
+		virtual bool hasApproximateRelationToBase(bool check_variables = false, bool ignore_high_precision_intervals = false) const;
 		/** Creates a MathStructure with the sub/base units of the unit.
 		*/
 		virtual MathStructure generateMathStructure(bool make_division = false, bool set_null_prefixes = false) const;

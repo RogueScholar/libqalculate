@@ -178,31 +178,58 @@ bool Unit::isChildOf(Unit*) const {
 bool Unit::isParentOf(Unit *u) const {
 	return u != this && u->baseUnit() == this;
 }
-bool Unit::hasComplexRelationTo(Unit *u) const {
+bool Unit::hasNonlinearRelationTo(Unit *u) const {
 	if(u == this) return false;
 	Unit *ub2 = u->baseUnit();
 	if(ub2 != this) {
 		if(subtype() == SUBTYPE_COMPOSITE_UNIT) {
 			const CompositeUnit *cu = (CompositeUnit*) this;
 			for(size_t i = 1; i <= cu->countUnits(); i++) {
-				if(cu->get(i)->hasComplexRelationTo(u)) return true;
+				if(cu->get(i)->hasNonlinearRelationTo(u)) return true;
 			}
 			return false;
 		}
 		if(ub2->subtype() == SUBTYPE_COMPOSITE_UNIT) {
-			if(u->hasComplexRelationTo(ub2) && (((CompositeUnit*) ub2))->containsRelativeTo(u)) return true;
+			if(u->hasNonlinearRelationTo(ub2) && (((CompositeUnit*) ub2))->containsRelativeTo(u)) return true;
 		}
 		return false;
 	}
 	Unit *fbu = u;
-	if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
-	while(1) {
+	while(true) {
 		if(fbu == this) return false;
-		if(((AliasUnit*) fbu)->hasComplexExpression()) return true;
 		if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
+		if(((AliasUnit*) fbu)->hasNonlinearExpression()) return true;
 		fbu = (Unit*) ((AliasUnit*) fbu)->firstBaseUnit();
 	}
 }
+bool Unit::hasApproximateRelationTo(Unit *u, bool check_variables, bool ignore_high_precision_intervals) const {
+	if(u == this) return false;
+	Unit *ub2 = u->baseUnit();
+	if(ub2 != this) {
+		if(subtype() == SUBTYPE_COMPOSITE_UNIT) {
+			const CompositeUnit *cu = (CompositeUnit*) this;
+			for(size_t i = 1; i <= cu->countUnits(); i++) {
+				if(cu->get(i)->hasApproximateRelationTo(u, check_variables, ignore_high_precision_intervals)) return true;
+			}
+			return false;
+		}
+		if(ub2->subtype() == SUBTYPE_COMPOSITE_UNIT) {
+			if((((CompositeUnit*) ub2))->containsRelativeTo(u) && u->hasApproximateRelationTo(ub2, check_variables, ignore_high_precision_intervals)) return true;
+		}
+		return false;
+	}
+	Unit *fbu = u;
+	while(true) {
+		if(fbu == this) return false;
+		if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
+		if(((AliasUnit*) fbu)->hasApproximateExpression(check_variables, ignore_high_precision_intervals)) return true;
+		fbu = (Unit*) ((AliasUnit*) fbu)->firstBaseUnit();
+	}
+}
+bool Unit::containsRelativeTo(Unit *u) const {return false;}
+bool Unit::hasNonlinearRelationToBase() const {return false;}
+bool Unit::hasApproximateRelationToBase(bool, bool) const {return false;}
+
 MathStructure Unit::convert(Unit *u, bool *converted) const {
 	MathStructure mexp(1, 1);
 	MathStructure mvalue(1, 1);
@@ -245,6 +272,7 @@ AliasUnit::AliasUnit(string cat_, string name_, string plural_, string short_nam
 	svalue = relation;
 	sinverse = inverse;
 	suncertainty = "";
+	b_relative_uncertainty = false;
 	i_exp = exp;
 	i_mix = 0;
 	i_mix_min = 0;
@@ -254,6 +282,7 @@ AliasUnit::AliasUnit() {
 	svalue = "";
 	sinverse = "";
 	suncertainty = "";
+	b_relative_uncertainty = false;
 	i_exp = 1;
 	i_mix = 0;
 	i_mix_min = 0;
@@ -274,7 +303,7 @@ void AliasUnit::set(const ExpressionItem *item) {
 			i_exp = u->firstBaseExponent();
 			svalue = u->expression();
 			sinverse = u->inverseExpression();
-			suncertainty = u->uncertainty();
+			suncertainty = u->uncertainty(&b_relative_uncertainty);
 			i_mix = u->mixWithBase();
 			i_mix_min = u->mixWithBaseMinimum();
 		}
@@ -298,7 +327,8 @@ string AliasUnit::expression() const {
 string AliasUnit::inverseExpression() const {
 	return sinverse;
 }
-string AliasUnit::uncertainty() const {
+string AliasUnit::uncertainty(bool *is_relative) const {
+	if(is_relative) *is_relative = b_relative_uncertainty;
 	return suncertainty;
 }
 void AliasUnit::setExpression(string relation) {
@@ -315,9 +345,10 @@ void AliasUnit::setInverseExpression(string inverse) {
 	sinverse = inverse;
 	setChanged(true);
 }
-void AliasUnit::setUncertainty(string standard_uncertainty) {
+void AliasUnit::setUncertainty(string standard_uncertainty, bool is_relative) {
 	remove_blank_ends(standard_uncertainty);
 	suncertainty = standard_uncertainty;
+	b_relative_uncertainty = is_relative;
 	if(!suncertainty.empty()) setApproximate(true);
 	setChanged(true);
 }
@@ -370,7 +401,7 @@ MathStructure &AliasUnit::convertFromFirstBaseUnit(MathStructure &mvalue, MathSt
 	if(i_exp != 1) mexp /= i_exp;
 	ParseOptions po;
 	if(isApproximate() && suncertainty.empty() && precision() == -1) {
-		if(sinverse.find(DOT) || svalue.find(DOT)) po.read_precision = READ_PRECISION_WHEN_DECIMALS;
+		if(sinverse.find(DOT) != string::npos || svalue.find(DOT) != string::npos) po.read_precision = READ_PRECISION_WHEN_DECIMALS;
 		else po.read_precision = ALWAYS_READ_PRECISION;
 	}
 	if(sinverse.empty()) {
@@ -401,18 +432,40 @@ MathStructure &AliasUnit::convertFromFirstBaseUnit(MathStructure &mvalue, MathSt
 			if(isApproximate()) mvalue.setApproximate(true, true);
 		} else {
 			MathStructure *mstruct = new MathStructure();
-			if(suncertainty.empty()) {
-				CALCULATOR->parse(mstruct, svalue, po);
+			bool b_number = false;
+			if(!suncertainty.empty()) {
+				b_number = true;
 			} else {
+				size_t i = svalue.rfind(')');
+				if(i != string::npos && i > 2 && (i == svalue.length() - 1 || (i < svalue.length() - 2 && (svalue[i + 1] == 'E' || svalue[i + 1] == 'e')))) {
+					size_t i2 = svalue.rfind('(');
+					if(i2 != string::npos && i2 < i - 1) {
+						if(svalue.find_first_not_of(NUMBER_ELEMENTS SPACES, svalue[0] == '-' || svalue[0] == '+' ? 1 : 0) == i2 && svalue.find_first_not_of(NUMBERS SPACES, i2 + 1) == i && (i == svalue.length() - 1 || svalue.find_first_not_of(NUMBER_ELEMENTS SPACES, svalue[i + 2] == '-' || svalue[i + 2] == '+' ? i + 3 : i + 2) == string::npos)) {
+							b_number = true;
+						}
+					}
+				}
+			}
+			if(b_number) {
 				mstruct->number().set(svalue, po);
 				mstruct->numberUpdated();
+			} else {
+				CALCULATOR->parse(mstruct, svalue, po);
+				if(mstruct->containsType(STRUCT_UNIT, false, true, true)) {
+					mstruct->transform(CALCULATOR->f_stripunits);
+				}
 			}
 			if(!suncertainty.empty()) {
 				Number nr_u(suncertainty);
 				if(mstruct->isNumber()) {
-					mstruct->number().setUncertainty(nr_u);
+					if(b_relative_uncertainty) mstruct->number().setRelativeUncertainty(nr_u);
+					else mstruct->number().setUncertainty(nr_u);
+					mstruct->numberUpdated();
 				} else if(mstruct->isMultiplication() && mstruct->size() > 0 && (*mstruct)[0].isNumber()) {
-					(*mstruct)[0].number().setUncertainty(nr_u);
+					if(b_relative_uncertainty) (*mstruct)[0].number().setRelativeUncertainty(nr_u);
+					else (*mstruct)[0].number().setUncertainty(nr_u);
+					(*mstruct)[0].numberUpdated();
+					mstruct->childUpdated(1);
 				}
 			} else if(precision() > 0) {
 				if(mstruct->isNumber()) {
@@ -490,7 +543,7 @@ MathStructure &AliasUnit::convertFromFirstBaseUnit(MathStructure &mvalue, MathSt
 MathStructure &AliasUnit::convertToFirstBaseUnit(MathStructure &mvalue, MathStructure &mexp) const {
 	ParseOptions po;
 	if(isApproximate() && suncertainty.empty() && precision() == -1) {
-		if(svalue.find(DOT)) po.read_precision = READ_PRECISION_WHEN_DECIMALS;
+		if(svalue.find(DOT) != string::npos) po.read_precision = READ_PRECISION_WHEN_DECIMALS;
 		else po.read_precision = ALWAYS_READ_PRECISION;
 	}
 	if(svalue.find("\\x") != string::npos) {
@@ -519,18 +572,40 @@ MathStructure &AliasUnit::convertToFirstBaseUnit(MathStructure &mvalue, MathStru
 		if(isApproximate()) mvalue.setApproximate(true, true);
 	} else {
 		MathStructure *mstruct = new MathStructure();
-		if(suncertainty.empty()) {
-			CALCULATOR->parse(mstruct, svalue, po);
+		bool b_number = false;
+		if(!suncertainty.empty()) {
+			b_number = true;
 		} else {
+			size_t i = svalue.rfind(')');
+			if(i != string::npos && i > 2 && (i == svalue.length() - 1 || (i < svalue.length() - 2 && (svalue[i + 1] == 'E' || svalue[i + 1] == 'e')))) {
+				size_t i2 = svalue.rfind('(');
+				if(i2 != string::npos && i2 < i - 1) {
+					if(svalue.find_first_not_of(NUMBER_ELEMENTS SPACES, svalue[0] == '-' || svalue[0] == '+' ? 1 : 0) == i2 && svalue.find_first_not_of(NUMBERS SPACES, i2 + 1) == i && (i == svalue.length() - 1 || svalue.find_first_not_of(NUMBER_ELEMENTS SPACES, svalue[i + 2] == '-' || svalue[i + 2] == '+' ? i + 3 : i + 2) == string::npos)) {
+						b_number = true;
+					}
+				}
+			}
+		}
+		if(b_number) {
 			mstruct->number().set(svalue, po);
 			mstruct->numberUpdated();
+		} else {
+			CALCULATOR->parse(mstruct, svalue, po);
+			if(mstruct->containsType(STRUCT_UNIT, false, true, true) > 0) {
+				mstruct->transform(CALCULATOR->f_stripunits);
+			}
 		}
 		if(!suncertainty.empty()) {
 			Number nr_u(suncertainty);
 			if(mstruct->isNumber()) {
-				mstruct->number().setUncertainty(nr_u);
+				if(b_relative_uncertainty) mstruct->number().setRelativeUncertainty(nr_u);
+				else mstruct->number().setUncertainty(nr_u);
+				mstruct->numberUpdated();
 			} else if(mstruct->isMultiplication() && mstruct->size() > 0 && (*mstruct)[0].isNumber()) {
-				(*mstruct)[0].number().setUncertainty(nr_u);
+				if(b_relative_uncertainty) (*mstruct)[0].number().setRelativeUncertainty(nr_u);
+				else (*mstruct)[0].number().setUncertainty(nr_u);
+				(*mstruct)[0].numberUpdated();
+				mstruct->childUpdated(1);
 			}
 		} else if(precision() >= 0) {
 			if(mstruct->isNumber()) {
@@ -592,23 +667,23 @@ bool AliasUnit::isParentOf(Unit *u) const {
 	}
 	return false;
 }
-bool AliasUnit::hasComplexExpression() const {
+bool AliasUnit::hasNonlinearExpression() const {
 	return svalue.find("\\x") != string::npos;
 }
-bool AliasUnit::hasComplexRelationTo(Unit *u) const {
+bool AliasUnit::hasNonlinearRelationTo(Unit *u) const {
 	if(u == this) return false;
 	Unit *ub = baseUnit();
 	Unit *ub2 = u->baseUnit();
 	if(ub2 != ub) {
 		if(ub->subtype() == SUBTYPE_COMPOSITE_UNIT) {
-			if(hasComplexRelationTo(ub)) return ((CompositeUnit*) ub)->containsRelativeTo(u);
+			if(hasNonlinearRelationTo(ub)) return ((CompositeUnit*) ub)->containsRelativeTo(u);
 			for(size_t i = 1; i <= ((CompositeUnit*) ub)->countUnits(); i++) {
-				if(((CompositeUnit*) ub)->get(i)->hasComplexRelationTo(u)) return true;
+				if(((CompositeUnit*) ub)->get(i)->hasNonlinearRelationTo(u)) return true;
 			}
 			return false;
 		}
 		if(ub2->baseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {
-			if(((CompositeUnit*) ub2)->containsRelativeTo(u) && (u->hasComplexRelationTo(ub2) || hasComplexRelationTo(ub))) return true;
+			if(((CompositeUnit*) ub2)->containsRelativeTo(u) && (u->hasNonlinearRelationTo(ub2) || hasNonlinearRelationTo(ub))) return true;
 		}
 		return false;
 	}
@@ -616,23 +691,74 @@ bool AliasUnit::hasComplexRelationTo(Unit *u) const {
 		Unit *fbu = u;
 		while(true) {
 			if((const Unit*) fbu == this) return false;
-			if(((AliasUnit*) fbu)->hasComplexExpression()) return true;
 			if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
-			fbu = (Unit*) ((AliasUnit*) fbu)->firstBaseUnit();			
+			if(((AliasUnit*) fbu)->hasNonlinearExpression()) return true;
+			fbu = (Unit*) ((AliasUnit*) fbu)->firstBaseUnit();
 		}	
+	} else if(isChildOf(u)) {
+		Unit *fbu = (Unit*) this;
+		while(true) {
+			if((const Unit*) fbu == u) return false;
+			if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
+			if(((AliasUnit*) fbu)->hasNonlinearExpression()) return true;
+			fbu = (Unit*) ((AliasUnit*) fbu)->firstBaseUnit();
+		}			
+	} else {
+		return hasNonlinearRelationTo(baseUnit()) || u->hasNonlinearRelationTo(u->baseUnit());
+	}
+}
+bool AliasUnit::hasApproximateExpression(bool check_variables, bool ignore_high_precision_intervals) const {
+	if(isApproximate()) return true;
+	if(svalue.find_first_not_of(NUMBER_ELEMENTS EXPS) == string::npos) return false;
+	MathStructure m(1, 1, 0), mexp(1, 1, 0);
+	convertToFirstBaseUnit(m, mexp);
+	return m.containsInterval(true, check_variables, false, ignore_high_precision_intervals ? 1 : 0, true);
+}
+bool AliasUnit::hasApproximateRelationTo(Unit *u, bool check_variables, bool ignore_high_precision_intervals) const {
+	if(u == this) return false;
+	Unit *ub = baseUnit();
+	Unit *ub2 = u->baseUnit();
+	if(ub2 != ub) {
+		if(ub->subtype() == SUBTYPE_COMPOSITE_UNIT) {
+			if(((CompositeUnit*) ub)->containsRelativeTo(u) && hasApproximateRelationTo(ub, check_variables, ignore_high_precision_intervals)) return true;
+			for(size_t i = 1; i <= ((CompositeUnit*) ub)->countUnits(); i++) {
+				if(((CompositeUnit*) ub)->get(i)->hasApproximateRelationTo(u, check_variables, ignore_high_precision_intervals)) return true;
+			}
+			return false;
+		}
+		if(ub2->baseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {
+			if(((CompositeUnit*) ub2)->containsRelativeTo(u) && (u->hasApproximateRelationTo(ub2, check_variables, ignore_high_precision_intervals) || hasApproximateRelationTo(ub, check_variables, ignore_high_precision_intervals))) return true;
+		}
+		return false;
+	}
+	if(isParentOf(u)) {
+		Unit *fbu = u;
+		if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
+		while(true) {
+			if((const Unit*) fbu == this) return false;
+			if(((AliasUnit*) fbu)->hasApproximateExpression(check_variables)) return true;
+			if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
+			fbu = (Unit*) ((AliasUnit*) fbu)->firstBaseUnit();
+		}
 	} else if(isChildOf(u)) {
 		Unit *fbu = (Unit*) this;
 		if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
 		while(true) {
 			if((const Unit*) fbu == u) return false;
-			if(((AliasUnit*) fbu)->hasComplexExpression()) return true;
+			if(((AliasUnit*) fbu)->hasApproximateExpression(check_variables)) return true;
 			if(fbu->subtype() != SUBTYPE_ALIAS_UNIT) return false;
 			fbu = (Unit*) ((AliasUnit*) fbu)->firstBaseUnit();
-		}			
+		}
 	} else {
-		return hasComplexRelationTo(baseUnit()) || u->hasComplexRelationTo(u->baseUnit());
+		return hasApproximateRelationTo(baseUnit(), check_variables, ignore_high_precision_intervals) || u->hasApproximateRelationTo(u->baseUnit(), check_variables, ignore_high_precision_intervals);
 	}
 }
+bool AliasUnit::containsRelativeTo(Unit *u) const {
+	if(u == this) return false;
+	return baseUnit() == u->baseUnit() || baseUnit()->containsRelativeTo(u->baseUnit());
+}
+bool AliasUnit::hasNonlinearRelationToBase() const {return hasNonlinearRelationTo(baseUnit()) || baseUnit()->hasNonlinearRelationToBase();}
+bool AliasUnit::hasApproximateRelationToBase(bool check_variables, bool ignore_high_precision_intervals) const {return hasApproximateRelationTo(baseUnit(), check_variables, ignore_high_precision_intervals) || baseUnit()->hasApproximateRelationToBase(check_variables, ignore_high_precision_intervals);}
 
 AliasUnit_Composite::AliasUnit_Composite(Unit *alias, int exp, Prefix *prefix_) : AliasUnit("", alias->name(), alias->plural(false), alias->singular(false), "", alias, "", exp, "") {
 	prefixv = (Prefix*) prefix_;
@@ -849,6 +975,18 @@ bool CompositeUnit::containsRelativeTo(Unit *u) const {
 		}
 		return false;
 	}	
+	return false;
+}
+bool CompositeUnit::hasNonlinearRelationToBase() const {
+	for(size_t i = 0; i < units.size(); i++) {
+		if(units[i]->hasNonlinearRelationToBase()) return true;
+	}
+	return false;
+}
+bool CompositeUnit::hasApproximateRelationToBase(bool check_variables, bool ignore_high_precision_intervals) const {
+	for(size_t i = 0; i < units.size(); i++) {
+		if(units[i]->hasApproximateRelationToBase(check_variables, ignore_high_precision_intervals)) return true;
+	}
 	return false;
 }
 MathStructure CompositeUnit::generateMathStructure(bool make_division, bool set_null_prefixes) const {

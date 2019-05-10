@@ -1,4 +1,5 @@
 #include <libqalculate/qalculate.h>
+#include "support.h"
 
 bool display_errors(bool show_only_errors = false) {
 	if(!CALCULATOR->message()) return false;
@@ -9,6 +10,7 @@ bool display_errors(bool show_only_errors = false) {
 			if(mtype == MESSAGE_ERROR) cout << "error: ";
 			else if(mtype == MESSAGE_WARNING) cout << "warning: ";
 			cout << CALCULATOR->message()->message() << endl;
+			if(CALCULATOR->message()->message() == _("The calculation has been forcibly terminated. Please restart the application and report this as a bug.")) exit(0);
 			b_ret = true;
 		}
 		if(!CALCULATOR->nextMessage()) break;
@@ -24,40 +26,40 @@ void clear_errors() {
 
 void test_integration4(const MathStructure &mstruct) {
 	MathStructure x_var(CALCULATOR->v_x);
-	cout << "Integration test: " << mstruct.print() << endl;
+	cout << "Integration test: " << mstruct.print(CALCULATOR->messagePrintOptions()) << endl;
 	MathStructure mstruct2(mstruct);
 	EvaluationOptions eo;
 	eo.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
 	eo.assume_denominators_nonzero = true;
-	mstruct2.integrate(x_var, eo, true, 1);
+	mstruct2.integrate(x_var, eo, true, 1, false, true, 4);
 	mstruct2.eval(eo);
 	if(mstruct2.containsFunction(CALCULATOR->f_integrate)) {clear_errors(); return;}
 	mstruct2.differentiate(x_var, eo);
+	mstruct2.eval(eo);
 	MathStructure mstruct3(mstruct2);
-	mstruct3.eval(eo);
 	mstruct3.replace(x_var, 3);
 	mstruct3.eval(eo);
 	display_errors();
-	string str1 = mstruct3.print();
+	string str1 = mstruct3.print(CALCULATOR->messagePrintOptions());
 	cout << str1 << endl;
 	mstruct3 = mstruct;
 	mstruct3.replace(x_var, 3);
 	mstruct3.eval(eo);
 	display_errors();
-	string str2 = mstruct3.print();
+	string str2 = mstruct3.print(CALCULATOR->messagePrintOptions());
 	cout << str2 << endl;
 	if(str1 != str2) cout << "!!!" << endl;
 	mstruct3 = mstruct2;
 	mstruct3.replace(x_var, -5);
 	mstruct3.eval(eo);
 	display_errors();
-	str1 = mstruct3.print();
+	str1 = mstruct3.print(CALCULATOR->messagePrintOptions());
 	cout << str1 << endl;
 	mstruct3 = mstruct;
 	mstruct3.replace(x_var, -5);
 	mstruct3.eval(eo);
 	display_errors();
-	str2 = mstruct3.print();
+	str2 = mstruct3.print(CALCULATOR->messagePrintOptions());
 	cout << str2 << endl;
 	if(str1 != str2) cout << "!!!" << endl;
 	cout << "________________________________________________" << endl;
@@ -836,7 +838,7 @@ void test_intervals(bool use_interval) {
 
 }
 
-string rnd_expression(bool allow_unknowns, bool allow_functions, int length_factor1 = 10, int length_factor2 = 5, bool allow_units = false, bool allow_variables = false);
+string rnd_expression(bool allow_unknowns, bool allow_functions, int length_factor1 = 10, int length_factor2 = 5, bool allow_units = false, bool allow_variables = false, bool allow_interval = false);
 
 
 string rnd_unit() {
@@ -857,18 +859,21 @@ string rnd_unit() {
 }
 
 string rnd_var() {
-	int r = rand() % CALCULATOR->variables.size();
-	return CALCULATOR->variables[r]->name();
+	while(true) {
+		int r = rand() % CALCULATOR->variables.size();
+		if(CALCULATOR->variables[r]->isKnown()) return CALCULATOR->variables[r]->name();
+	}
+	return "";
 }
 
 
-string rnd_number(bool use_par = true, bool only_integers = false, bool only_positive = false, bool allow_complex = true) {
+string rnd_number(bool use_par = true, bool only_integers = false, bool only_positive = false, bool allow_complex = true, bool allow_interval = false) {
 	string str;
 	bool par = false;
 	bool dot = only_integers;
 	bool started = false;
 	if(!only_positive && rand() % 3 == 0) {str += '-'; par = true;}
-	while(true) {
+	while(true && str.length() < 20) {
 		int r = rand();
 		if(!started) r = r % (only_positive ? 9 + 1 : 10 + 1);
 		else if(str.back() == '.') r = r % 10;
@@ -879,20 +884,21 @@ string rnd_number(bool use_par = true, bool only_integers = false, bool only_pos
 		started = true;
 	}
 	if(allow_complex && !only_integers && rand() % 10 == 0) {str += 'i'; par = true;}
+	else if(allow_interval && rand() % 2 == 0 && str.find(".") == string::npos) {str += "+/-4E-8"; /*str += rnd_number(false, true, true, false, false);*/}
 	if(par && use_par) {str += ')'; str.insert(0, "(");}
 	return str;
 }
 
-string rnd_item(int &par, bool allow_function = true, int allow_unknown = 1, int allow_unit = false, int allow_variable = false) {
+string rnd_item(int &par, bool allow_function = true, int allow_unknown = 1, int allow_unit = false, int allow_variable = false, bool allow_interval = false) {
 	int r = rand() % (2 + (allow_unknown > 0)) + 1;
 	string str;
 	if(r != 1 || (!allow_unknown && !allow_function && !allow_unit && !allow_variable)) {
-		str = rnd_number();
+		str = rnd_number(true, false, false, true, allow_interval);
 	} else {
 		if(allow_unit && (rand() % (2 + allow_function + allow_unknown + allow_variable)) == 0) {
 			str = rnd_unit();
 		} else if(allow_variable && (rand() % (2 + allow_function + allow_unknown)) == 0) {
-			if(!allow_function && !allow_unknown && !allow_variable && rand() % 2 == 0) str = rnd_number();
+			if(!allow_function && !allow_unknown && !allow_variable && rand() % 2 == 0) str = rnd_number(true, false, false, true, allow_interval);
 			else str = rnd_var();
 		} else {
 			if(!allow_unknown) {
@@ -900,7 +906,7 @@ string rnd_item(int &par, bool allow_function = true, int allow_unknown = 1, int
 				else r = rand() % 2 + 4;
 			} else {
 				int au2 = 3 - allow_unknown % 3;
-				r = (rand() % ((allow_function ? 22 : 5) - au2)) + 4 - allow_unknown;
+				r = (rand() % ((allow_function ? 32 : 5) - au2)) + 4 - allow_unknown;
 				if(r < 4 - allow_unknown % 3) {
 					if(r < 0) r = -r;
 					if(allow_unknown % 3 == 1) r = 3;
@@ -915,16 +921,16 @@ string rnd_item(int &par, bool allow_function = true, int allow_unknown = 1, int
 				case 4: {str = "pi"; break;}
 				case 5: {str = "e"; break;}
 				case 6: {str = "root("; 
-					str += rnd_expression(allow_unknown, allow_function, 6, 3, allow_unit, allow_variable);
+					str += rnd_expression(allow_unknown, allow_function, 6, 3, allow_unit, allow_variable, allow_interval);
 					str += ',';
-					str += rnd_number(true, true, true, false);
+					str += rnd_number(true, true, true, false, false);
 					str += ')';
 					return str;
 				}
 				case 7: {str = "log("; 
-					str += rnd_expression(allow_unknown, allow_function, 6, 3, allow_unit, allow_variable);
+					str += rnd_expression(allow_unknown, allow_function, 6, 3, allow_unit, allow_variable, allow_interval);
 					str += ',';
-					str += rnd_number(true, true, true, false);
+					str += rnd_number(true, true, true, false, false);
 					str += ')';
 					return str;
 				}
@@ -946,18 +952,21 @@ string rnd_item(int &par, bool allow_function = true, int allow_unknown = 1, int
 				case 23: {str = "cbrt("; break;}
 				case 24: {str = "erf("; break;}
 				case 25: {str = "erfc("; break;}
-				case 26: {str = "airy("; break;}
-				case 27: {str = "Si("; break;}
-				case 28: {str = "Shi("; break;}
-				case 29: {str = "im("; break;}
-				case 30: {str = "re("; break;}
+				case 26: {str = "Si("; break;}
+				case 27: {str = "Shi("; break;}
+				case 28: {str = "im("; break;}
+				case 29: {str = "re("; break;}
+				case 30: {str = "Ci("; break;}
+				case 31: {str = "Chi("; break;}
+				case 32: {str = "sinc("; break;}
+				case 33: {str = "airy("; break;}
 			}
 			if(r > 5) {
 				if(allow_unknown && rand() % 2 == 1) {
 					str += "x)";
 					if(rand() % 3 == 1) str += "^2";
 				} else {
-					str += rnd_item(par, true, allow_unknown, allow_unit, allow_variable);
+					str += rnd_item(par, true, allow_unknown, allow_unit, allow_variable, allow_interval);
 					par++;
 				}
 			}
@@ -996,14 +1005,14 @@ string rnd_operator(int &par, bool allow_pow = true) {
 	return "";
 }
 
-string rnd_expression(bool allow_unknowns, bool allow_functions, int length_factor1, int length_factor2, bool allow_unit, bool allow_variable) {
+string rnd_expression(bool allow_unknowns, bool allow_functions, int length_factor1, int length_factor2, bool allow_unit, bool allow_variable, bool allow_interval) {
 	int par = 0;
 	string str;
 	while(str.empty() || rand() % ((length_factor1 - (int) str.length() / length_factor2 < 2) ? 2 : (length_factor1 - (int) str.length() / length_factor2)) != 0) {
-		str += rnd_item(par, allow_functions, allow_unknowns, allow_unit, allow_variable);
+		str += rnd_item(par, allow_functions, allow_unknowns, allow_unit, allow_variable, allow_interval);
 		str += rnd_operator(par);
 	}
-	if(str.back() != ')') str += rnd_item(par, false, allow_unknowns, allow_unit, allow_variable);
+	if(str.back() != ')') str += rnd_item(par, false, allow_unknowns, allow_unit, allow_variable, allow_interval);
 	while(par > 0) {
 		str += ")";
 		par--;
@@ -1014,26 +1023,42 @@ string rnd_expression(bool allow_unknowns, bool allow_functions, int length_fact
 KnownVariable *v;
 
 int rt1 = 0, rt2 = 0, rt3 = 0, rt4 = 0, rt5 = 0, rt6 = 0, rt7 = 0, rt8 = 0, rt9 = 0;
-void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bool test_interval = true, bool test_equation = true, bool allow_unit = false, bool allow_variable = false) {
+void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bool test_interval = true, bool test_equation = true, bool allow_unit = false, bool allow_variable = false, bool allow_interval = false) {
 	bool b_iv = CALCULATOR->usesIntervalArithmetic();
+	IntervalCalculation ic = eo.interval_calculation;
 	cerr << "A0" << endl;
-	string str = rnd_expression(allow_unknowns, allow_functions, 8, 4, allow_unit, allow_variable);
+	string str = rnd_expression(allow_unknowns, allow_functions, 8, 4, allow_unit, allow_variable, allow_interval);
 	cerr << "A2:" << str << endl;
-	PrintOptions po; po.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
-	MathStructure mp, m1, m2;
+	PrintOptions po; po.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS; po.use_max_decimals = true; po.max_decimals = 2; po.min_exp = 1;
+	MathStructure mp, m1, m2, m3, m4;
 	CALCULATOR->parse(&mp, str, eo.parse_options);
 	eo.approximation = APPROXIMATION_APPROXIMATE;
 	m1 = mp;
+	m3 = mp;
+	m4 = mp;
 	cerr << "A3" << endl;
 	cerr << mp << endl;
+	eo.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
 	CALCULATOR->calculate(&m1, 5000, eo);
 	if(m1.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED1" << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+	cerr << "A3b" << endl;
+	eo.interval_calculation = INTERVAL_CALCULATION_INTERVAL_ARITHMETIC;
+	CALCULATOR->calculate(&m3, 5000, eo);
+	if(m3.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED1b" << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+	cerr << "A3c" << endl;
+	eo.interval_calculation = INTERVAL_CALCULATION_NONE;
+	CALCULATOR->calculate(&m4, 5000, eo);
+	if(m4.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED1c" << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+	cerr << "A3d" << endl;
+	eo.interval_calculation = ic;
 	eo.approximation = APPROXIMATION_EXACT;
 	m2 = mp;
 	CALCULATOR->calculate(&m2, 5000, eo);
 	if(m2.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED2" << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+	cerr << "A3e: " << m2 << endl;
 	eo.approximation = APPROXIMATION_APPROXIMATE;
 	CALCULATOR->calculate(&m2, 5000, eo);
+	cerr << "A3f" << endl;
 	if(m2.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED3" << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
 	if(m1.isNumber() && m2.isNumber()) {
 		rt1++;
@@ -1043,6 +1068,20 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 			cout << "UNEQUAL1: " << m1.print(po) << ":" << m2.print(po) << endl;
 		}
 	}
+	if(m1.isNumber() && m3.isNumber()) {
+		if(m1 != m3 && m1.print(po) != m3.print(po)) {
+			rt2++;
+			cout << str << " => " << mp << endl;
+			cout << "UNEQUAL1b: " << m1.print(po) << ":" << m3.print(po) << endl;
+		}
+	}
+	if(m1.isNumber() && m4.isNumber()) {
+		if(m1 != m4 && m1.print(po) != m4.print(po)) {
+			rt2++;
+			cout << str << " => " << mp << endl;
+			cout << "UNEQUAL1c: " << m1.print(po) << ":" << m4.print(po) << endl;
+		}
+	}
 	cerr << "A" << endl;
 	if(b_iv != CALCULATOR->usesIntervalArithmetic()) {
 		cout << "INTERVAL ARITHMETIC CHANGED1: " << str << " => " << mp << endl;
@@ -1050,12 +1089,19 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 	}
 	if(mp.contains(CALCULATOR->v_x)) {
 		rt3++;
-		Number nr(rnd_number(false));
-		if(nr.hasImaginaryPart() && rand() % 2 == 0) nr += Number(rnd_number(false));
+		Number nr(rnd_number(false, false, false, true, allow_interval));
+		if(nr.hasImaginaryPart() && rand() % 2 == 0) nr += Number(rnd_number(false, false, false, false, false));
 		m1 = mp;
 		m1.replace(CALCULATOR->v_x, nr);
+		m3 = m1;
+		cerr << "A2:" << m1 << endl;
+		eo.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
 		CALCULATOR->calculate(&m1, 5000, eo);
 		if(m1.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED4: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+		eo.interval_calculation = INTERVAL_CALCULATION_INTERVAL_ARITHMETIC;
+		CALCULATOR->calculate(&m3, 5000, eo);
+		if(m3.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED4b: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+		eo.interval_calculation = ic;
 		m2 = mp;
 		CALCULATOR->v_x->setAssumptions(nr);
 		eo.approximation = APPROXIMATION_EXACT;
@@ -1063,15 +1109,23 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 		CALCULATOR->v_x->setAssumptions(NULL);
 		if(m2.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED5: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
 		m2.replace(CALCULATOR->v_x, nr);
+		MathStructure m4 = m2;
 		eo.approximation = APPROXIMATION_APPROXIMATE;
 		CALCULATOR->calculate(&m2, 5000, eo);
-		if(m2.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED6: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+		if(m2.isAborted()) {cout << str << " => " << m4 << endl; cout << "ABORTED6: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
 		if(m1.isNumber() && m2.isNumber()) {
 			rt4++;
 			if(m1 != m2 && m1.print(po) != m2.print(po)) {
 				rt5++;
 				cout << str << " => " << mp << ":" << nr << endl;
 				cout << "UNEQUAL2: " << m1.print(po) << ":" << m2.print(po) << endl;
+			}
+		}
+		if(m1.isNumber() && m3.isNumber()) {
+			if(m1 != m2 && m1.print(po) != m2.print(po)) {
+				rt5++;
+				cout << str << " => " << mp << ":" << nr << endl;
+				cout << "UNEQUAL2b: " << m1.print(po) << ":" << m3.print(po) << endl;
 			}
 		}
 		if(b_iv != CALCULATOR->usesIntervalArithmetic()) {
@@ -1088,14 +1142,14 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 			v->set(nr_iv);
 			m1.replace(CALCULATOR->v_x, v);
 			m2 = m1;
-			CALCULATOR->useIntervalArithmetic(true);
+			eo.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
 			CALCULATOR->calculate(&m1, 5000, eo);
 			if(m1.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED9"; CALCULATOR->useIntervalArithmetic(b_iv); return;}
-			CALCULATOR->useIntervalArithmetic(false);
+			eo.interval_calculation = INTERVAL_CALCULATION_INTERVAL_ARITHMETIC;
 			v->set(nr);
 			cerr << "I2" << endl;
 			CALCULATOR->calculate(&m2, 5000, eo);
-			CALCULATOR->useIntervalArithmetic(b_iv);
+			eo.interval_calculation = ic;
 			if(m2.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED10"; CALCULATOR->useIntervalArithmetic(b_iv); return;}
 			if(m1.isNumber() && m2.isNumber() && m1.number().precision(true) > 2) {
 				rt8++;
@@ -1159,7 +1213,7 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 			m1 = mp;
 			cerr << "B" << endl;
 			m1.transform(COMPARISON_EQUALS, m_zero);
-			eo.approximation = APPROXIMATION_EXACT;
+			//eo.approximation = APPROXIMATION_EXACT;
 			CALCULATOR->calculate(&m1, 5000, eo);
 			if(m1.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED7"; CALCULATOR->useIntervalArithmetic(b_iv); return;}
 			m1.replace(CALCULATOR->v_n, 3);
@@ -1267,7 +1321,8 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 			}
 		}
 	}
-	string str2 = rnd_expression(allow_unknowns, allow_functions, 6, 5, allow_unit, allow_variable);
+
+	string str2 = rnd_expression(allow_unknowns, allow_functions, 6, 5, allow_unit, allow_variable, allow_interval);
 	str.insert(0, "(");
 	str += ") / (";
 	str += str2;
@@ -1277,9 +1332,21 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 	mp /= mp2;
 	eo.approximation = APPROXIMATION_APPROXIMATE;
 	m1 = mp;
+	m3 = m1;
+	m4 = m1;
 	cerr << mp << endl;
+	
+	eo.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
 	CALCULATOR->calculate(&m1, 5000, eo);
 	if(m1.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED1" << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+	eo.interval_calculation = INTERVAL_CALCULATION_INTERVAL_ARITHMETIC;
+	CALCULATOR->calculate(&m3, 5000, eo);
+	if(m3.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED1b" << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+	eo.interval_calculation = INTERVAL_CALCULATION_NONE;
+	CALCULATOR->calculate(&m4, 5000, eo);
+	if(m4.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED1c" << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+	cerr << "A3d" << endl;
+	eo.interval_calculation = ic;
 	eo.approximation = APPROXIMATION_EXACT;
 	m2 = mp;
 	CALCULATOR->calculate(&m2, 5000, eo);
@@ -1295,6 +1362,20 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 			cout << "UNEQUAL1: " << m1.print(po) << ":" << m2.print(po) << endl;
 		}
 	}
+	if(m1.isNumber() && m3.isNumber()) {
+		if(m1 != m3 && m1.print(po) != m3.print(po)) {
+			rt2++;
+			cout << str << " => " << mp << endl;
+			cout << "UNEQUAL1b: " << m1.print(po) << ":" << m3.print(po) << endl;
+		}
+	}
+	if(m1.isNumber() && m4.isNumber()) {
+		if(m1 != m4 && m1.print(po) != m4.print(po)) {
+			rt2++;
+			cout << str << " => " << mp << endl;
+			cout << "UNEQUAL1c: " << m1.print(po) << ":" << m4.print(po) << endl;
+		}
+	}
 	if(b_iv != CALCULATOR->usesIntervalArithmetic()) {
 		cout << "INTERVAL ARITHMETIC CHANGED12 " << str << " => " << mp << endl;
 		CALCULATOR->useIntervalArithmetic(b_iv);
@@ -1302,12 +1383,18 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 	cerr << "C" << endl;
 	if(mp.contains(CALCULATOR->v_x)) {
 		rt3++;
-		Number nr(rnd_number(false));
-		if(nr.hasImaginaryPart() && rand() % 2 == 0) nr += Number(rnd_number(false));
+		Number nr(rnd_number(false, false, false, true, allow_interval));
+		if(nr.hasImaginaryPart() && rand() % 2 == 0) nr += Number(rnd_number(false, false, false, false, false));
 		m1 = mp;
 		m1.replace(CALCULATOR->v_x, nr);
+		eo.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
+		m3 = m1;
 		CALCULATOR->calculate(&m1, 5000, eo);
 		if(m1.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED4: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+		eo.interval_calculation = INTERVAL_CALCULATION_INTERVAL_ARITHMETIC;
+		CALCULATOR->calculate(&m3, 5000, eo);
+		if(m3.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED4b: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+		eo.interval_calculation = ic;
 		m2 = mp;
 		eo.approximation = APPROXIMATION_EXACT;
 		CALCULATOR->v_x->setAssumptions(nr);
@@ -1315,15 +1402,23 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 		CALCULATOR->v_x->setAssumptions(NULL);
 		if(m2.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED5: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
 		m2.replace(CALCULATOR->v_x, nr);
+		MathStructure m4 = m2;
 		eo.approximation = APPROXIMATION_APPROXIMATE;
 		CALCULATOR->calculate(&m2, 5000, eo);
-		if(m2.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED6: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
+		if(m2.isAborted()) {cout << str << " => " << m4 << endl; cout << "ABORTED6: " << nr << endl; CALCULATOR->useIntervalArithmetic(b_iv); return;}
 		if(m1.isNumber() && m2.isNumber()) {
 			rt4++;
 			if(m1 != m2 && m1.print(po) != m2.print(po)) {
 				rt5++;
 				cout << str << " => " << mp << ":" << nr << endl;
 				cout << "UNEQUAL2: " << m1.print(po) << ":" << m2.print(po) << endl;
+			}
+		}
+		if(m1.isNumber() && m3.isNumber()) {
+			if(m1 != m3 && m1.print(po) != m3.print(po)) {
+				rt5++;
+				cout << str << " => " << mp << ":" << nr << endl;
+				cout << "UNEQUAL2b: " << m1.print(po) << ":" << m3.print(po) << endl;
 			}
 		}
 		if(b_iv != CALCULATOR->usesIntervalArithmetic()) {
@@ -1340,14 +1435,14 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 			v->set(nr_iv);
 			m1.replace(CALCULATOR->v_x, v);
 			m2 = m1;
-			CALCULATOR->useIntervalArithmetic(true);
+			eo.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
 			CALCULATOR->calculate(&m1, 5000, eo);
 			if(m1.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED9"; CALCULATOR->useIntervalArithmetic(b_iv); return;}
-			CALCULATOR->useIntervalArithmetic(false);
+			eo.interval_calculation = INTERVAL_CALCULATION_INTERVAL_ARITHMETIC;
 			v->set(nr);
 			cerr << "I2" << endl;
 			CALCULATOR->calculate(&m2, 5000, eo);
-			CALCULATOR->useIntervalArithmetic(b_iv);
+			eo.interval_calculation = ic;
 			if(m2.isAborted()) {cout << str << " => " << mp << endl; cout << "ABORTED10"; return;}
 			if(m1.isNumber() && m2.isNumber() && m1.number().precision(true) > 2) {
 				rt8++;
@@ -1408,7 +1503,7 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 		}
 	}
 	cerr << "D" << endl;
-	//if(display_errors(true)) cout << str << ":" << str2 << endl;
+	if(display_errors(true)) cout << str << ":" << str2 << endl;
 }
 
 void speed_test() {
@@ -1574,10 +1669,17 @@ void speed_test() {
 
 int main(int argc, char *argv[]) {
 
-	new Calculator();
+	new Calculator(true);
 	CALCULATOR->loadGlobalDefinitions();
 	CALCULATOR->loadLocalDefinitions();
-	CALCULATOR->setPrecision(40);
+	CALCULATOR->setPrecision(8);
+	
+	CALCULATOR->useIntervalArithmetic();
+	PrintOptions po = CALCULATOR->messagePrintOptions();
+	po.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
+	po.show_ending_zeroes = true;
+	po.number_fraction_format = FRACTION_FRACTIONAL;
+	CALCULATOR->setMessagePrintOptions(po);
 	
 	EvaluationOptions evalops;
 	/*evalops.approximation = APPROXIMATION_TRY_EXACT;
@@ -1597,7 +1699,7 @@ int main(int argc, char *argv[]) {
 	/*evalops.parse_options.dot_as_separator = CALCULATOR->default_dot_as_separator;
 	evalops.parse_options.comma_as_separator = false;*/
 	evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_DEFAULT;
-	evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL;
+	evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL_SI;
 	
 	/*MathStructure mstruct = CALCULATOR->calculate("atanh(2x^2+5)*x^2", evalops);
 	cout << mstruct.integrate(CALCULATOR->v_x, evalops) << endl;
@@ -1609,22 +1711,23 @@ int main(int argc, char *argv[]) {
 	cout << mstruct << endl;*/
 	//speed_test();
 	//test_integration();
+	//return true;
 	//test_intervals(true);
 	
-	CALCULATOR->setVariableUnitsEnabled(false);
-	
-	PrintOptions po = CALCULATOR->messagePrintOptions();
-	po.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
-	CALCULATOR->setMessagePrintOptions(po);
+	CALCULATOR->setVariableUnitsEnabled(true);
 	
 	v = new KnownVariable("", "v", m_zero);
 
 	//CALCULATOR->defaultAssumptions()->setType(ASSUMPTION_TYPE_NUMBER);
-	CALCULATOR->useIntervalArithmetic();
+	//CALCULATOR->useIntervalArithmetic();
+	
 	
 	for(size_t i = 0; i <= 10000; i++) {
-		rnd_test(evalops, 4, true, true, true, false, false);
-		if(i % 1000 == 0) cout << endl << rt1 << ":" << rt2 << ":" << rt3 << ":" << rt4 << ":" << rt5 << ":" << rt6 << ":" << rt7 << ":" << rt8 << ":" << rt9 << endl << endl;
+		string str = rnd_expression(4, true, 8, 4, true, true, true);
+		cout << str << endl;
+		cout << CALCULATOR->calculateAndPrint(str, 10000) << endl;
+		//rnd_test(evalops, 4, true, false, false, false, false, false);
+		//if(i % 1000 == 0) cout << endl << rt1 << ":" << rt2 << ":" << rt3 << ":" << rt4 << ":" << rt5 << ":" << rt6 << ":" << rt7 << ":" << rt8 << ":" << rt9 << endl << endl;
 	}
 	cout << endl << endl << "-----------------------------------------" << endl << endl << endl;
 

@@ -154,6 +154,7 @@ typedef enum {
 ///Message categories
 #define MESSAGE_CATEGORY_NONE		0
 #define MESSAGE_CATEGORY_PARSING	1
+#define MESSAGE_CATEGORY_WIDE_INTERVAL	10
 
 
 /// A message with information to the user. Primarily used for errors and warnings.
@@ -235,6 +236,7 @@ class Calculator {
 	vector<string> real_signs;
 	vector<string> default_signs;
 	vector<string> default_real_signs;
+	bool b_ignore_locale;
 	char *saved_locale;
 	int disable_errors_ref;
 	vector<int> stopped_errors_count;
@@ -295,7 +297,8 @@ class Calculator {
 	MathFunction *f_xor, *f_bitxor, *f_even, *f_odd, *f_shift, *f_bitcmp;
 	MathFunction *f_abs, *f_gcd, *f_lcm, *f_signum, *f_heaviside, *f_dirac, *f_round, *f_floor, *f_ceil, *f_trunc, *f_int, *f_frac, *f_rem, *f_mod;	
 	MathFunction *f_polynomial_unit, *f_polynomial_primpart, *f_polynomial_content, *f_coeff, *f_lcoeff, *f_tcoeff, *f_degree, *f_ldegree;
-	MathFunction *f_re, *f_im, *f_arg, *f_numerator, *f_denominator, *f_interval;
+	MathFunction *f_re, *f_im, *f_arg, *f_numerator, *f_denominator;
+	MathFunction *f_interval, *f_uncertainty;
   	MathFunction *f_sqrt, *f_cbrt, *f_root, *f_sq;
 	MathFunction *f_exp;
 	MathFunction *f_ln, *f_logn;
@@ -348,6 +351,7 @@ class Calculator {
 	/** @name Constructor */
 	//@{
 	Calculator();
+	Calculator(bool ignore_locale);
 	virtual ~Calculator();
 	//@}
 
@@ -366,7 +370,7 @@ class Calculator {
 	* @param make_to_division If true, the expression after "to" will be interpreted as a unit epxression to convert the result to.
 	* @returns true if the calculation was successfully started (and finished if msecs > 0).
 	*/
-	bool calculate(MathStructure *mstruct, string str, int msecs, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
+	bool calculate(MathStructure *mstruct, string str, int msecs, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
 	/** Calculates an expression. The expression should be unlocalized first with unlocalizeExpression().
 	*
 	* @param str Expression.
@@ -376,7 +380,7 @@ class Calculator {
 	* @param make_to_division If true, the expression after "to" will be interpreted as a unit epxression to convert the result to.
 	* @returns The result of the calculation.
 	*/
-	MathStructure calculate(string str, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
+	MathStructure calculate(string str, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
 	/** Calculates a parsed value.
 	* This function starts the calculation in a separate thread and will return when the calculation has started unless a maximum time has been specified.
 	* The calculation can then be stopped with abort().
@@ -387,7 +391,7 @@ class Calculator {
 	* @param to_str "to" expression for conversion.
 	* @returns The result of the calculation.
 	*/
-	bool calculate(MathStructure *mstruct, int msecs, const EvaluationOptions &eo = default_evaluation_options, string to_str = "");
+	bool calculate(MathStructure *mstruct, int msecs, const EvaluationOptions &eo = default_user_evaluation_options, string to_str = "");
 	/** Calculates a parsed value.
 	*
 	* @param mstruct Parsed value to evaluate.
@@ -395,7 +399,7 @@ class Calculator {
 	* @param to_str "to" expression for conversion.
 	* @returns The result of the calculation.
 	*/
-	MathStructure calculate(const MathStructure &mstruct, const EvaluationOptions &eo = default_evaluation_options, string to_str = "");
+	MathStructure calculate(const MathStructure &mstruct, const EvaluationOptions &eo = default_user_evaluation_options, string to_str = "");
 	/** Calculates an expression.and outputs the result to a text string. The expression should be unlocalized first with unlocalizeExpression().
 	* 
 	* Unlike other functions for expression evaluation this function handles ending "to"-commmands, in addition to unit conversion, such "to hexadecimal" or to "fractions", similar to the qalc application.
@@ -408,7 +412,7 @@ class Calculator {
 	* @returns The result of the calculation.
 	* \since 2.6.0
 	*/
-	string calculateAndPrint(string str, int msecs = 10000, const EvaluationOptions &eo = default_evaluation_options, const PrintOptions &po = default_print_options);
+	string calculateAndPrint(string str, int msecs = 10000, const EvaluationOptions &eo = default_user_evaluation_options, const PrintOptions &po = default_print_options);
 	int testCondition(string expression);
 	//@}
 
@@ -478,7 +482,7 @@ class Calculator {
 	* @param eo Options for the evaluation and parsing of the expression.
 	* @returns true if the calculation was successfully started (and finished if msecs > 0).
 	*/
-	bool calculateRPNRegister(size_t index, int msecs, const EvaluationOptions &eo = default_evaluation_options);
+	bool calculateRPNRegister(size_t index, int msecs, const EvaluationOptions &eo = default_user_evaluation_options);
 	/** Applies a mathematical operation to the first and second value on the RPN stack. The the second value is changed with input from the first value.
 	* For example, with OPERATION_SUBTRACT the first value is subtracted from the second. The first value on the stack is removed.
 	* If not enough registers is available, then zeros are added.
@@ -491,7 +495,7 @@ class Calculator {
 	* @param[out] parsed_struct NULL or a math structure to fill with the unevaluated result.
 	* @returns true if the calculation was successfully started (and finished if msecs > 0).
 	*/
-	bool calculateRPN(MathOperation op, int msecs, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL);
+	bool calculateRPN(MathOperation op, int msecs, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL);
 	/** Applies a mathematical operation to the first value on the RPN stack. The value is set as the first argument of the function.
 	* If no register is available, then zero is added.
 	* This function starts the calculation in a separate thread and will return when the calculation has started unless a maximum time has been specified.
@@ -503,7 +507,7 @@ class Calculator {
 	* @param[out] parsed_struct NULL or a math structure to fill with the unevaluated result.
 	* @returns true if the calculation was successfully started (and finished if msecs > 0).
 	*/
-	bool calculateRPN(MathFunction *f, int msecs, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL);
+	bool calculateRPN(MathFunction *f, int msecs, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL);
 	/** Applies bitwise not to the first value on the RPN stack.
 	* If no register is available, then zero is added.
 	* This function starts the calculation in a separate thread and will return when the calculation has started unless a maximum time has been specified.
@@ -514,7 +518,7 @@ class Calculator {
 	* @param[out] parsed_struct NULL or a math structure to fill with the unevaluated result.
 	* @returns true if the calculation was successfully started (and finished if msecs > 0).
 	*/
-	bool calculateRPNBitwiseNot(int msecs, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL);
+	bool calculateRPNBitwiseNot(int msecs, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL);
 	/** Applies logical not to the first value on the RPN stack.
 	* If no register is available, then zero is added.
 	* This function starts the calculation in a separate thread and will return when the calculation has started unless a maximum time has been specified.
@@ -525,7 +529,7 @@ class Calculator {
 	* @param[out] parsed_struct NULL or a math structure to fill with the unevaluated result.
 	* @returns true if the calculation was successfully started (and finished if msecs > 0).
 	*/
-	bool calculateRPNLogicalNot(int msecs, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL);
+	bool calculateRPNLogicalNot(int msecs, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL);
 	/** Applies a mathematical operation to the first and second value on the RPN stack. The the second value is changed with input from the first value.
 	* For example, with OPERATION_SUBTRACT the first value is subtracted from the second. The first value on the stack is removed.
 	* If not enough registers is available, then zeros are added.
@@ -535,7 +539,7 @@ class Calculator {
 	* @param[out] parsed_struct NULL or a math structure to fill with the unevaluated result.
 	* @returns The first value on the stack.
 	*/
-	MathStructure *calculateRPN(MathOperation op, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL);
+	MathStructure *calculateRPN(MathOperation op, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL);
 	/** Applies a mathematical operation to the first value on the RPN stack. The value is set as the first argument of the function.
 	* If no register is available, then zero is added.
 	*
@@ -544,7 +548,7 @@ class Calculator {
 	* @param[out] parsed_struct NULL or a math structure to fill with the unevaluated result.
 	* @returns The first value on the stack.
 	*/
-	MathStructure *calculateRPN(MathFunction *f, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL);
+	MathStructure *calculateRPN(MathFunction *f, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL);
 	/** Applies bitwise not to the first value on the RPN stack.
 	* If no register is available, then zero is added.
 	*
@@ -552,7 +556,7 @@ class Calculator {
 	* @param[out] parsed_struct NULL or a math structure to fill with the unevaluated result.
 	* @returns The first value on the stack.
 	*/
-	MathStructure *calculateRPNBitwiseNot(const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL);
+	MathStructure *calculateRPNBitwiseNot(const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL);
 	/** Applies logical not to the first value on the RPN stack.
 	* If no register is available, then zero is added.
 	*
@@ -560,7 +564,7 @@ class Calculator {
 	* @param[out] parsed_struct NULL or a math structure to fill with the unevaluated result.
 	* @returns The first value on the stack.
 	*/
-	MathStructure *calculateRPNLogicalNot(const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL);
+	MathStructure *calculateRPNLogicalNot(const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL);
 	/** Evaluates a value and adds the result first on the RPN stack.
 	* This function starts the calculation in a separate thread and will return when the calculation has started unless a maximum time has been specified.
 	* The calculation can then be stopped with abort().
@@ -570,7 +574,7 @@ class Calculator {
 	* @param eo Options for the evaluation of the expression.
 	* @returns true if the calculation was successfully started (and finished if msecs > 0).
 	*/
-	bool RPNStackEnter(MathStructure *mstruct, int msecs, const EvaluationOptions &eo = default_evaluation_options);
+	bool RPNStackEnter(MathStructure *mstruct, int msecs, const EvaluationOptions &eo = default_user_evaluation_options);
 	/** Calculates an expression and adds the result first on the RPN stack. The expression should be unlocalized first with unlocalizeExpression().
 	* This function starts the calculation in a separate thread and will return when the calculation has started unless a maximum time has been specified.
 	* The calculation can then be stopped with abort().
@@ -583,13 +587,13 @@ class Calculator {
 	* @param make_to_division If true, the expression after "to" will be interpreted as a unit epxression to convert the result to.
 	* @returns true if the calculation was successfully started (and finished if msecs > 0).
 	*/
-	bool RPNStackEnter(string str, int msecs, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
+	bool RPNStackEnter(string str, int msecs, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
 	/** Adds a value first on the RPN stack.
 	*
 	* @param mstruct Value.
 	* @param eval If true, the the mathematical structure will be evaluated first.
 	*/
-	void RPNStackEnter(MathStructure *mstruct, bool eval = false, const EvaluationOptions &eo = default_evaluation_options);
+	void RPNStackEnter(MathStructure *mstruct, bool eval = false, const EvaluationOptions &eo = default_user_evaluation_options);
 	/** Calculates an expression adds the result first on the RPN stack. The expression should be unlocalized first with unlocalizeExpression().
 	*
 	* @param str Expression.
@@ -598,11 +602,11 @@ class Calculator {
 	* @param[out] to_struct NULL or a math structure to fill with unit expression parsed after "to".
 	* @param make_to_division If true, the expression after "to" will be interpreted as a unit epxression to convert the result to.
 	*/
-	void RPNStackEnter(string str, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
-	bool setRPNRegister(size_t index, MathStructure *mstruct, int msecs, const EvaluationOptions &eo = default_evaluation_options);
-	bool setRPNRegister(size_t index, string str, int msecs, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
-	void setRPNRegister(size_t index, MathStructure *mstruct, bool eval = false, const EvaluationOptions &eo = default_evaluation_options);
-	void setRPNRegister(size_t index, string str, const EvaluationOptions &eo = default_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
+	void RPNStackEnter(string str, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
+	bool setRPNRegister(size_t index, MathStructure *mstruct, int msecs, const EvaluationOptions &eo = default_user_evaluation_options);
+	bool setRPNRegister(size_t index, string str, int msecs, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
+	void setRPNRegister(size_t index, MathStructure *mstruct, bool eval = false, const EvaluationOptions &eo = default_user_evaluation_options);
+	void setRPNRegister(size_t index, string str, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *parsed_struct = NULL, MathStructure *to_struct = NULL, bool make_to_division = true);
 	void deleteRPNRegister(size_t index);
 	MathStructure *getRPNRegister(size_t index = 1) const;
 	size_t RPNStackSize() const;
@@ -662,7 +666,7 @@ class Calculator {
 	* @param[out] units NULL or a math structure to fill with the parsed unit expression(or set to undefined if no units were found).
 	* @returns Converted value.
 	*/
-	MathStructure convert(const MathStructure &mstruct, string composite_, const EvaluationOptions &eo = default_evaluation_options, MathStructure *units = NULL);
+	MathStructure convert(const MathStructure &mstruct, string composite_, const EvaluationOptions &eo = default_user_evaluation_options, MathStructure *units = NULL);
 	/** Converts to a unit.
 	* The converted value is evaluated.
 	*
@@ -672,18 +676,22 @@ class Calculator {
 	* @param always_convert ...
 	* @returns Converted value.
 	*/
-	MathStructure convert(const MathStructure &mstruct, Unit *to_unit, const EvaluationOptions &eo = default_evaluation_options, bool always_convert = true, bool convert_to_mixed_units = true);
-	MathStructure convert(const MathStructure &mstruct, KnownVariable *to_var, const EvaluationOptions &eo = default_evaluation_options);
-	MathStructure convert(double value, Unit *from_unit, Unit *to_unit, const EvaluationOptions &eo = default_evaluation_options);
-	MathStructure convert(string str, Unit *from_unit, Unit *to_unit, int milliseconds, const EvaluationOptions &eo = default_evaluation_options);
+	MathStructure convert(const MathStructure &mstruct, Unit *to_unit, const EvaluationOptions &eo = default_user_evaluation_options, bool always_convert = true, bool convert_to_mixed_units = true);
+	MathStructure convert(const MathStructure &mstruct, KnownVariable *to_var, const EvaluationOptions &eo = default_user_evaluation_options);
+	MathStructure convert(double value, Unit *from_unit, Unit *to_unit, const EvaluationOptions &eo = default_user_evaluation_options);
+	MathStructure convert(string str, Unit *from_unit, Unit *to_unit, int milliseconds, const EvaluationOptions &eo = default_user_evaluation_options);
 	/** Depecated: use convert() */
-	MathStructure convertTimeOut(string str, Unit *from_unit, Unit *to_unit, int milliseconds, const EvaluationOptions &eo = default_evaluation_options);
-	MathStructure convert(string str, Unit *from_unit, Unit *to_unit, const EvaluationOptions &eo = default_evaluation_options);	
-	MathStructure convertToBaseUnits(const MathStructure &mstruct, const EvaluationOptions &eo = default_evaluation_options);
+	MathStructure convertTimeOut(string str, Unit *from_unit, Unit *to_unit, int milliseconds, const EvaluationOptions &eo = default_user_evaluation_options);
+	MathStructure convert(string str, Unit *from_unit, Unit *to_unit, const EvaluationOptions &eo = default_user_evaluation_options);	
+	MathStructure convertToBaseUnits(const MathStructure &mstruct, const EvaluationOptions &eo = default_user_evaluation_options);
+	/** Deprecated: use getOptimalUnit() */
 	Unit *getBestUnit(Unit *u, bool allow_only_div = false, bool convert_to_local_currency = true);
-	MathStructure convertToBestUnit(const MathStructure &mstruct, const EvaluationOptions &eo = default_evaluation_options, bool convert_to_si_units = true);
-	MathStructure convertToCompositeUnit(const MathStructure &mstruct, CompositeUnit *cu, const EvaluationOptions &eo = default_evaluation_options, bool always_convert = true);
-	MathStructure convertToMixedUnits(const MathStructure &mstruct, const EvaluationOptions &eo = default_evaluation_options);
+	Unit *getOptimalUnit(Unit *u, bool allow_only_div = false, bool convert_to_local_currency = true);
+	/** Deprecated: use convertToOptimalUnit() */
+	MathStructure convertToBestUnit(const MathStructure &mstruct, const EvaluationOptions &eo = default_user_evaluation_options, bool convert_to_si_units = true);
+	MathStructure convertToOptimalUnit(const MathStructure &mstruct, const EvaluationOptions &eo = default_user_evaluation_options, bool convert_to_si_units = true);
+	MathStructure convertToCompositeUnit(const MathStructure &mstruct, CompositeUnit *cu, const EvaluationOptions &eo = default_user_evaluation_options, bool always_convert = true);
+	MathStructure convertToMixedUnits(const MathStructure &mstruct, const EvaluationOptions &eo = default_user_evaluation_options);
 	//@}
 
 	/** Used by the UI to find unit category for a mathematical expression.*/
@@ -749,7 +757,7 @@ class Calculator {
 	* @param all_prefixes If false, prefixes which is not a multiple of thousand (centi, deci, deka, hekto) will be skipped.
 	* @returns A prefix or NULL if the unit should be left without prefix.
 	*/
-	DecimalPrefix *getBestDecimalPrefix(int exp10, int exp = 1, bool all_prefixes = true) const;
+	DecimalPrefix *getOptimalDecimalPrefix(int exp10, int exp = 1, bool all_prefixes = true) const;
 	/** Returns the best suited decimal prefix for a value.
 	*
 	* @param exp10 Base-10 exponent of the value.
@@ -757,7 +765,7 @@ class Calculator {
 	* @param all_prefixes If false, prefixes which is not a multiple of thousand (centi, deci, deka, hekto) will be skipped.
 	* @returns A prefix or NULL if the unit should be left without prefix.
 	*/
-	DecimalPrefix *getBestDecimalPrefix(const Number &exp10, const Number &exp, bool all_prefixes = true) const;
+	DecimalPrefix *getOptimalDecimalPrefix(const Number &exp10, const Number &exp, bool all_prefixes = true) const;
 	/** Returns the nearest binary prefix for a value.
 	*
 	* @param exp10 Base-2 exponent of the value.
@@ -771,14 +779,14 @@ class Calculator {
 	* @param exp The exponent of the unit.
 	* @returns A prefix or NULL if the unit should be left without prefix.
 	*/
-	BinaryPrefix *getBestBinaryPrefix(int exp2, int exp = 1) const;		
+	BinaryPrefix *getOptimalBinaryPrefix(int exp2, int exp = 1) const;
 	/** Returns the best suited binary prefix for a value.
 	*
 	* @param exp10 Base-2 exponent of the value.
 	* @param exp The exponent of the unit.
 	* @returns A prefix or NULL if the unit should be left without prefix.
 	*/
-	BinaryPrefix *getBestBinaryPrefix(const Number &exp2, const Number &exp) const;
+	BinaryPrefix *getOptimalBinaryPrefix(const Number &exp2, const Number &exp) const;
 	/** Add a new prefix to the calculator. */
 	Prefix *addPrefix(Prefix *p);
 	/** Used internally. */
@@ -954,6 +962,7 @@ class Calculator {
 	void addMessages(vector<CalculatorMessage> *message_vector);
 	const PrintOptions &messagePrintOptions() const;
 	void setMessagePrintOptions(const PrintOptions &po);
+	void cleanMessages(const MathStructure &mstruct, size_t first_message = 1);
 	//@}
 
 	/** @name Functions for loading and saving definitions (variables, functions, units, etc.). */
@@ -1121,7 +1130,8 @@ class Calculator {
 	/** Returns default precision for approximate calculations.
 	*/
 	int getPrecision() const;
-	/** Set if interval arithmetic should be used for approximate calculations.
+	/** Set if interval should be produced for approximate functions and irrational numbers.
+	* This does not affect calculation of lower precision explicit intervals (uncertainty propagation).
 	*
 	* @param use_interval_arithmetic Set true to activate, or false to deactivate, interval arithmetic.
 	*/
@@ -1144,6 +1154,9 @@ class Calculator {
 	const string &getComma() const;
 	/** Sets argument separator and decimal sign from the current locale. Mainly for internal use. */
 	void setLocale();
+	///Deprecated: use pass true to constructor instead
+	void setIgnoreLocale();
+	bool getIgnoreLocale();
 	void useDecimalComma();
 	/** Use point as decimal separator. 
 	* To use comma as an ignored separator in numbers, must be invoked with comma_as_separator = true, to change the default function argument separator to semicolon, in addition to using ParseOptions::comma_as_separator.

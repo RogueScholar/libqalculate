@@ -732,15 +732,16 @@ class MathStructure {
 		/** @name Functions for format and display */
 		//@{
 		void sort(const PrintOptions &po = default_print_options, bool recursive = true);
-		bool improve_division_multipliers(const PrintOptions &po = default_print_options);
+		bool improve_division_multipliers(const PrintOptions &po = default_print_options, MathStructure *parent = NULL);
 		void setPrefixes(const PrintOptions &po = default_print_options, MathStructure *parent = NULL, size_t pindex = 0);
-		void prefixCurrencies();
+		void prefixCurrencies(const PrintOptions &po = default_print_options);
 		void format(const PrintOptions &po = default_print_options);
 		void formatsub(const PrintOptions &po = default_print_options, MathStructure *parent = NULL, size_t pindex = 0, bool recursive = true, MathStructure *top_parent = NULL);
 		void postFormatUnits(const PrintOptions &po = default_print_options, MathStructure *parent = NULL, size_t pindex = 0);
 		bool factorizeUnits();
 		void unformat(const EvaluationOptions &eo = default_evaluation_options);
 		bool needsParenthesis(const PrintOptions &po, const InternalPrintStruct &ips, const MathStructure &parent, size_t index, bool flat_division = true, bool flat_power = true) const;
+		bool removeDefaultAngleUnit(const EvaluationOptions &eo = default_evaluation_options);
 
 		int neededMultiplicationSign(const PrintOptions &po, const InternalPrintStruct &ips, const MathStructure &parent, size_t index, bool par, bool par_prev, bool flat_division = true, bool flat_power = true) const;
 		
@@ -797,14 +798,14 @@ class MathStructure {
 		/** @name Functions for unit conversion */
 		//@{
 		int isUnitCompatible(const MathStructure &mstruct) const;
-		bool syncUnits(bool sync_complex_relations = false, bool *found_complex_relations = NULL, bool calculate_new_functions = false, const EvaluationOptions &feo = default_evaluation_options);
+		bool syncUnits(bool sync_nonlinear_relations = false, bool *found_nonlinear_relations = NULL, bool calculate_new_functions = false, const EvaluationOptions &feo = default_evaluation_options);
 		bool testDissolveCompositeUnit(Unit *u);
 		bool testCompositeUnit(Unit *u);	
 		bool dissolveAllCompositeUnits();
 		bool setPrefixForUnit(Unit *u, Prefix *new_prefix);
-		bool convertToBaseUnits(bool convert_complex_relations = false, bool *found_complex_relations = NULL, bool calculate_new_functions = false, const EvaluationOptions &feo = default_evaluation_options);
-		bool convert(Unit *u, bool convert_complex_relations = false, bool *found_complex_relations = NULL, bool calculate_new_functions = false, const EvaluationOptions &feo = default_evaluation_options, Prefix *new_prefix = NULL);
-		bool convert(const MathStructure unit_mstruct, bool convert_complex_relations = false, bool *found_complex_relations = NULL, bool calculate_new_functions = false, const EvaluationOptions &feo = default_evaluation_options);
+		bool convertToBaseUnits(bool convert_nonlinear_relations = false, bool *found_nonlinear_relations = NULL, bool calculate_new_functions = false, const EvaluationOptions &feo = default_evaluation_options, bool avoid_approximate_variables = false);
+		bool convert(Unit *u, bool convert_nonlinear_relations = false, bool *found_nonlinear_relations = NULL, bool calculate_new_functions = false, const EvaluationOptions &feo = default_evaluation_options, Prefix *new_prefix = NULL);
+		bool convert(const MathStructure unit_mstruct, bool convert_nonlinear_relations = false, bool *found_nonlinear_relations = NULL, bool calculate_new_functions = false, const EvaluationOptions &feo = default_evaluation_options);
 		//@}
 		
 		/** @name Functions for recursive search and replace */
@@ -815,7 +816,7 @@ class MathStructure {
 		int containsType(StructureType mtype, bool structural_only = true, bool check_variables = false, bool check_functions = false) const;
 		int containsRepresentativeOfType(StructureType mtype, bool check_variables = false, bool check_functions = false) const;
 		int containsFunction(MathFunction *f, bool structural_only = true, bool check_variables = false, bool check_functions = false) const;
-		int containsInterval(bool structural_only = true, bool check_variables = false, bool check_functions = false, bool ignore_high_precision_interval = false, bool include_interval_function = false) const;
+		int containsInterval(bool structural_only = true, bool check_variables = false, bool check_functions = false, int ignore_high_precision_interval = 0, bool include_interval_function = false) const;
 		int containsInfinity(bool structural_only = true, bool check_variables = false, bool check_functions = false) const;
 		bool containsOpaqueContents() const;
 		bool containsAdditionPower() const;
@@ -823,8 +824,9 @@ class MathStructure {
 		bool containsDivision() const;
 		size_t countFunctions(bool count_subfunctions = true) const;
 		void findAllUnknowns(MathStructure &unknowns_vector);
-		bool replace(const MathStructure &mfrom, const MathStructure &mto, bool once_only = false);
-		bool calculateReplace(const MathStructure &mfrom, const MathStructure &mto, const EvaluationOptions &eo);
+		bool replace(const MathStructure &mfrom, const MathStructure &mto, bool once_only = false, bool exclude_function_arguments = false);
+		bool replace(Variable *v, const MathStructure &mto);
+		bool calculateReplace(const MathStructure &mfrom, const MathStructure &mto, const EvaluationOptions &eo, bool exclude_function_arguments = false);
 		bool replace(const MathStructure &mfrom1, const MathStructure &mto1, const MathStructure &mfrom2, const MathStructure &mto2);
 		bool removeType(StructureType mtype);
 		//@}
@@ -844,6 +846,7 @@ class MathStructure {
 
 		/** @name Functions for polynomials */
 		//@{
+		bool expand(const EvaluationOptions &eo = default_evaluation_options, bool unfactorize = true);
 		bool simplify(const EvaluationOptions &eo = default_evaluation_options, bool unfactorize = true);
 		bool factorize(const EvaluationOptions &eo = default_evaluation_options, bool unfactorize = true, int term_combination_levels = 0, int max_msecs = 1000, bool only_integers = true, int recursive = 1, struct timeval *endtime_p = NULL, const MathStructure &force_factorization = m_undefined, bool complete_square = false, bool only_sqrfree = false, int max_degree_factor = -1);
 		bool expandPartialFractions(const EvaluationOptions &eo);

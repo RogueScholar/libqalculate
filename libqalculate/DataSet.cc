@@ -1,7 +1,7 @@
 /*
     Qalculate (library)
 
-    Copyright (C) 2004-2006, 2016  Hanna Knutsson (hanna.knutsson@protonmail.com)
+    Copyright (C) 2004-2006, 2016, 2019  Hanna Knutsson (hanna.knutsson@protonmail.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -119,9 +119,7 @@ const MathStructure *DataObject::getPropertyStruct(DataProperty *property) {
 	if(!property) return NULL;
 	for(size_t i = 0; i < properties.size(); i++) {
 		if(properties[i] == property) {
-			if(!m_properties[i]) {
-				m_properties[i] = property->generateStruct(s_properties[i], a_properties[i]);
-			}
+			if(!m_properties[i]) m_properties[i] = property->generateStruct(s_properties[i], a_properties[i]);
 			return m_properties[i];
 		}
 	}
@@ -294,20 +292,28 @@ MathStructure *DataProperty::generateStruct(const string &valuestr, int is_appro
 			break;
 		}
 		case PROPERTY_NUMBER: {
-			if(b_brackets && valuestr.length() > 1 && valuestr[0] == '[' && valuestr[valuestr.length() - 1] == ']') {
-				if((b_approximate && is_approximate < 0) || is_approximate > 0) {
-					ParseOptions po; po.read_precision = ALWAYS_READ_PRECISION;
-					mstruct = new MathStructure(Number(valuestr.substr(1, valuestr.length() - 2), po));
-				} else {
-					mstruct = new MathStructure(Number(valuestr.substr(1, valuestr.length() - 2)));
+			if(valuestr.length() > 1 && valuestr[0] == '[' && valuestr[valuestr.length() - 1] == ']') {
+				size_t i = valuestr.find(",");
+				if(i != string::npos) {
+					Number nr;
+					nr.setInterval(Number(valuestr.substr(1, i - 1)), Number(valuestr.substr(i + 1, valuestr.length() - i - 2)));
+					mstruct = new MathStructure(nr);
+					break;
+				} else if(b_brackets) {
+					if(((b_approximate && is_approximate < 0) || is_approximate > 0) && valuestr.find(SIGN_PLUSMINUS) == string::npos && valuestr.find("+/-") == string::npos) {
+						ParseOptions po; po.read_precision = ALWAYS_READ_PRECISION;
+						mstruct = new MathStructure(Number(valuestr.substr(1, valuestr.length() - 2), po));
+					} else {
+						mstruct = new MathStructure(Number(valuestr.substr(1, valuestr.length() - 2)));
+					}
+					break;
 				}
+			}
+			if(((b_approximate && is_approximate < 0) || is_approximate > 0) && valuestr.find(SIGN_PLUSMINUS) == string::npos && valuestr.find("+/-") == string::npos) {
+				ParseOptions po; po.read_precision = ALWAYS_READ_PRECISION;
+				mstruct = new MathStructure(Number(valuestr, po));
 			} else {
-				if((b_approximate && is_approximate < 0) || is_approximate > 0) {
-					ParseOptions po; po.read_precision = ALWAYS_READ_PRECISION;
-					mstruct = new MathStructure(Number(valuestr, po));
-				} else {
-					mstruct = new MathStructure(Number(valuestr));
-				}
+				mstruct = new MathStructure(Number(valuestr));
 			}
 			break;
 		}
@@ -317,7 +323,7 @@ MathStructure *DataProperty::generateStruct(const string &valuestr, int is_appro
 			break;
 		}
 	}
-	if(getUnitStruct()) {
+	if(mstruct && getUnitStruct()) {
 		mstruct->multiply(*getUnitStruct());
 	}
 	return mstruct;
@@ -483,10 +489,10 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 	if(LCIDToLocaleName(LOCALE_USER_DEFAULT, wlocale, LOCALE_NAME_MAX_LENGTH, 0) != 0) locale = utf8_encode(wlocale);
 	gsub("-", "_", locale);
 #else
-	char *clocale = setlocale(LC_MESSAGES, "");
+	char *clocale = setlocale(LC_MESSAGES, NULL);
 	if(clocale) locale = clocale;
 #endif
-	if(locale == "POSIX" || locale == "C") {
+	if(CALCULATOR->getIgnoreLocale() || locale == "POSIX" || locale == "C") {
 		locale = "";
 	} else {
 		size_t i = locale.find('.');
@@ -517,7 +523,8 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 		return false;
 	}
 	string version;
-	xmlChar *value, *lang;
+	xmlChar *value, *lang, *uncertainty;
+	bool unc_rel;
 	while(cur != NULL) {
 		if(!xmlStrcmp(cur->name, (const xmlChar*) "QALCULATE")) {
 			XML_GET_STRING_FROM_PROP(cur, "version", version)
@@ -692,9 +699,25 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 								if(value) xmlFree(value); 
 								if(lang) xmlFree(lang);
 							} else {
+								unc_rel = false;
+								uncertainty = xmlGetProp(child, (xmlChar*) "relative_uncertainty");
+								if(!uncertainty) uncertainty = xmlGetProp(child, (xmlChar*) "uncertainty"); 
+								else unc_rel = true;
 								XML_GET_STRING_FROM_TEXT(child, str)
 								remove_blank_ends(str);
+								if(uncertainty) {
+									if(unc_rel) {
+										str.insert(0, "(");
+										str.insert(0, CALCULATOR->f_uncertainty->referenceName());
+										str += ", ";
+										str += (char*) uncertainty;
+										str += ", 1)";
+									} else {
+										str += SIGN_PLUSMINUS; str += (char*) uncertainty;
+									}
+								}
 								o->setProperty(properties[i], str, i_approx);
+								if(uncertainty) xmlFree(uncertainty);
 							}
 							b = true;
 							break;
@@ -710,9 +733,9 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 	}
 	xmlFreeDoc(doc);
 	b_loaded = true;
-	if(!scopyright.empty()) {
+	/*if(!scopyright.empty()) {
 		CALCULATOR->message(MESSAGE_INFORMATION, scopyright.c_str(), NULL);
-	}
+	}*/
 	return true;
 }
 int DataSet::saveObjects(const char *file_name, bool save_global) {
@@ -1080,15 +1103,14 @@ int DataObjectArgument::type() const {return ARGUMENT_TYPE_DATA_OBJECT;}
 Argument *DataObjectArgument::copy() const {return new DataObjectArgument(this);}
 string DataObjectArgument::print() const {return _("data object");}
 string DataObjectArgument::subprintlong() const {
+	if(!o_data) return print();
 	string str = _("an object from");
 	str += " \"";
 	str += o_data->title();
 	str += "\"";
 	DataPropertyIter it;
 	DataProperty *o = NULL;
-	if(o_data) {
-		o = o_data->getFirstProperty(&it);
-	}
+	o = o_data->getFirstProperty(&it);
 	if(o) {
 		string stmp;
 		size_t l_last = 0;

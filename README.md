@@ -1,47 +1,40 @@
+# libqalculate
 Qalculate! library and CLI
 
-Qalculate! is a multi-purpose cross-platform desktop calculator.
-It is simple to use but provides power and versatility normally reserved for complicated math packages,
-as well as useful tools for everyday needs (such as currency conversion and percent calculation).
-Features include a large library of customizable functions, unit calculations and conversion,
-symbolic calculations (including integrals and equations), arbitrary precision, interval arithmetic,
-plotting, and a user-friendly interface (GTK+ and CLI).
+![Image of qalc](http://qalculate.github.io/images/qalc.png)
 
-1. Installation
+Qalculate! is a multi-purpose cross-platform desktop calculator. It is simple to use but provides power and versatility normally reserved for complicated math packages, as well as useful tools for everyday needs (such as currency conversion and percent calculation). Features include a large library of customizable functions, unit calculations and conversion, symbolic calculations (including integrals and equations), arbitrary precision, uncertainty propagation, interval arithmetic, plotting, and a user-friendly interface (GTK+ and CLI).
+
+## Installation
 In a terminal window in the top source code directory run
-./autogen.sh (not required if using a release source tarball, only if using the git version)
-./configure
-make
-make install (as root)
-If libqalculate is installed in /usr/local (default) you may need to add /usr/local/lib to
-the library path of the system (add /usr/local/lib to a file under /etc/ld.so.conf.d/ and run ldconfig).
+* `./autogen.sh` *(not required if using a release source tarball, only if using the git version)*
+* `./configure`
+* `make`
+* `make install` (as root)
+If libqalculate is installed in /usr/local (default) you may need to add /usr/local/lib to the library path of the system (add /usr/local/lib to a file under /etc/ld.so.conf.d/ and run ldconfig).
 
-2. Requirements
+## Requirements
 * GMP and MPFR
 * libxml2
 * libcurl, icu, gettext (recommended)
 * iconv, readline (recommended for CLI)
-* Gnuplot 1.7 (optional)
+* Gnuplot (optional)
 * doxygen (for compilation of git version)
 
-3. API Documentation
-The API documentation is included in the package and is installed in
-$docdir/libqalculate/html (usually /usr/share/doc/libqalculate/html).
-It is generated when running autogen.sh.
+## API Documentation
+The API documentation is included in the package and is installed in $docdir/libqalculate/html (usually /usr/share/doc/libqalculate/html). It is generated when running autogen.sh.
 
 It is also available online at http://qalculate.github.io/reference/index.html.
 
-4. Using the CLI program 'qalc'
+## Using the CLI program 'qalc'
 To calculate a single expression from the command line (non-interactive mode) enter
-`qalc mathematical expression` (e.g. qalc 5+2)
+`qalc mathematical expression` *(e.g. qalc 5+2)*
 
 `qalc --help` shows information about command line options in non-interactive mode.
 
-If you run `qalc` without any mathematical expression the program will start in interactive mode,
-where you can enter multiple expressions with history and completion, manipulate the result and change settings.
-Type `help` in interactive mode for more information.
+If you run `qalc` without any mathematical expression the program will start in interactive mode, where you can enter multiple expressions with history and completion, manipulate the result and change settings. Type `help` in interactive mode for more information.
 
-5. Other Applications
+## Other Applications
 The main user interface for libqalculate is qalculate-gtk (https://github.com/Qalculate/qalculate-gtk).
 
 Other software using libqalculate include
@@ -50,7 +43,7 @@ Other software using libqalculate include
 * Step (http://kde.org/applications/education/step/)
 * Qalculate widget for KDE Plasma (https://store.kde.org/p/1155946/)
 
-6. Features
+## Features
 * Calculation and parsing:
    * Basic operations and operators: + - * / ^ E () && || ! < > >= <= != ~ & | << >>
    * Fault-tolerant parsing of strings: log 5 / 2 .5 (3) + (2( 3 +5 = ln(5) / (2.5 * 3) + 2 * (3 + 5)
@@ -59,8 +52,7 @@ Other software using libqalculate include
    * Propagation of uncertainty
    * Interval arithmetic (for determination of the number of significant digits or direct calculation with intervals of numbers)
    * Supports all number bases from 2 to 36, time format and roman numerals
-   * Ability to disable functions, variables, units or unknown variables for less confusion:
-     ex. when you do not want (a+b)^2 to mean (are+barn)^2 but ("a"+"b")^2
+   * Ability to disable functions, variables, units or unknown variables for less confusion: ex. when you do not want (a+b)^2 to mean (are+barn)^2 but ("a"+"b")^2
    * Controllable implicit multiplication
    * Matrices and vectors, and related operations (determinants etc.)
    * Verbose error messages
