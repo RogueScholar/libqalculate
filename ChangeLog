@@ -1,3 +1,103 @@
+2019-05-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix abs(x)=a for complex x
+
+2019-05-20 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* CODATA 2018 update for physical constants
+
+2019-05-14 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improved operator support for RPN syntax
+	* Fix "percent" interpreted as "/ cent"
+	* xor() => lxor(), bitxor() => xor()
+
+2019-05-12 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault in findMatchingUnit()
+	* Fix crash with empty factorial
+	* Fix crashes with vectors containing empty vector ([[]]) and matrices with only one row and column
+
+2019-05-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Show binary, octal, decimal, and hexadecimal result when using qalc in programming mode
+	* Do not save bases and caret as xor when using qalc in programming mode
+
+2019-05-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* For vector + scalar, add scalar to all components
+	* Round bitwise right shift downwards by default (arithmetic two's complement shift)
+	* Treat all non-zero values as boolean true (was positive true, non-positive false)
+	* bitrot() function for bit rotation
+	* Add signedness argument to bitcmp()
+	* Handle decimal shift operator steps with base < 10;
+
+2019-05-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Combine consecutive Unicode powers in one power
+
+2019-05-03 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support for Unicode fractions
+	* Support base prefixes with input bases other than decimal
+
+2019-05-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* -p BASE command line option for programming mode (same as -b "BASE BASE" -s "xor^") in qalc
+	* Support setting both input and output base with "base" command/option in qalc
+	* Do not require space between command line option and number in qalc (e.g. -b16)
+	* Fix seqfault with -set command line option in qalc, for some options changing expression parsing
+
+2019-05-01 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* " mod " and " rem " operators
+	* Unicode support in char() and code()
+
+2019-04-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* div() function (integer division)
+	* '%' as rem
+	* "//" and "\" (if followed by space, number, +, -, ! or ~) for integer division (truncated)
+	* RPN syntax support for bitwise operations
+	* Allow compatible functions, variable, and functions with input base > 10
+
+2019-04-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support Ɔ (open O) in roman numbers
+	* Fixes for '|' in roman numbers
+	* Support compl, bitor, and bitand as alternatives to ~, | and &
+
+2019-04-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Recognize "factor" and "expand" commands at the beginning of the expression
+	* Change order of operations for logical and bitwise operators to better match C operator precedence
+	* Always show spaces around spelled out logical operators
+	* Bitwise XOR operator
+	* Add alternative unicode symbols for bitwise and, or, exclusive or and not
+	* Caret as XOR option in qalc
+
+2019-04-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix factorization with uncalculated power of number (do not factorize)
+	* Fix explicit mixed units conversion when automatic mixed units conversion is disabled
+	* Fix "set autoconversion 0" in qalc (deactivate mixed units conversion)
+	* Fix segfault on factorization of "167772160y^4 − 41607495680y^2 − 11748245499y − 2147483648"
+
+2019-04-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Accept date and time separated by space instead of 'T'
+	* Remove old SI definitions
+	* uptime variable
+	* Increase precision of "now"
+	* Always truncate seconds in output date and time
+	* Improve output of factorized result with approximately displayed values
+
+2019-04-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improved simplification (polynomial long division) and factorization
+	* Allow vector of values in replace()
+	* Fix represents number test (should be either non-zero base OR, not AND, positive exponent)
+
 2019-04-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Fix crash when formatting 1 / ((0 × 0)(1 / 0)^2)

@@ -1,0 +1,1373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QALCULATE version="2.5.0">
+  <category>
+    <title>Currency</title>
+    <title xml:lang="fr">Monnaie</title>
+    <title xml:lang="nl">Valuta</title>
+    <title xml:lang="sv">Valuta</title>
+    <title xml:lang="zh_CN">货币</title>
+    <builtin_unit name="EUR">
+      <title>European Euro</title>
+      <title xml:lang="fr">Euros européens</title>
+      <title xml:lang="nl">Europese euro</title>
+      <title xml:lang="sv">Euro</title>
+      <title xml:lang="zh_CN">欧元</title>
+      <names>ar:EUR,au:&#x20AC;,euro,p:euros</names>
+      <names xml:lang="sv">a:EUR,au:&#x20AC;,euro</names>
+      <names xml:lang="zh_CN">ar:EUR,au:&#x20AC;,欧元</names>
+      <countries>Andorra, Austria, Belgium, Cyprus, Estonia, Finland, France, Germany, Greece, Ireland, Italy, Latvia, Lithuania, Luxembourg, Malta, Netherlands, Portugal, San Marino, Slovakia, Slovenia, Spain, Vatican City</countries>
+      <countries xml:lang="sv">Andorra, Österrike, Belgien, Cypern, Estland, Finland, Frankrike, Tyskland, Grekland, Irland, Italien, Lettland, Litauen, Luxemburg, Malta, Nederländerna, Portugal, San Marina, Slovakien, Slovenien, Spanien, Vatikanstaten</countries>
+    </builtin_unit>
+    <builtin_unit name="USD">
+      <title>U.S. Dollar</title>
+      <title xml:lang="fr">Dollar US</title>
+      <title xml:lang="nl">U.S. dollar</title>
+      <title xml:lang="sv">Amerikansk dollar</title>
+      <title xml:lang="zh_CN">美元</title>
+      <names>a:$,ar:USD,dollar,p:dollars</names>
+      <names xml:lang="sv">a:$,a:USD,dollar</names>
+      <names xml:lang="zh_CN">a:$,ar:USD,美元</names>
+      <countries>United States, East Timor, Ecuador, El Salvador, Micronesia, Marshall Islands, Palau, Zimbabwe</countries>
+      <countries xml:lang="sv">USA, Östtimor, Ecuador, El Salvador, Mikronesien, Marskallöarna, Palau, Zimbabwe</countries>
+    </builtin_unit>
+    <builtin_unit name="JPY">
+      <title>Japanese Yen</title>
+      <title xml:lang="fr">Yen japonais</title>
+      <title xml:lang="nl">Japanse yen</title>
+      <title xml:lang="sv">Japansk yen</title>
+      <title xml:lang="zh_CN">日元</title>
+      <names>ar:JPY,au:&#xA5;,yen</names>
+      <names xml:lang="zh_CN">ar:JPY,au:&#xA5;,日元</names>
+      <countries>Japan</countries>
+    </builtin_unit>
+    <builtin_unit name="DKK">
+      <title>Danish Krone</title>
+      <title xml:lang="fr">Couronne danoise</title>
+      <title xml:lang="nl">Deense kroon</title>
+      <title xml:lang="sv">Dansk krona</title>
+      <title xml:lang="zh_CN">丹麦Kroner</title>
+      <names>ar:DKK</names>
+      <countries>Denmark</countries>
+      <countries xml:lang="sv">Danmark</countries>
+    </builtin_unit>
+    <builtin_unit name="GBP">
+      <title>British Pound</title>
+      <title xml:lang="fr">Livre sterling</title>
+      <title xml:lang="nl">Britse Pond</title>
+      <title xml:lang="sv">Brittiskt pund</title>
+      <title xml:lang="zh_CN">英镑</title>
+      <names>ar:GBP,au:&#xA3;</names>
+      <names xml:lang="zh_CN">ar:GBP,au:&#xA3;</names>
+      <countries>United Kingdom</countries>
+      <countries xml:lang="sv">Storbritannien</countries>
+    </builtin_unit>
+    <builtin_unit name="THB">
+      <title>Thai Baht</title>
+      <title xml:lang="fr">Baht thailandais</title>
+      <title xml:lang="nl">Thailandse bat</title>
+      <title xml:lang="sv">Thailändsk baht</title>
+      <title xml:lang="zh_CN">泰国Bat</title>
+      <names>ar:THB</names>
+      <countries>Thailand</countries>
+    </builtin_unit>
+    <builtin_unit name="SEK">
+      <title>Swedish Krona</title>
+      <title xml:lang="fr">Couronne suédoise</title>
+      <title xml:lang="nl">Zweedse kroon</title>
+      <title xml:lang="sv">Svensk krona</title>
+      <title xml:lang="zh_CN">瑞典克郎</title>
+      <names>ar:SEK</names>
+      <names xml:lang="sv">a:kr,a:SEK,krona,p:kronor</names>
+      <countries>Sweden</countries>
+      <countries xml:lang="sv">Sverige</countries>
+    </builtin_unit>
+    <builtin_unit name="CHF">
+      <title>Swiss Franc</title>
+      <title xml:lang="fr">Franc suisse</title>
+      <title xml:lang="nl">Zwitserse franc</title>
+      <title xml:lang="sv">Schweizerfranc</title>
+      <title xml:lang="zh_CN">瑞士法郎</title>
+      <names>ar:CHF</names>
+      <countries>Switzerland</countries>
+      <countries xml:lang="sv">Schweiz</countries>
+    </builtin_unit>
+    <builtin_unit name="NOK">
+      <title>Norwegian Krone</title>
+      <title xml:lang="fr">Couronne norvégienne</title>
+      <title xml:lang="nl">Noorse kroon</title>
+      <title xml:lang="sv">Norsk krona</title>
+      <title xml:lang="zh_CN">挪威Kroner</title>
+      <names>ar:NOK</names>
+      <countries>Norway</countries>
+      <countries xml:lang="sv">Norge</countries>
+    </builtin_unit>
+    <builtin_unit name="BGN">
+      <title>Bulgarian Lev</title>
+      <title xml:lang="fr">Lev bulgare</title>
+      <title xml:lang="nl">Bulgaarse Lev</title>
+      <title xml:lang="sv">Bulgarisk lev</title>
+      <title xml:lang="zh_CN">保加利亚列弗</title>
+      <names>lev,ar:BGN</names>
+      <countries>Bulgaria</countries>
+      <countries xml:lang="sv">Bulgarien</countries>
+    </builtin_unit>
+    <builtin_unit name="RUB">
+      <title>Russian Ruble</title>
+      <title xml:lang="fr">Rouble russe</title>
+      <title xml:lang="nl">Russische roebel</title>
+      <title xml:lang="sv">Rysk rubel</title>
+      <title xml:lang="zh_CN">俄罗斯卢布</title>
+      <names>ar:RUB,au:&#x20BD;,ruble</names>
+      <names xml:lang="fr">ar:RUB,au:&#x20BD;,rouble</names>
+      <names xml:lang="nl">a:RUB,au:&#x20BD;,roebel</names>
+      <names xml:lang="sv">a:RUB,au:&#x20BD;,rubel</names>
+      <names xml:lang="zh_CN">ar:RUB,au:&#x20BD;,卢布</names>
+      <countries>Russia</countries>
+      <countries xml:lang="sv">Ryssland</countries>
+    </builtin_unit>
+    <builtin_unit name="PHP">
+      <title>Philippine Peso</title>
+      <title xml:lang="fr">Peso philippin</title>
+      <title xml:lang="nl">Filippijnse peso</title>
+      <title xml:lang="sv">Filippinsk peso</title>
+      <names>ar:PHP,au:&#x20B1;</names>
+      <countries>Philippines</countries>
+      <countries xml:lang="sv">Filippinerna</countries>
+    </builtin_unit>
+    <builtin_unit name="MYR">
+      <title>Malaysian Ringgit</title>
+      <title xml:lang="fr">Ringgit malaisien</title>
+      <title xml:lang="nl">Maleisische ringgit</title>
+      <title xml:lang="sv">Malaysisk ringgit</title>
+      <title xml:lang="zh_CN">马来西亚林吉特</title>
+      <names>ar:MYR</names>
+      <countries>Malaysia</countries>
+    </builtin_unit>
+    <builtin_unit name="HRK">
+      <title>Croatian Kuna</title>
+      <title xml:lang="fr">Kuna croate</title>
+      <title xml:lang="nl">Kroatische kuna</title>
+      <title xml:lang="sv">Kroatisk kuna</title>
+      <title xml:lang="zh_CN">克罗地亚</title>
+      <names>ar:HRK</names>
+      <countries>Croatia</countries>
+      <countries xml:lang="sv">Kroatien</countries>
+    </builtin_unit>
+    <builtin_unit name="CNY">
+      <title>Chinese Yuan Renminbi</title>
+      <title xml:lang="sv">Kinesisk yuan renminbi</title>
+      <names>ar:CNY</names>
+      <countries>China</countries>
+      <countries xml:lang="sv">Kina</countries>
+    </builtin_unit>
+    <builtin_unit name="IDR">
+      <title>Indonesian Rupiah</title>
+      <title xml:lang="fr">Rouple indonésienne</title>
+      <title xml:lang="nl">Indonesische roepiah</title>
+      <title xml:lang="sv">Indonesisk rupiah</title>
+      <title xml:lang="zh_CN">印尼卢比</title>
+      <names>ar:IDR,rupiah</names>
+      <names xml:lang="zh_CN">a:IDR</names>
+      <countries>Indonesia</countries>
+      <countries xml:lang="sv">Indonesien</countries>
+    </builtin_unit>
+    <builtin_unit name="CZK">
+      <title>Czech Koruna</title>
+      <title xml:lang="fr">Koruna tchèque</title>
+      <title xml:lang="nl">Tsjechische kroon</title>
+      <title xml:lang="sv">Tjeckisk koruna</title>
+      <title xml:lang="zh_CN">捷克克朗</title>
+      <names>ar:CZK,au-c:K&#x10D;</names>
+      <countries>Czech Republic</countries>
+      <countries xml:lang="sv">Tjeckien</countries>
+    </builtin_unit>
+     <builtin_unit name="HUF">
+      <title>Hungarian Forint</title>
+      <title xml:lang="fr">Florin hongrois</title>
+      <title xml:lang="nl">Hongaarse forint</title>
+      <title xml:lang="sv">Ungersk forint</title>
+      <title xml:lang="zh_CN">匈牙利福林</title>
+      <names>forint,ar:HUF</names>
+      <names xml:lang="fr">florint hongrois,ar:HUF</names>
+      <countries>Hungary</countries>
+      <countries xml:lang="sv">Ungern</countries>
+    </builtin_unit>
+    <builtin_unit name="PLN">
+      <title>Polish Zloty</title>
+      <title xml:lang="fr">Zloty polonais</title>
+      <title xml:lang="nl">Poolse zloty</title>
+      <title xml:lang="sv">Polsk zloty</title>
+      <title xml:lang="zh_CN">波兰兹罗提</title>
+      <names>ar:PLN,au:z&#x0142;,zloty</names>
+      <countries>Poland</countries>
+      <countries xml:lang="sv">Polen</countries>
+    </builtin_unit>
+    <builtin_unit name="RON">
+      <title>Romanian Leu</title>
+      <title xml:lang="fr">Leu roumain</title>
+      <title xml:lang="sv">Rumänsk leu</title>
+      <title xml:lang="zh_CN">罗马尼亚新Leu</title>
+      <names>ar:RON</names>
+      <countries>Romania</countries>
+      <countries xml:lang="sv">Rumänien</countries>
+    </builtin_unit>
+    <builtin_unit name="TRY">
+      <title>Turkish New Lira</title>
+      <title xml:lang="fr">Nouvelle livre turque</title>
+      <title xml:lang="nl">Nieuwe Turkse lire</title>
+      <title xml:lang="sv">Turkisk ny lira</title>
+      <title xml:lang="zh_CN">土耳其新里拉</title>
+      <names>ar:TRY,au:&#x20BA;</names>
+      <countries>Turkey</countries>
+      <countries xml:lang="sv">Turkiet</countries>
+    </builtin_unit>
+    <builtin_unit name="AUD">
+      <title>Australian Dollar</title>
+      <title xml:lang="fr">Dollar australien</title>
+      <title xml:lang="nl">Australische dollar</title>
+      <title xml:lang="sv">Australiensisk dollar</title>
+      <title xml:lang="zh_CN">澳大利亚元</title>
+      <names>ar:AUD</names>
+      <countries>Australia</countries>
+      <countries xml:lang="sv">Australien</countries>
+    </builtin_unit>
+    <builtin_unit name="CAD">
+      <title>Canadian Dollar</title>
+      <title xml:lang="fr">Dollar canadien</title>
+      <title xml:lang="nl">Canadese dollar</title>
+      <title xml:lang="sv">Kanadensisk dollar</title>
+      <title xml:lang="zh_CN">加拿大元</title>
+      <names>ar:CAD</names>
+      <countries>Canada</countries>
+      <countries xml:lang="sv">Kanada</countries>
+    </builtin_unit>
+    <builtin_unit name="HKD">
+      <title>Hong Kong Dollar</title>
+      <title xml:lang="fr">Dollar de Hong Kong</title>
+      <title xml:lang="nl">Hongkong dollar</title>
+      <title xml:lang="sv">Hongkongdollar</title>
+      <title xml:lang="zh_CN">港币</title>
+      <names>ar:HKD</names>
+    </builtin_unit>
+    <builtin_unit name="NZD">
+      <title>New Zealand Dollar</title>
+      <title xml:lang="fr">Dollars néo-zélandais</title>
+      <title xml:lang="nl">Nieuwzeelandse dollar</title>
+      <title xml:lang="sv">Nya Zeeländsk dollar</title>
+      <title xml:lang="zh_CN">新西兰元</title>
+      <names>ar:NZD</names>
+      <countries>New Zealand</countries>
+      <countries xml:lang="sv">Nya Zeeland</countries>
+    </builtin_unit>
+    <builtin_unit name="SGD">
+      <title>Singapore Dollar</title>
+      <title xml:lang="fr">Dollar de Singapour</title>
+      <title xml:lang="nl">Singapore dollar</title>
+      <title xml:lang="sv">Singaporiansk dollar</title>
+      <title xml:lang="zh_CN">新加坡元</title>
+      <names>ar:SGD</names>
+      <countries>Singapore</countries>
+    </builtin_unit>
+    <builtin_unit name="KRW">
+      <title>South Korean Won</title>
+      <title xml:lang="fr">Won sud corréenne</title>
+      <title xml:lang="nl">Zuid-Koreaanse won</title>
+      <title xml:lang="sv">Sydkoreansk won</title>
+      <title xml:lang="zh_CN">韩元</title>
+      <names>ar:KRW,au:&#x20A9;,won</names>
+      <countries>South Korea</countries>
+      <countries xml:lang="sv">Sydkorea</countries>
+    </builtin_unit>
+    <builtin_unit name="ZAR">
+      <title>South African Rand</title>
+      <title xml:lang="fr">Rand sudafricaine</title>
+      <title xml:lang="nl">Zuid-Afrikaanse rand</title>
+      <title xml:lang="sv">Sydafrikansk rand</title>
+      <title xml:lang="zh_CN">南非兰特</title>
+      <names>ar:ZAR</names>
+      <countries>South Africa</countries>
+      <countries xml:lang="sv">Sydafrika</countries>
+    </builtin_unit>
+    <builtin_unit name="INR">
+      <title>Indian Rupee</title>
+      <title xml:lang="sv">Indisk rupie</title>
+      <names>ar:INR,au:&#x20B9;,rupee</names>
+      <names xml:lang="sv">a:INR,au:&#x20B9;,rupie,p:rupier</names>
+      <countries>India</countries>
+      <countries xml:lang="sv">Indien</countries>
+    </builtin_unit>
+    <builtin_unit name="ILS">
+      <title>Israeli New Sheqel</title>
+      <title xml:lang="sv">Israelisk sheqel</title>
+      <names>ar:ILS,au:&#x20AA;,sheqel</names>
+      <names xml:lang="sv">a:ILS,au:&#x20AA;,sheqel</names>
+      <countries>Israel</countries>
+    </builtin_unit>
+    <builtin_unit name="MXN">
+      <title>Mexican Peso</title>
+      <title xml:lang="sv">Mexikansk peso</title>
+      <names>ar:MXN</names>
+      <countries>Mexico</countries>
+      <countries xml:lang="sv">Mexiko</countries>
+    </builtin_unit>
+    <builtin_unit name="BRL">
+      <title>Brazilian Real</title>
+      <title xml:lang="sv">Brasiliansk real</title>
+      <names>ar:BRL</names>
+      <countries>Brazil</countries>
+      <countries xml:lang="sv">Brasilien</countries>
+    </builtin_unit>
+    <builtin_unit name="ISK">
+      <title>Icelandic Krónur</title>
+      <title xml:lang="fr">Couronne islandaise</title>
+      <title xml:lang="sv">Isländsk krona</title>
+      <title xml:lang="zh_CN">冰岛克朗</title>
+      <names>ar:ISK</names>
+      <countries>Iceland</countries>
+      <countries xml:lang="sv">Island</countries>
+    </builtin_unit>
+    <builtin_unit name="BTC">
+      <title>Bitcoin</title>
+      <title xml:lang="sv">Bitcoin</title>
+      <names>ar:BTC,au:&#x20BF;,a:XBT,bitcoin,p:bitcoins</names>
+    </builtin_unit>
+    <builtin_unit name="KES">
+      <title>Kenya Shilling</title>
+      <title xml:lang="sv">Kenyansk schilling</title>
+      <names>ar:KES</names>
+      <countries>Kenya</countries>
+    </builtin_unit>
+    <builtin_unit name="AFN">
+      <title>Afghan Afghani</title>
+      <title xml:lang="sv">Afghansk afghani</title>
+      <names>ar:AFN,aiu:&#x060B;</names>
+      <countries>Afghanistan</countries>
+    </builtin_unit>
+    <builtin_unit name="ALL">
+      <title>Albanian Lek</title>
+      <title xml:lang="sv">Albanisk lek</title>
+      <names>ar:ALL</names>
+      <countries>Albania</countries>
+      <countries xml:lang="sv">Albanien</countries>
+    </builtin_unit>
+    <builtin_unit name="DZD">
+      <title>Algerian Dinar</title>
+      <title xml:lang="sv">Algerisk dinar</title>
+      <names>ar:DZD</names>
+      <countries>Algeria</countries>
+      <countries xml:lang="sv">Algeriet</countries>
+    </builtin_unit>
+    <builtin_unit name="AOA">
+      <title>Angolan Kwanza</title>
+      <title xml:lang="sv">Angolsk kwanza</title>
+      <names>ar:AOA</names>
+      <countries>Angola</countries>
+    </builtin_unit>
+    <builtin_unit name="XCD">
+      <title>Eastern Caribbean Dollar</title>
+      <title xml:lang="sv">Östkaribisk dollar</title>
+      <names>ar:XCD</names>
+      <countries>Antigua and Barbuda, Dominica, Grenada, Montserrat, Saint Kitts and Nevis, Saint Lucia, Saint Vincent and the Grenadines, Anguilla</countries>
+      <countries xml:lang="sv">Antigua och Barbuda, Dominica, Grenada, Montserrat, Saint Kitts och Nevis, Saint Lucia, Saint Vincent och Grenadinerna, Anguilla</countries>
+    </builtin_unit>
+    <builtin_unit name="ARS">
+      <title>Argentine Peso</title>
+      <title xml:lang="sv">Argentinsk peso</title>
+      <names>ar:ARS</names>
+      <countries>Argentina</countries>
+    </builtin_unit>
+    <builtin_unit name="AMD">
+      <title>Armenian Dram</title>
+      <title xml:lang="sv">Armenisk dram</title>
+      <names>ar:AMD,au:&#x058F;</names>
+      <countries>Armenia</countries>
+      <countries xml:lang="sv">Armenien</countries>
+    </builtin_unit>
+    <builtin_unit name="AWG">
+      <title>Aruban Florin</title>
+      <title xml:lang="sv">Arubisk florin</title>
+      <names>ar:AWG</names>
+      <countries>Aruba</countries>
+      <countries xml:lang="sv">Aruba</countries>
+    </builtin_unit>
+    <builtin_unit name="ANG">
+      <title>Netherlands Antillean Guilder</title>
+      <title xml:lang="sv">Antillergulden</title>
+      <names>ar:ANG</names>
+      <countries>Curaçao, Sint Maarten</countries>
+    </builtin_unit>
+    <builtin_unit name="AZN">
+      <title>Azerbaijani Manat</title>
+      <title xml:lang="sv">Azerbajdzjansk manat</title>
+      <names>ar:AZN,au:&#x20BC;</names>
+      <countries>Azerbaijan</countries>
+      <countries xml:lang="sv">Azerbajdzjan</countries>
+    </builtin_unit>
+    <builtin_unit name="BSD">
+      <title>Bahamian Dollar</title>
+      <title xml:lang="sv">Bahamask dollar</title>
+      <names>ar:BSD</names>
+      <countries>Bahamas</countries>
+    </builtin_unit>
+    <builtin_unit name="BHD">
+      <title>Bahraini Dinar</title>
+      <title xml:lang="sv">Bahrainsk dinar</title>
+      <names>ar:BHD</names>
+      <countries>Bahrain</countries>
+    </builtin_unit>
+    <builtin_unit name="BDT">
+      <title>Bangladeshi Taka</title>
+      <title xml:lang="sv">Bangladeshisk taka</title>
+      <names>ar:BDT,au:&#x09F3;</names>
+      <countries>Bangladesh</countries>
+    </builtin_unit>
+    <builtin_unit name="BBD">
+      <title>Barbadian Dollar</title>
+      <title xml:lang="sv">Barbadisk dollar</title>
+      <names>ar:BBD</names>
+      <countries>Barbados</countries>
+    </builtin_unit>
+    <builtin_unit name="BYR">
+      <title>Belarusian Ruble p. (obsolete)</title>
+      <title xml:lang="sv">Vitrysk rubel p. (obsolet)</title>
+      <names>ar:BYR</names>
+    </builtin_unit>
+    <builtin_unit name="BZD">
+      <title>Belize Dollar</title>
+      <title xml:lang="sv">Belizisk dollar</title>
+      <names>ar:BZD</names>
+      <countries>Belize</countries>
+    </builtin_unit>
+    <builtin_unit name="XOF">
+      <title>West African CFA Franc</title>
+      <title xml:lang="sv">Västafrikansk CFA franc</title>
+      <names>ar:XOF,a:CFA</names>
+      <countries>Benin, Burkina Faso, Guinea-Bissau, Ivory Coast, Mali, Niger, Senegal, Togo</countries>
+      <countries xml:lang="sv">Benin, Burkina Faso, Guinea-Bissau, Elfenbenskusten, Mali, Niger, Senegal, Togo</countries>
+    </builtin_unit>
+    <builtin_unit name="BMD">
+      <title>Bermudian Dollar</title>
+      <title xml:lang="sv">Bermudisk dollar</title>
+      <names>ar:BMD</names>
+      <countries>Bermuda</countries>
+    </builtin_unit>
+    <builtin_unit name="BOB">
+      <title>Bolivian Boliviano Bs</title>
+      <title xml:lang="sv">Bolviansk boliviano Bs</title>
+      <names>ar:BOB</names>
+      <countries>Bolivia</countries>
+    </builtin_unit>
+    <builtin_unit name="BAM">
+      <title>Bosnia and Herzegovina Convertible Mark</title>
+      <title xml:lang="sv">Bosnisk och hercegovinsk konvertibil mark</title>
+      <names>ar:BAM</names>
+      <countries>Bosnia and Herzegovina</countries>
+      <countries xml:lang="sv">Bosnien och Hercegovina</countries>
+    </builtin_unit>
+    <builtin_unit name="BWP">
+      <title>Botswana Pula</title>
+      <title xml:lang="sv">Botswansk pula</title>
+      <names>ar:BWP</names>
+      <countries>Botswana</countries>
+    </builtin_unit>
+    <builtin_unit name="BND">
+      <title>Brunei Dollar</title>
+      <title xml:lang="sv">Bruneisk dollar</title>
+      <names>ar:BND</names>
+      <countries>Brunei</countries>
+    </builtin_unit>
+    <builtin_unit name="BIF">
+      <title>Burundian Franc</title>
+      <title xml:lang="sv">Burundisk franc</title>
+      <names>ar:BIF</names>
+      <countries>Burundi</countries>
+    </builtin_unit>
+    <builtin_unit name="KHR">
+      <title>Cambodian Riel</title>
+      <title xml:lang="sv">Kambodjansk riel</title>
+      <names>ar:KHR,aiu:&#x17DB;</names>
+      <countries>Cambodia</countries>
+      <countries xml:lang="sv">Kambodja</countries>
+    </builtin_unit>
+    <builtin_unit name="XAF">
+      <title>Central African CFA Franc</title>
+      <title xml:lang="sv">Centralafrikansk CFA franc</title>
+      <names>ar:XAF,a:FCFA</names>
+      <countries>Cameroon, Central African Republic, Chad, Republic of the Congo, Equatorial Guinea, Gabon</countries>
+      <countries xml:lang="sv">Kamerun, Centralafrikanska republiken, Tchad, Kongo-Brazzaville, Ekvatorialguinea, Gabon</countries>
+    </builtin_unit>
+    <builtin_unit name="CVE">
+      <title>Cape Verdean Escudo</title>
+      <title xml:lang="sv">Kapverdisk escudo</title>
+      <names>ar:CVE</names>
+      <countries>Cape Verde</countries>
+      <countries xml:lang="sv">Kap Verde</countries>
+    </builtin_unit>
+    <builtin_unit name="KYD">
+      <title>Cayman Islands Dollar</title>
+      <title xml:lang="sv">Caymansk dollar</title>
+      <names>ar:KYD</names>
+      <countries>Cayman Islands</countries>
+      <countries xml:lang="sv">Caymanöarna</countries>
+    </builtin_unit>
+    <builtin_unit name="CLP">
+      <title>Chilean Peso</title>
+      <title xml:lang="sv">Chilensk pesos</title>
+      <names>ar:CLP</names>
+      <countries>Chile</countries>
+    </builtin_unit>
+    <builtin_unit name="COP">
+      <title>Colombian Peso</title>
+      <title xml:lang="sv">Colombianska peso</title>
+      <names>ar:COP</names>
+      <countries>Colombia</countries>
+    </builtin_unit>
+    <builtin_unit name="KMF">
+      <title>Comorian Franc</title>
+      <title xml:lang="sv">Komorisk franc</title>
+      <names>ar:KMF</names>
+      <countries>Comoros</countries>
+      <countries xml:lang="sv">Komorerna</countries>
+    </builtin_unit>
+    <builtin_unit name="CDF">
+      <title>Democratic Republic of the Congo (Congolese Franc)</title>
+      <title xml:lang="sv">Kongolesisk franc</title>
+      <names>ar:CDF</names>
+      <countries>Democratic Republic of the Congo</countries>
+      <countries xml:lang="sv">Kongo-Kinshasa</countries>
+    </builtin_unit>
+    <builtin_unit name="CRC">
+      <title>Costa Rican colón</title>
+      <title xml:lang="sv">Costaricansk colón</title>
+      <names>ar:CRC</names>
+      <countries>Costa Rica</countries>
+    </builtin_unit>
+    <builtin_unit name="CUP">
+      <title>Cuban Peso</title>
+      <title xml:lang="sv">Kubansk peso</title>
+      <names>ar:CUP</names>
+      <countries>Cuba</countries>
+      <countries xml:lang="sv">Kuba</countries>
+    </builtin_unit>
+    <builtin_unit name="DJF">
+      <title>Djiboutian Franc</title>
+      <title xml:lang="sv">Djiboutisk franc</title>
+      <names>ar:DJF</names>
+      <countries>Djibouti</countries>
+    </builtin_unit>
+    <builtin_unit name="DOP">
+      <title>Dominican Peso</title>
+      <title xml:lang="sv">Dominikansk peso</title>
+      <names>ar:DOP</names>
+      <countries>Dominican Republic</countries>
+      <countries xml:lang="sv">Dominikanska republiken</countries>
+    </builtin_unit>
+    <builtin_unit name="EGP">
+      <title>Egyptian Pound</title>
+      <title xml:lang="sv">Egyptiskt pund</title>
+      <names>ar:EGP</names>
+      <countries>Egypt</countries>
+      <countries xml:lang="sv">Egypten</countries>
+    </builtin_unit>
+    <builtin_unit name="SVC">
+      <title>El Salvadoran Colon (obsolete)</title>
+      <title xml:lang="sv">Salvadoransk colon (obsolet)</title>
+      <names>ar:SVC</names>
+    </builtin_unit>
+    <builtin_unit name="ERN">
+      <title>Eritrean Nafka</title>
+      <title xml:lang="sv">Eritreansk nafka</title>
+      <names>ar:ERN</names>
+      <countries>Eritrea</countries>
+    </builtin_unit>
+    <builtin_unit name="ETB">
+      <title>Ethiopian Birr</title>
+      <title xml:lang="sv">Etiopisk birr</title>
+      <names>ar:ETB</names>
+      <countries>Ethiopia</countries>
+      <countries xml:lang="sv">Etiopien</countries>
+    </builtin_unit>
+    <builtin_unit name="FKP">
+      <title>Falkland Islands Pound</title>
+      <title xml:lang="sv">Falklandspund</title>
+      <names>ar:FKP</names>
+      <countries>Falkland Islands</countries>
+      <countries xml:lang="sv">Falklandsöarna</countries>
+    </builtin_unit>
+    <builtin_unit name="FJD">
+      <title>Fijian Dollar</title>
+      <title xml:lang="sv">Fijidollar</title>
+      <names>ar:FJD</names>
+      <countries>Fiji</countries>
+    </builtin_unit>
+    <builtin_unit name="XPF">
+      <title>CFP franc</title>
+      <title xml:lang="sv">CFP-franc</title>
+      <names>ar:XPF</names>
+      <countries>French Polynesia, New Caledonia, Wallis and Futuna</countries>
+      <countries xml:lang="sv">Franska Polynesien, Nya Kaledonien, Wallis och Futuna</countries>
+    </builtin_unit>
+    <builtin_unit name="GMD">
+      <title>Gambian Dalasi</title>
+      <title xml:lang="sv">Gambisk dalasi</title>
+      <names>ar:GMD</names>
+      <countries>Gambia</countries>
+    </builtin_unit>
+    <builtin_unit name="GEL">
+      <title>Georgian Lari</title>
+      <title xml:lang="sv">Georgisk lari</title>
+      <names>ar:GEL,au:&#x20BE;</names>
+      <countries>Georgia</countries>
+      <countries xml:lang="sv">Georgien</countries>
+    </builtin_unit>
+    <builtin_unit name="GHS">
+      <title>Ghanaian Cedi</title>
+      <title xml:lang="sv">Ghanesisk cedi</title>
+      <names>ar:GHS,au:&#x20B5;</names>
+      <countries>Ghana</countries>
+    </builtin_unit>
+    <builtin_unit name="GIP">
+      <title>Gibraltar Pound</title>
+      <title xml:lang="sv">Gibraltarpund</title>
+      <names>ar:GIP</names>
+      <countries>Gibraltar</countries>
+    </builtin_unit>
+    <builtin_unit name="GTQ">
+      <title>Guatemalan Quetzal</title>
+      <title xml:lang="sv">Guatemalansk quetzal</title>
+      <names>ar:GTQ</names>
+      <countries>Guatemala</countries>
+    </builtin_unit>
+    <builtin_unit name="GGP">
+      <title>Guernsey Pound</title>
+      <title xml:lang="sv">Guernseypund</title>
+      <names>ar:GGP</names>
+      <countries>Guernsey</countries>
+    </builtin_unit>
+    <builtin_unit name="GNF">
+      <title>Guinean Franc</title>
+      <title xml:lang="sv">Guinesisk franc</title>
+      <names>ar:GNF</names>
+      <countries>Guinea</countries>
+    </builtin_unit>
+    <builtin_unit name="GYD">
+      <title>Guyanese Dollar</title>
+      <title xml:lang="sv">Guyansk dollar</title>
+      <names>ar:GYD</names>
+      <countries>Guyana</countries>
+    </builtin_unit>
+    <builtin_unit name="HTG">
+      <title>Haitian Gourde</title>
+      <title xml:lang="sv">Haitisk gourde</title>
+      <names>ar:HTG</names>
+      <countries>Haiti</countries>
+    </builtin_unit>
+    <builtin_unit name="HNL">
+      <title>Honduran Lempira</title>
+      <title xml:lang="sv">Honduransk lempira</title>
+      <names>ar:HNL</names>
+      <countries>Honduras</countries>
+    </builtin_unit>
+    <builtin_unit name="IRR">
+      <title>Iranian Rial</title>
+      <title xml:lang="sv">Iransk rial</title>
+      <names>ar:IRR,aiu:&#xFDFC;</names>
+      <countries>Iran</countries>
+    </builtin_unit>
+    <builtin_unit name="IQD">
+      <title>Iraqi Dinar</title>
+      <title xml:lang="sv">Irakisk dinar</title>
+      <names>ar:IQD</names>
+      <countries>Iraq</countries>
+    </builtin_unit>
+    <builtin_unit name="JMD">
+      <title>Jamaican Dollar</title>
+      <title xml:lang="sv">Jamaicansk dollar</title>
+      <names>ar:JMD</names>
+      <countries>Jamaica</countries>
+    </builtin_unit>
+    <builtin_unit name="JOD">
+      <title>Jordanian Dinar</title>
+      <title xml:lang="sv">Jordansk dinar</title>
+      <names>ar:JOD</names>
+      <countries>Jordan</countries>
+      <countries xml:lang="sv">Jordanien</countries>
+    </builtin_unit>
+    <builtin_unit name="KZT">
+      <title>Kazakhstani Tenge</title>
+      <title xml:lang="sv">Kazakstansk tenge</title>
+      <names>ar:KZT,au:&#x20B8;</names>
+      <countries>Kazakhstan</countries>
+      <countries xml:lang="sv">Kazakstan</countries>
+    </builtin_unit>
+    <builtin_unit name="KPW">
+      <title>North Korean Won</title>
+      <title xml:lang="sv">Nordkoreansk won</title>
+      <names>ar:KPW</names>
+      <countries>North Korea</countries>
+      <countries xml:lang="sv">Nordkorea</countries>
+    </builtin_unit>
+    <builtin_unit name="KWD">
+      <title>Kuwaiti Dinar</title>
+      <title xml:lang="sv">Kuwaitisk dinar</title>
+      <names>ar:KWD</names>
+      <countries>Kuwait</countries>
+    </builtin_unit>
+    <builtin_unit name="KGS">
+      <title>Kyrgyzstani Som</title>
+      <title xml:lang="sv">Kirgizistansk som</title>
+      <names>ar:KGS,au:&#x0441;</names>
+      <countries>Kyrgyzstan</countries>
+      <countries xml:lang="sv">Kirgizistan</countries>
+    </builtin_unit>
+    <builtin_unit name="LAK">
+      <title>Lao Kip</title>
+      <title xml:lang="sv">Laotisk kip</title>
+      <names>ar:LAK,au:&#x20AD;</names>
+      <countries>Laos</countries>
+    </builtin_unit>
+    <builtin_unit name="LBP">
+      <title>Lebanese Pound</title>
+      <title xml:lang="sv">Libanesiskt pund</title>
+      <names>ar:LBP</names>
+      <countries>Lebanon</countries>
+      <countries xml:lang="sv">Libanon</countries>
+    </builtin_unit>
+    <builtin_unit name="LSL">
+      <title>Lesotho Loti</title>
+      <title xml:lang="sv">Lesothisk loti</title>
+      <names>ar:LSL</names>
+      <countries>Lesotho</countries>
+    </builtin_unit>
+    <builtin_unit name="LRD">
+      <title>Liberian Dollar</title>
+      <title xml:lang="sv">Liberiansk dollar</title>
+      <names>ar:LRD</names>
+      <countries>Liberia</countries>
+    </builtin_unit>
+    <builtin_unit name="LYD">
+      <title>Libyan Dinar</title>
+      <title xml:lang="sv">Libysk dinar</title>
+      <names>ar:LYD</names>
+      <countries>Libya</countries>
+      <countries xml:lang="sv">Libyen</countries>
+    </builtin_unit>
+    <builtin_unit name="MOP">
+      <title>Macanese Pataca</title>
+      <title xml:lang="sv">Macaosk pataca</title>
+      <names>ar:MOP</names>
+      <countries>Macau</countries>
+      <countries xml:lang="sv">Macao</countries>
+    </builtin_unit>
+    <builtin_unit name="MKD">
+      <title>Macedonian Denar</title>
+      <title xml:lang="sv">Makedonisk denar</title>
+      <names>ar:MKD</names>
+      <countries>Macedonia</countries>
+      <countries xml:lang="sv">Makedonien</countries>
+    </builtin_unit>
+    <builtin_unit name="MGA">
+      <title>Malagasy Ariary</title>
+      <title xml:lang="sv">Madagaskisk ariary</title>
+      <names>ar:MGA</names>
+      <countries>Madagascar</countries>
+      <countries xml:lang="sv">Madagaskar</countries>
+    </builtin_unit>
+    <builtin_unit name="MWK">
+      <title>Malawian Kwacha</title>
+      <title xml:lang="sv">Malawisk kwacha</title>
+      <names>ar:MWK</names>
+      <countries>Malawi</countries>
+    </builtin_unit>
+    <builtin_unit name="MVR">
+      <title>Maldivian Rufiyaa</title>
+      <title xml:lang="sv">Maldivisk rufiyaa</title>
+      <names>ar:MVR</names>
+      <countries>Maldives</countries>
+      <countries xml:lang="sv">Maldiverna</countries>
+    </builtin_unit>
+    <builtin_unit name="MRO">
+      <title>Mauritanian Ouguiya (obsolete)</title>
+      <title xml:lang="sv">Mauretansk ouguiya (obsolet)</title>
+      <names>ar:MRO</names>
+    </builtin_unit>
+    <builtin_unit name="MUR">
+      <title>Mauritian Rupee</title>
+      <title xml:lang="sv">Mauritisk rupie</title>
+      <names>ar:MUR</names>
+      <countries>Mauritius</countries>
+    </builtin_unit>
+    <builtin_unit name="MDL">
+      <title>Moldovan Leu</title>
+      <title xml:lang="sv">Moldavisk leu</title>
+      <names>ar:MDL</names>
+      <countries>Moldova</countries>
+      <countries xml:lang="sv">Moldavien</countries>
+    </builtin_unit>
+    <builtin_unit name="MNT">
+      <title>Mongolian Tögrög</title>
+      <title xml:lang="sv">Mongolsk tögrög</title>
+      <names>ar:MNT,au:&#x20AE;</names>
+      <countries>Mongolia</countries>
+      <countries xml:lang="sv">Mongoliet</countries>
+    </builtin_unit>
+    <builtin_unit name="MAD">
+      <title>Moroccan Dirham</title>
+      <title xml:lang="sv">Marockansk dirham</title>
+      <names>ar:MAD</names>
+      <countries>Morocco</countries>
+      <countries xml:lang="sv">Marocko</countries>
+    </builtin_unit>
+    <builtin_unit name="MZN">
+      <title>Mozambican Metical</title>
+      <title xml:lang="sv">Moçambikansk metical</title>
+      <names>ar:MZN</names>
+      <countries>Mozambique</countries>
+      <countries xml:lang="sv">Moçambique</countries>
+    </builtin_unit>
+    <builtin_unit name="MMK">
+      <title>Myanmar (Burmese Kyat)</title>
+      <title xml:lang="sv">Myanmarisk kyat</title>
+      <names>ar:MMK</names>
+      <countries>Myanmar</countries>
+    </builtin_unit>
+    <builtin_unit name="NAD">
+      <title>Namibian Dollar</title>
+      <title xml:lang="sv">Namibisk dollar</title>
+      <names>ar:NAD</names>
+      <countries>Namibia</countries>
+      <countries xml:lang="sv">Namibien</countries>
+    </builtin_unit>
+    <builtin_unit name="NPR">
+      <title>Nepalese Rupee</title>
+      <title xml:lang="sv">Nepalesisk rupie</title>
+      <names>ar:NPR</names>
+      <countries>Nepal</countries>
+    </builtin_unit>
+    <builtin_unit name="NIO">
+      <title>Nicaraguan Córdoba</title>
+      <title xml:lang="sv">Nicaragiska córdoba</title>
+      <names>ar:NIO</names>
+      <countries>Nicaragua</countries>
+    </builtin_unit>
+    <builtin_unit name="NGN">
+      <title>Nigerian Naira</title>
+      <title xml:lang="sv">Nigeriansk naira</title>
+      <names>ar:NGN,au:&#x20A6;</names>
+      <countries>Nigeria</countries>
+    </builtin_unit>
+    <builtin_unit name="OMR">
+      <title>Omani Rial</title>
+      <title xml:lang="sv">Omansk rial</title>
+      <names>ar:OMR</names>
+      <countries>Oman</countries>
+    </builtin_unit>
+    <builtin_unit name="PKR">
+      <title>Pakistani Rupee</title>
+      <title xml:lang="sv">Pakistansk rupie</title>
+      <names>ar:PKR</names>
+      <countries>Pakistan</countries>
+    </builtin_unit>
+    <builtin_unit name="PAB">
+      <title>Panamaian Balboa</title>
+      <title xml:lang="sv">Panamansk balboa</title>
+      <names>ar:PAB</names>
+      <countries>Panama</countries>
+    </builtin_unit>
+    <builtin_unit name="PGK">
+      <title>Papua New Guinean Kina</title>
+      <title xml:lang="sv">Papua Nya Guineansk kina</title>
+      <names>ar:PGK</names>
+      <countries>Papua New Guinea</countries>
+      <countries xml:lang="sv">Papua Nya Guinea</countries>
+    </builtin_unit>
+    <builtin_unit name="PYG">
+      <title>Paraguayan Guaraní</title>
+      <title xml:lang="sv">Paraguaysk guarani</title>
+      <names>ar:PYG,au:&#x20B2;</names>
+      <countries>Paraguay</countries>
+    </builtin_unit>
+    <builtin_unit name="PEN">
+      <title>Peruvian Sol</title>
+      <title xml:lang="sv">Peruviansk sol</title>
+      <names>ar:PEN</names>
+      <countries>Peru</countries>
+    </builtin_unit>
+    <builtin_unit name="QAR">
+      <title>Qatari Riyal</title>
+      <title xml:lang="sv">Qatarisk rial</title>
+      <names>ar:QAR</names>
+      <countries>Qatar</countries>
+    </builtin_unit>
+    <builtin_unit name="RWF">
+      <title>Rwandan Franc</title>
+      <title xml:lang="sv">Rwandisk franc</title>
+      <names>ar:RWF</names>
+      <countries>Rwanda</countries>
+    </builtin_unit>
+    <builtin_unit name="STD">
+      <title>São Tomé and Príncipe Dobra</title>
+      <title xml:lang="sv">São Tomé och Príncipe-dobra</title>
+      <names>ar:STD</names>
+      <countries>Sao Tome and Principe</countries>
+      <countries xml:lang="sv">São Tomé och Príncipe</countries>
+    </builtin_unit>
+    <builtin_unit name="SAR">
+      <title>Saudi Riyal</title>
+      <title xml:lang="sv">Saudiarabisk rial</title>
+      <names>ar:SAR</names>
+      <countries>Saudi Arabia</countries>
+      <countries xml:lang="sv">Saudiarabien</countries>
+    </builtin_unit>
+    <builtin_unit name="RSD">
+      <title>Serbian Dinar</title>
+      <title xml:lang="sv">Serbisk dinar</title>
+      <names>ar:RSD</names>
+      <countries>Serbia</countries>
+      <countries xml:lang="sv">Serbien</countries>
+    </builtin_unit>
+    <builtin_unit name="SCR">
+      <title>Seychellois Rupee</title>
+      <title xml:lang="sv">Seychellisk rupie</title>
+      <names>ar:SCR</names>
+      <countries>Seychelles</countries>
+      <countries xml:lang="sv">Seychellerna</countries>
+    </builtin_unit>
+    <builtin_unit name="SLL">
+      <title>Sierra Leonean Leone</title>
+      <title xml:lang="sv">Sierra Leonsk leone</title>
+      <names>ar:SLL</names>
+      <countries>Sierra Leone</countries>
+    </builtin_unit>
+    <builtin_unit name="SBD">
+      <title>Solomon Islands Dollar</title>
+      <title xml:lang="sv">Salomondollar</title>
+      <names>ar:SBD</names>
+      <countries>Solomon Islands</countries>
+      <countries xml:lang="sv">Salomonöarna</countries>
+    </builtin_unit>
+    <builtin_unit name="SOS">
+      <title>Somali Shilling</title>
+      <title xml:lang="sv">Somalisk schilling</title>
+      <names>ar:SOS</names>
+      <countries>Somalia</countries>
+    </builtin_unit>
+    <builtin_unit name="LKR">
+      <title>Sri Lankan Rupee</title>
+      <title xml:lang="sv">Lankesisk rupee</title>
+      <names>ar:LKR,au:&#x0BF9;</names>
+      <countries>Sri Lanka</countries>
+    </builtin_unit>
+    <builtin_unit name="SDG">
+      <title>Sudanese Pound</title>
+      <title xml:lang="sv">Sudanesiskt pund</title>
+      <names>ar:SDG</names>
+      <countries>Sudan</countries>
+    </builtin_unit>
+    <builtin_unit name="SRD">
+      <title>Surinamese Dollar</title>
+      <title xml:lang="sv">Surinamesisk dollar</title>
+      <names>ar:SRD</names>
+      <countries>Suriname</countries>
+      <countries xml:lang="sv">Surinam</countries>
+    </builtin_unit>
+    <builtin_unit name="SZL">
+      <title>Swazi Lilangeni</title>
+      <title xml:lang="sv">Swaziland-lilangeni</title>
+      <names>ar:SZL</names>
+      <countries>Swaziland</countries>
+    </builtin_unit>
+    <builtin_unit name="SYP">
+      <title>Syrian Pound</title>
+      <title xml:lang="sv">Syriskt pund</title>
+      <names>ar:SYP</names>
+      <countries>Syria</countries>
+      <countries xml:lang="sv">Syrien</countries>
+    </builtin_unit>
+    <builtin_unit name="TWD">
+      <title>New Taiwan Dollar</title>
+      <title xml:lang="sv">Taiwanesisk dollar</title>
+      <names>ar:TWD</names>
+      <countries>Taiwan</countries>
+    </builtin_unit>
+    <builtin_unit name="TJS">
+      <title>Tajikistani Somoni</title>
+      <title xml:lang="sv">Tajikisk somoni</title>
+      <names>ar:TJS</names>
+      <countries>Tajikistan</countries>
+    </builtin_unit>
+    <builtin_unit name="TZS">
+      <title>Tanzanian Shilling</title>
+      <title xml:lang="sv">Tanzanisk shilling</title>
+      <names>ar:TZS</names>
+      <countries>Tanzania</countries>
+    </builtin_unit>
+    <builtin_unit name="TOP">
+      <title>Tongan Paʻanga</title>
+      <title xml:lang="sv">Tongansk paʻanga</title>
+      <names>ar:TOP</names>
+      <countries>Tonga</countries>
+    </builtin_unit>
+    <builtin_unit name="TTD">
+      <title>Trinidad and Tobago dollar</title>
+      <title xml:lang="sv">Trinidaddollar</title>
+      <names>ar:TTD</names>
+      <countries>Trinidad and Tobago</countries>
+      <countries xml:lang="sv">Trinidad och Tobago</countries>
+    </builtin_unit>
+    <builtin_unit name="TND">
+      <title>Tunisian Dinar</title>
+      <title xml:lang="sv">Tunisisk dinar</title>
+      <names>ar:TND</names>
+      <countries>Tunisia</countries>
+      <countries xml:lang="sv">Tunisien</countries>
+    </builtin_unit>
+    <builtin_unit name="TMT">
+      <title>Turkmenistan Manat</title>
+      <title xml:lang="sv">Turkmenistansk manat</title>
+      <names>ar:TMT</names>
+      <countries>Turkmenistan</countries>
+    </builtin_unit>
+    <builtin_unit name="UGX">
+      <title>Ugandan Shilling</title>
+      <title xml:lang="sv">Ugandisk shilling</title>
+      <names>ar:UGX</names>
+      <countries>Uganda</countries>
+    </builtin_unit>
+    <builtin_unit name="UAH">
+      <title>Ukrainian Hryvnia</title>
+      <title xml:lang="sv">Ukrainsk hryvnia</title>
+      <names>ar:UAH,au:&#x20B4;</names>
+      <countries>Ukraine</countries>
+      <countries xml:lang="sv">Ukraina</countries>
+    </builtin_unit>
+    <builtin_unit name="AED">
+      <title>United Arab Emirates Dirham</title>
+      <title xml:lang="sv">Emiratisk dirham</title>
+      <names>ar:AED</names>
+      <countries>United Arab Emirates</countries>
+      <countries xml:lang="sv">Förenade Arabemiraten</countries>
+    </builtin_unit>
+    <builtin_unit name="UYU">
+      <title>Uruguayan Peso</title>
+      <title xml:lang="sv">Uruguayansk peso</title>
+      <names>ar:UYU</names>
+      <countries>Uruguay</countries>
+    </builtin_unit>
+    <builtin_unit name="UZS">
+      <title>Uzbekistan Soʻm</title>
+      <title xml:lang="sv">Uzbekistansk som</title>
+      <names>ar:UZS</names>
+      <countries>Uzbekistan</countries>
+    </builtin_unit>
+    <builtin_unit name="VUV">
+      <title>Vanuatu Vatu</title>
+      <title xml:lang="sv">Vanuatisk vatu</title>
+      <names>ar:VUV</names>
+      <countries>Vanuatu</countries>
+    </builtin_unit>
+    <builtin_unit name="VEF">
+      <title>Venezuelan Bolívar</title>
+      <title xml:lang="sv">Venezuelansk bolívar</title>
+      <names>ar:VEF</names>
+      <countries>Venezuela</countries>
+    </builtin_unit>
+    <builtin_unit name="VND">
+      <title>Vietnamese Dồng</title>
+      <title xml:lang="sv">Vietnamesisk dồng</title>
+      <names>ar:VND,au:&#x20AB;</names>
+      <countries>Vietnam</countries>
+    </builtin_unit>
+    <builtin_unit name="YER">
+      <title>Yemeni Rial</title>
+      <title xml:lang="sv">Jemenitisk rial</title>
+      <names>ar:YER</names>
+      <countries>Yemen</countries>
+      <countries xml:lang="sv">Jemen</countries>
+    </builtin_unit>
+    <builtin_unit name="ZMK">
+      <title>Zambian Kwacha (obsolete)</title>
+      <title xml:lang="sv">Zambisk kwacha (obsolet)</title>
+      <names>ar:ZMK</names>
+    </builtin_unit>
+    <unit type="alias">
+      <title>Euro Cent</title>
+      <title xml:lang="fr">Centime d'Euro</title>
+      <title xml:lang="nl">Eurocent</title>
+      <title xml:lang="sv">Eurocent</title>
+      <title xml:lang="zh_CN">欧元分</title>
+      <names>r:eurocent,p:eurocents</names>
+      <names xml:lang="nl">eurocent,p:eurocenten</names>
+      <names xml:lang="sv">eurocent</names>
+      <names xml:lang="zh_CN">r:欧元分</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/100</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <title>Cent (USD)</title>
+      <title xml:lang="nl">Cent (USD)</title>
+      <title xml:lang="sv">Cent (USD)</title>
+      <title xml:lang="zh_CN">美分</title>
+      <names>au:&#xA2;,r:cent,p:cents</names>
+      <names xml:lang="nl">au:&#xA2;,cent,p:centen</names>
+      <names xml:lang="sv">au:&#xA2;,cent</names>
+      <names xml:lang="zh_CN">au:&#xA2;,r:美分</names>
+      <base>
+        <unit>USD</unit>
+        <relation>1/100</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Belgian Franc (obsolete)</title>
+      <title xml:lang="sv">Belgisk franc (obsolet)</title>
+      <names>ar:BEF</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/40.3399</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Greek Drachma (obsolete)</title>
+      <title xml:lang="sv">Grekisk drachma (obsolet)</title>
+      <names>ar:GRD,au:&#x20AF;</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/340.750</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>French Franc (obsolete)</title>
+      <title xml:lang="sv">Fransk franc (obsolet=</title>
+      <names>ar:FRF,au:&#x20A3;</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/6.55957</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Italian Lira (obsolete)</title>
+      <title xml:lang="sv">Italiensk lira (obsolet)</title>
+      <names>ar:ITL</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/1936.27</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Dutch Guilder (obsolete)</title>
+      <title xml:lang="sv">Nederländsk gulden (obsolet)</title>
+      <names>ar:NLG</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/2.20371</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Portuguese Escudo (obsolete)</title>
+      <title xml:lang="sv">Portugisisk escudo (obsolet)</title>
+      <names>ar:PTE</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/200.482</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Deutsche Mark (obsolete)</title>
+      <title xml:lang="sv">Tysk mark (obsolet)</title>
+      <names>ar:DEM</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/1.95583</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Spanish Peseta (obsolete)</title>
+      <title xml:lang="sv">Spansk peseta (obsolet)</title>
+      <names>ar:ESP,au:&#x20A7;</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/166.386</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Irish Pound (obsolete)</title>
+      <title xml:lang="sv">Irländskt pund (obsolet)</title>
+      <names>ar:IEP</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/0.787564</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Luxembourg Franc (obsolete)</title>
+      <title xml:lang="sv">Luxemburgfranc (obsolet)</title>
+      <names>ar:LUF</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/40.3399</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Austrian Schilling (obsolete)</title>
+      <title xml:lang="sv">Österrikisk schilling (obsolet)</title>
+      <names>ar:ATS</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/13.7603</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Finnish Markka (obsolete)</title>
+      <title xml:lang="sv">Finsk mark (obsolet)</title>
+      <names>ar:FIM</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/5.94573</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Slovenian Tolar (obsolete)</title>
+      <title xml:lang="sv">Slovensk tolar (obsolet)</title>
+      <names>ar:SIT</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/239.640</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Cypriot Pound (obsolete)</title>
+      <title xml:lang="sv">Cypriotiskt pund (obsolet)</title>
+      <names>ar:CYP</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/0.585274</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Estonian Kroon (obsolete)</title>
+      <title xml:lang="sv">Estonisk kroon (obsolet)</title>
+      <names>ar:EEK</names>
+      <names xml:lang="zh_CN">ar:EEK</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/15.6466</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Slovak Koruna (obsolete)</title>
+      <title xml:lang="sv">Slovakisk koruna (obsolet)</title>
+      <names>ar:SKK</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/30.1260</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Maltese Lira (obsolete)</title>
+      <title xml:lang="sv">Maltesisk lira (obsolet)</title>
+      <names>ar:MTL</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/0.429300</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Latvian Lats (obsolete)</title>
+      <title xml:lang="sv">Lettiska lats (obsolet)</title>
+      <names>ar:LVL</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/0.702800</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Lithuanian Litas (obsolete)</title>
+      <title xml:lang="sv">Litauisk litas (obsolet)</title>
+      <names>ar:LTL</names>
+      <base>
+        <unit>EUR</unit>
+        <relation>1/3.45280</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Belarusian Ruble</title>
+      <title xml:lang="sv">Vitrysk rubel</title>
+      <names>ar:BYN</names>
+      <countries>Belarus</countries>
+      <countries xml:lang="sv">Vitryssland</countries>
+      <base>
+        <unit>BYR</unit>
+        <relation>10000</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Zambian Kwacha</title>
+      <title xml:lang="sv">Zambisk kwacha</title>
+      <names>ar:ZMW</names>
+      <countries>Zambia</countries>
+      <base>
+        <unit>ZMK</unit>
+        <relation>1000</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+    <unit type="alias">
+      <hidden>true</hidden>
+      <title>Mauritanian Ouguiya</title>
+      <title xml:lang="sv">Mauretansk ouguiya</title>
+      <names>ar:MRU</names>
+      <countries>Mauritania</countries>
+      <countries xml:lang="sv">Mauretanien</countries>
+      <base>
+        <unit>MRO</unit>
+        <relation>10</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
+  </category>
+</QALCULATE>

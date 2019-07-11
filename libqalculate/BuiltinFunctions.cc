@@ -326,7 +326,7 @@ AdjointFunction::AdjointFunction() : MathFunction("adj", 1) {
 }
 int AdjointFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
 	mstruct = vargs[0];
-	mstruct.adjointMatrix(eo);
+	if(!mstruct.adjointMatrix(eo)) return 0;
 	return !mstruct.isUndefined();
 }
 InverseFunction::InverseFunction() : MathFunction("inverse", 1) {
@@ -675,7 +675,7 @@ int BinomialFunction::calculate(MathStructure &mstruct, const MathStructure &var
 	return 1;
 }
 
-BitXorFunction::BitXorFunction() : MathFunction("bitxor", 2) {
+BitXorFunction::BitXorFunction() : MathFunction("xor", 2) {
 	ArgumentSet *arg = new ArgumentSet();
 	arg->addArgument(new IntegerArgument("", ARGUMENT_MIN_MAX_NONE));
 	arg->addArgument(new VectorArgument);
@@ -686,15 +686,12 @@ BitXorFunction::BitXorFunction() : MathFunction("bitxor", 2) {
 	setArgumentDefinition(2, arg);
 }
 int BitXorFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
-	mstruct = vargs[0];
-	mstruct.add(vargs[1], OPERATION_BITWISE_XOR);
 	if(vargs[0].isNumber() && vargs[1].isNumber()) {
 		Number nr(vargs[0].number());
 		if(nr.bitXor(vargs[1].number()) && (eo.approximation >= APPROXIMATION_APPROXIMATE || !nr.isApproximate() || vargs[0].number().isApproximate() || vargs[1].number().isApproximate()) && (eo.allow_complex || !nr.isComplex() || vargs[0].number().isComplex() || vargs[1].number().isComplex()) && (eo.allow_infinite || !nr.includesInfinity() || vargs[0].number().includesInfinity() || vargs[1].number().includesInfinity())) {
 			mstruct.set(nr, true);
 			return 1;
 		}
-		return 0;
 	} else if(vargs[0].isVector() && vargs[1].isVector()) {
 		int i1 = 0, i2 = 1;
 		if(vargs[0].size() < vargs[1].size()) {
@@ -713,9 +710,11 @@ int BitXorFunction::calculate(MathStructure &mstruct, const MathStructure &vargs
 		}
 		return 1;
 	}
+	mstruct = vargs[0];
+	mstruct.add(vargs[1], OPERATION_BITWISE_XOR);
 	return 0;
 }
-XorFunction::XorFunction() : MathFunction("xor", 2) {
+XorFunction::XorFunction() : MathFunction("lxor", 2) {
 }
 int XorFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
 	int b0, b1;
@@ -817,20 +816,38 @@ int EvenFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, 
 	}
 	return -1;
 }
-ShiftFunction::ShiftFunction() : MathFunction("shift", 2) {
+ShiftFunction::ShiftFunction() : MathFunction("shift", 2, 3) {
 	setArgumentDefinition(1, new IntegerArgument());
 	setArgumentDefinition(2, new IntegerArgument("", ARGUMENT_MIN_MAX_NONE, true, true, INTEGER_TYPE_SLONG));
+	setArgumentDefinition(3, new BooleanArgument());
+	setDefaultValue(3, "1");
 }
 int ShiftFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
+	if(vargs.size() >= 3 && !vargs[2].number().getBoolean() && vargs[1].number().isNegative()) {
+		Number nr(vargs[0].number());
+		Number nr_div(vargs[1].number());
+		if(!nr_div.negate() || !nr_div.exp2() || !nr.divide(nr_div) || !nr.trunc()) return false;
+		mstruct.set(nr);
+		return 1;
+	}
 	FR_FUNCTION_2(shift)
 }
-BitCmpFunction::BitCmpFunction() : MathFunction("bitcmp", 1, 2) {
+BitCmpFunction::BitCmpFunction() : MathFunction("bitcmp", 1, 3) {
 	setArgumentDefinition(1, new IntegerArgument());
 	setArgumentDefinition(2, new IntegerArgument("", ARGUMENT_MIN_MAX_NONE, true, true, INTEGER_TYPE_UINT));
 	setDefaultValue(2, "0");
+	setArgumentDefinition(3, new BooleanArgument());
+	setDefaultValue(3, "0");
 }
 int BitCmpFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
 	Number nr(vargs[0].number());
+	if(vargs.size() >= 3 && vargs[2].number().getBoolean()) {
+		if(nr.bitNot()) {
+			mstruct = nr;
+			return 1;
+		}
+		return 0;
+	}
 	unsigned int bits = vargs[1].number().uintValue();
 	if(bits == 0) {
 		bits = nr.integerLength();
@@ -2185,6 +2202,11 @@ int LambertWFunction::calculate(MathStructure &mstruct, const MathStructure &var
 		if(vargs[0].isZero()) {
 			mstruct.set(nr_minus_inf, true);
 			return 1;
+		} else if(vargs[1].isMinusOne()) {
+			if(vargs[0].isMultiplication() && vargs[0].size() == 2 && vargs[0][0].isNumber() && vargs[0][1].isPower() && vargs[0][1][0].isVariable() && vargs[0][1][0].variable() == CALCULATOR->v_e && vargs[0][0].number() <= nr_minus_one && vargs[0][1][1] == vargs[0][0]) {
+				mstruct = vargs[0][0];
+				return 1;
+			}
 		}
 		return 0;
 	}
@@ -5084,28 +5106,74 @@ int RomanFunction::calculate(MathStructure &mstruct, const MathStructure &vargs,
 }
 
 AsciiFunction::AsciiFunction() : MathFunction("code", 1) {
-	TextArgument *arg = new TextArgument();
-	arg->setCustomCondition("len(\\x) = 1");
-	setArgumentDefinition(1, arg);
+	setArgumentDefinition(1, new TextArgument());
 }
 int AsciiFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
-	unsigned char c = (unsigned char) vargs[0].symbol()[0];
-	mstruct.set(c, 1, 0);
+	if(vargs[0].symbol().empty()) {
+		return false;
+	}
+	mstruct.clear();
+	for(size_t i = 0; i < vargs[0].symbol().length(); i++) {
+		long int c = (unsigned char) vargs[0].symbol()[i];
+		if((c & 0x80) != 0) {
+			if(c<0xe0) {
+				i++;
+				if(i >= vargs[0].symbol().length()) return false;
+				c =((c & 0x1f) << 6) | (((unsigned char) vargs[0].symbol()[i]) & 0x3f);
+			} else if(c<0xf0) {
+				i++;
+				if(i + 1 >= vargs[0].symbol().length()) return false;
+				c= (((c & 0xf) << 12) | ((((unsigned char) vargs[0].symbol()[i]) & 0x3f) << 6)|(((unsigned char) vargs[0].symbol()[i + 1]) & 0x3f));
+				i++;
+			} else {
+				i++;
+				if(i + 2 >= vargs[0].symbol().length()) return false;
+				c = ((c & 7) << 18) | ((((unsigned char) vargs[0].symbol()[i]) & 0x3f) << 12) | ((((unsigned char) vargs[0].symbol()[i + 1]) & 0x3f) << 6) | (((unsigned char) vargs[0].symbol()[i + 2]) & 0x3f);
+				i += 2;
+			}
+		}
+		if(mstruct.isZero()) {
+			mstruct.set(c, 1L, 0L);
+		} else if(mstruct.isVector()) {
+			mstruct.addChild(MathStructure(c, 1L, 0L));
+		} else {
+			mstruct.transform(STRUCT_VECTOR, MathStructure(c, 1L, 0L));
+		}
+	}
 	return 1;
 }
 CharFunction::CharFunction() : MathFunction("char", 1) {
 	IntegerArgument *arg = new IntegerArgument();
 	Number fr(32, 1, 0);
 	arg->setMin(&fr);
-	fr.set(0x7f, 1, 0);
+	fr.set(0x10ffff, 1, 0);
 	arg->setMax(&fr);
 	setArgumentDefinition(1, arg);
 }
 int CharFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
+
+	long int v = vargs[0].number().lintValue();
 	string str;
-	str += vargs[0].number().intValue();
+	if(v <= 0x7f) {
+		str = (char) v;
+	} else if(v <= 0x7ff) {
+		str = (char) ((v >> 6) | 0xc0);
+		str += (char) ((v & 0x3f) | 0x80);
+	} else if((v <= 0xd7ff || (0xe000 <= v && v <= 0xffff))) {
+		str = (char) ((v >> 12) | 0xe0);
+		str += (char) (((v >> 6) & 0x3f) | 0x80);
+		str += (char) ((v & 0x3f) | 0x80);
+	} else if(0xffff < v && v <= 0x10ffff) {
+		str = (char) ((v >> 18) | 0xf0);
+		str += (char) (((v >> 12) & 0x3f) | 0x80);
+		str += (char) (((v >> 6) & 0x3f) | 0x80);
+		str += (char) ((v & 0x3f) | 0x80);
+	} else {
+		return 0;
+	}
 	mstruct = str;
 	return 1;
+
 }
 
 ConcatenateFunction::ConcatenateFunction() : MathFunction("concatenate", 1, -1) {
@@ -5139,7 +5207,18 @@ ReplaceFunction::ReplaceFunction() : MathFunction("replace", 3, 4) {
 int ReplaceFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
 	mstruct = vargs[0];
 	if(vargs[3].number().getBoolean() || mstruct.contains(vargs[1], true) <= 0) mstruct.eval(eo);
-	if(vargs[2].containsInterval(true) || vargs[2].containsFunction(CALCULATOR->f_interval, true)) {
+	if(vargs[1].isVector() && vargs[2].isVector() && vargs[1].size() == vargs[2].size()) {
+		for(size_t i = 0; i < vargs[1].size(); i++) {
+			if(vargs[2][i].containsInterval(true) || vargs[2][i].containsFunction(CALCULATOR->f_interval, true)) {
+				MathStructure mv(vargs[2][i]);
+				replace_f_interval(mv, eo);
+				replace_intervals_f(mv);
+				mstruct.replace(vargs[1][i], mv);
+			} else {
+				mstruct.replace(vargs[1][i], vargs[2][i]);
+			}
+		}
+	} else if(vargs[2].containsInterval(true) || vargs[2].containsFunction(CALCULATOR->f_interval, true)) {
 		MathStructure mv(vargs[2]);
 		replace_f_interval(mv, eo);
 		replace_intervals_f(mv);

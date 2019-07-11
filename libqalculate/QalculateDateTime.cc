@@ -20,6 +20,7 @@
 #include "Calculator.h"
 #include <limits.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 static const char *HEBREW_MONTHS[] = {"Nisan", "Iyar", "Sivan", "Tammuz", "Av", "Elul", "Tishrei", "Marcheshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar II"};
 static const char *STANDARD_MONTHS[] = {N_("January"), N_("February"), N_("March"), N_("April"), N_("May"), N_("June"), N_("July"), N_("August"), N_("September"), N_("October"), N_("November"), N_("December")};
@@ -257,7 +258,11 @@ void QalculateDateTime::setToCurrentDate() {
 }
 void QalculateDateTime::setToCurrentTime() {
 	parsed_string.clear();
-	set(::time(NULL));
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	Number nr(tv.tv_usec, 0, -6);
+	nr += tv.tv_sec;
+	set(nr);
 }
 bool QalculateDateTime::operator > (const QalculateDateTime &date2) const {
 	if(i_year != date2.year()) return i_year > date2.year();
@@ -342,6 +347,7 @@ bool QalculateDateTime::set(string str) {
 	string str_bak(str);
 
 	remove_blank_ends(str);
+	remove_duplicate_blanks(str);
 	if(equalsIgnoreCase(str, _("now")) || equalsIgnoreCase(str, "now")) {
 		setToCurrentTime();
 		parsed_string = str_bak;
@@ -363,6 +369,7 @@ bool QalculateDateTime::set(string str) {
 	}
 	bool b_t = false, b_tz = false;
 	size_t i_t = str.find("T");
+	if(i_t == string::npos && str.find(":") != string::npos) i_t = str.rfind(' ');
 	int newhour = 0, newmin = 0, newsec = 0;
 	int itz = 0;
 	if(i_t != string::npos && i_t < str.length() - 1 && is_in(NUMBERS, str[i_t + 1])) {
@@ -554,27 +561,6 @@ string QalculateDateTime::toLocalString() const {
 }
 string QalculateDateTime::print(const PrintOptions &po) const {
 	if(po.is_approximate && (!n_sec.isInteger() || n_sec.isApproximate())) *po.is_approximate = true;
-	if(!n_sec.isInteger()) {
-		Number nsec_fr(n_sec);
-		nsec_fr.frac();
-		if(po.round_halfway_to_even) {
-			Number nsec_t(n_sec);
-			nsec_t.trunc();
-			if((nsec_t.isOdd() && nsec_fr.isGreaterThanOrEqualTo(nr_half)) || (nsec_t.isEven() && nsec_fr.isGreaterThan(nr_half))) {
-				QalculateDateTime dt(*this);
-				dt.setTime(i_hour, i_min, nsec_t);
-				dt.addSeconds(1);
-				return dt.print(po);
-			}
-		} else if(nsec_fr.isGreaterThanOrEqualTo(nr_half)) {
-			QalculateDateTime dt(*this);
-			Number nsec_t(n_sec);
-			nsec_t.trunc();
-			dt.setTime(i_hour, i_min, nsec_t);
-			dt.addSeconds(1);
-			return dt.print(po);
-		}
-	}
 	string str;
 	if(po.time_zone == TIME_ZONE_LOCAL) {
 		if(po.date_time_format == DATE_TIME_FORMAT_LOCALE) str = toLocalString();
