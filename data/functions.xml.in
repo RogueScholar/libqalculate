@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<QALCULATE version="2.6.0">
+<QALCULATE version="3.2.0">
   <category>
     <_title>Matrices &amp; Vectors</_title>
     <builtin_function name="vector">
@@ -501,6 +501,17 @@
         </argument>
       </builtin_function>
       <function>
+        <_title>Integer Division</_title>
+        <_names>r:div</_names>
+        <expression>trunc(\x/\y)</expression>
+        <argument type="free" index="1">
+          <_title>Numerator</_title>
+        </argument>
+        <argument type="free" index="2">
+          <_title>Denominator</_title>
+        </argument>
+      </function>
+      <function>
         <_title>Negate</_title>
         <_names>r:neg</_names>
         <expression>-\x</expression>
@@ -714,14 +725,14 @@
         </argument>
       </builtin_function>
       <builtin_function name="int">
-        <_title>Extract Integer Part</_title>
+        <_title>Integer Part</_title>
         <_names>r:int</_names>
         <argument index="1">
           <_title>Value</_title>
         </argument>
       </builtin_function>
       <builtin_function name="frac">
-        <_title>Extract Fractional Part</_title>
+        <_title>Fractional Part</_title>
         <_names>r:frac</_names>
         <argument index="1">
           <_title>Value</_title>
@@ -2014,14 +2025,14 @@
       <example>$name([x^2, 2x, [0,1,4,8,16]], 0, 4).</example>
     </builtin_function>
     <builtin_function name="code">
-      <_title>ASCII Value</_title>
+      <_title>Unicode Value</_title>
       <_names>r:code</_names>
       <argument index="1">
         <_title>Character</_title>
       </argument>
     </builtin_function>
     <builtin_function name="char">
-      <_title>ASCII Char</_title>
+      <_title>Unicode Character</_title>
       <_names>r:char</_names>
       <argument index="1">
         <_title>Value</_title>
@@ -2299,7 +2310,7 @@
       <argument index="2">
         <_title>Uncertainty</_title>
       </argument>
-      <argument index="2">
+      <argument index="3">
         <_title>Uncertainty is relative</_title>
       </argument>
     </builtin_function>
@@ -2350,7 +2361,7 @@
       </argument>
     </builtin_function>
     <builtin_function name="xor">
-      <_title>Logical Exclusive OR</_title>
+      <_title>Bitwise Exclusive OR</_title>
       <_names>r:xor</_names>
       <argument index="1">
         <_title>Value 1</_title>
@@ -2359,9 +2370,9 @@
         <_title>Value 2</_title>
       </argument>
     </builtin_function>
-    <builtin_function name="bitxor">
-      <_title>Bitwise Exclusive OR</_title>
-      <_names>r:bitxor</_names>
+    <builtin_function name="lxor">
+      <_title>Logical Exclusive OR</_title>
+      <_names>r:lxor</_names>
       <argument index="1">
         <_title>Value 1</_title>
       </argument>
@@ -2371,22 +2382,47 @@
     </builtin_function>
     <builtin_function name="shift">
       <_title>Bitwise Shift</_title>
+      <_description>Applies logical or arithmetic bitwise shift to an integer. The second argument specifies the number of steps that each binary bit is shifted to the left (use negative values for right shift).</_description>
       <_names>r:shift</_names>
       <argument index="1">
         <_title>Number</_title>
       </argument>
       <argument index="2">
-        <_title>Bits</_title>
+        <_title>Steps</_title>
+      </argument>
+      <argument index="3">
+        <_title>Arithmetic shift using two's complement</_title>
       </argument>
     </builtin_function>
     <builtin_function name="bitcmp">
       <_title>Bitwise Complement (Not)</_title>
+      <_description>Applies bitwise NOT to an integer of specified bit width and signedness (use 1 for signed and 0 for unsigned). If bit width is zero, the smallest necessary number of bits (of 8, 16, 32, 64, 128, ...) will be used.</_description>
       <_names>r:bitcmp</_names>
       <argument index="1">
         <_title>Number</_title>
       </argument>
       <argument index="2">
-        <_title>Bits</_title>
+        <_title>Bit Width</_title>
+      </argument>
+      <argument index="3">
+        <_title>Signed Integer</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="bitrot">
+      <_title>Bit Rotation</_title>
+      <_description>Applies circular bitwise shift to an integer of specified bit width and signedness (use 1 for signed and 0 for unsigned). The second argument specifies the number of steps that each binary bit is shifted to the left (use negative values for right shift). If bit width is zero, the smallest necessary number of bits (of 8, 16, 32, 64, 128, ...) will be used.</_description>
+      <_names>r:bitrot</_names>
+      <argument index="1">
+        <_title>Number</_title>
+      </argument>
+      <argument index="2">
+        <_title>Steps</_title>
+      </argument>
+      <argument index="3">
+        <_title>Bit Width</_title>
+      </argument>
+      <argument index="4">
+        <_title>Signed Integer</_title>
       </argument>
     </builtin_function>
   </category>
