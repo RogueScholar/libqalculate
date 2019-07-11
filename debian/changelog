@@ -8,6 +8,7 @@ libqalculate (3.2.0-1) experimental; urgency=medium
     - libqalculate21: add Breaks and Replaces on libqalculate20
     - libqalculate21-data: add Breaks and Replaces on older -data packages
   * Add autopkgtest
+  * gitlab-ci.yml: clean, only include salsa-ci and pipeline-jobs
 
  -- Vincent Legout <vlegout@debian.org>  Thu, 11 Jul 2019 07:11:42 +0200
 
