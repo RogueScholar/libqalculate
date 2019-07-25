@@ -2,6 +2,7 @@
 <QALCULATE version="0.9.4">
   <prefix type="decimal">
     <name>yocto</name>
+    <name xml:lang="sv">yokto</name>
     <abbreviation>y</abbreviation>
     <exponent>-24</exponent>
   </prefix>
@@ -22,6 +23,7 @@
   </prefix>
   <prefix type="decimal">
     <name>pico</name>
+    <name xml:lang="sv">piko</name>
     <abbreviation>p</abbreviation>
     <exponent>-12</exponent>
   </prefix>
@@ -32,8 +34,9 @@
   </prefix>
   <prefix type="decimal">
     <name>micro</name>
+    <name xml:lang="sv">mikro</name>
     <abbreviation>u</abbreviation>
-    <unicode>&#xB5;</unicode>
+    <unicode>&#x3BC;</unicode>
     <exponent>-6</exponent>
   </prefix>
   <prefix type="decimal">
@@ -52,12 +55,14 @@
     <exponent>-1</exponent>
   </prefix>
   <prefix type="decimal">
-    <name>deka</name>
+    <name>deca</name>
+    <name xml:lang="sv">deka</name>
     <abbreviation>da</abbreviation>
     <exponent>1</exponent>
   </prefix>
   <prefix type="decimal">
     <name>hecto</name>
+    <name xml:lang="sv">hekto</name>
     <abbreviation>h</abbreviation>
     <exponent>2</exponent>
   </prefix>

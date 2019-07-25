@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<QALCULATE version="3.2.0">
+<QALCULATE version="3.3.0">
   <category>
     <title>Matrices &amp; Vectors</title>
     <title xml:lang="fr">Matrices &amp; Vecteurs</title>
@@ -1713,8 +1713,8 @@
         <names>r:base</names>
         <names xml:lang="nl">grondtal</names>
         <names xml:lang="sv">bas</names>
-        <description>Returns an value from an expression using a specified base between 2 and 36</description>
-        <description xml:lang="sv">Returnerar ett värde från ett uttryck med angiven bas mellan 2 och 36.</description>
+        <description>Returns a value from an expression using the specified number base (radix). For bases between -62 and 62 full mathematical expressions (including operators and functions) are supported, while for other bases the specified expression is converted to a single number.&#10;&#10;Bases ≤ 36 uses digits 0-9 and A-Z (case insensitive).&#10;&#10;Bases between 37 and 62 uses case sensitive letters (0-9, A-Z, a-z) as digits ('z' equals 61).&#10;&#10;Bases over 62 use Unicode characters as digits, with the character code as value (e.g. '0' equals 48). Escaped characters are in this case supported (e.g. '\0' = 0, '\523' = 523, '\x7f' = 127).&#10;&#10;Negative bases use the same digits as the corresponding positive bases and the digits used for non-integer bases are determined by rounding the base away from zero. Bases that are not real numbers by default uses digits 0-9 and A-Z.&#10;&#10;The set of digits used can be selected using the third argument (defaults to 0 for automatic selection). Set it to 1 for digits 0-9 and A-Z, 2 for 0-9, A-Z and a-z, and 3 for Unicode digits, or enter a text string with all digits placed in ascending order (e.g. "0123456789"). When the set of digits is manually selected, the specified expression is always converted to a single number.</description>
+        <description xml:lang="sv">Returnerar ett värde från ett uttryck med angiven talbas. Talbaser mellan -62 och 62 har fullt stöd för matematiska uttryck (inklusive operatorer och funktioner). För övriga talbaser omvandlas angivet uttryck till ett enda nummer.&#10;&#10;Talbaser ≤ 36 används siffror 0-9 och A-Z (ej skiftlägeskänsligt).&#10;&#10;Talbaser mellan 37 och 62 använder skiftlägeskänsliga bokstäver (0-9, A-Z, a-z) som siffror ('Z' motsvarar 61).&#10;&#10;Talbaser över 62 använder Unicode-tecken som siffror, med teckenkoden som värde ('0' motsvarar 48). I detta kan '\' följt av ett nummer användas istället (t.ex. '\0' = 0, '\523' = 523, '\x7f' = 127).&#10;&#10;Negativa talbaser använder samma siffror som motsvarande positiv talbas och sifforna som används för talbaser som inte är heltal avgörs genom att avrunda bort från noll. Talbaser som inte är reella tal använder som förval siffrorna 0-9 och A-Z.&#10;&#10;Uppsättningen siffror som används kan väljas manuellt genom att använda funktionens tredje parameter (är 0 som förval, för automatiskt val). Ange till 1 för siffror 0-9 och A-Z, 2 för 0-9, A-Z och a-z, och 3 för Unicode-siffror, eller ange en textsträng med alla siffror placerade i stigande ordning (t.ex. "0123456789"). När uppsättningen siffror väljs manuellt, omvandlas alltid det angivna uttrycket till ett enda nummer.</description>
         <argument index="1">
           <title>Number</title>
           <title xml:lang="fr">Nombre</title>
@@ -1728,6 +1728,10 @@
           <title xml:lang="nl">Grondtal</title>
           <title xml:lang="sv">Bas</title>
           <title xml:lang="zh_CN">基/底</title>
+        </argument>
+        <argument index="3">
+          <title>Set of digits</title>
+          <title xml:lang="sv">Uppsättning siffror</title>
         </argument>
       </builtin_function>
       <builtin_function name="bin">
@@ -1767,6 +1771,22 @@
           <title xml:lang="nl">Octaal getal</title>
           <title xml:lang="sv">Oktalt nummer</title>
           <title xml:lang="zh_CN">八进制数</title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="dec">
+        <title>Decimal</title>
+        <title xml:lang="fr">Décimal</title>
+        <title xml:lang="nl">Decimaal</title>
+        <title xml:lang="sv">Decimaltal</title>
+        <title xml:lang="zh_CN">十进制</title>
+        <names>r:dec</names>
+        <description>Returns a value from a decimal expression.</description>
+        <description xml:lang="sv">Returnerar ett värde från ett decimalt uttryck.</description>
+        <argument index="1">
+          <title>Decimal number</title>
+          <title xml:lang="fr">Nombre décimal</title>
+          <title xml:lang="sv">Decimalt nummer</title>
+          <title xml:lang="zh_CN">十进制数</title>
         </argument>
       </builtin_function>
       <builtin_function name="hex">

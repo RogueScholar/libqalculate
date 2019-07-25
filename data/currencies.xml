@@ -1067,10 +1067,9 @@
       <countries>Vanuatu</countries>
     </builtin_unit>
     <builtin_unit name="VEF">
-      <title>Venezuelan Bolívar</title>
-      <title xml:lang="sv">Venezuelansk bolívar</title>
+      <title>Venezuelan Bolívar (obsolete)</title>
+      <title xml:lang="sv">Venezuelansk bolívar (obsolet)</title>
       <names>ar:VEF</names>
-      <countries>Venezuela</countries>
     </builtin_unit>
     <builtin_unit name="VND">
       <title>Vietnamese Dồng</title>
@@ -1328,44 +1327,6 @@
       <base>
         <unit>EUR</unit>
         <relation>1/3.45280</relation>
-        <exponent>1</exponent>
-      </base>
-    </unit>
-    <unit type="alias">
-      <hidden>true</hidden>
-      <title>Belarusian Ruble</title>
-      <title xml:lang="sv">Vitrysk rubel</title>
-      <names>ar:BYN</names>
-      <countries>Belarus</countries>
-      <countries xml:lang="sv">Vitryssland</countries>
-      <base>
-        <unit>BYR</unit>
-        <relation>10000</relation>
-        <exponent>1</exponent>
-      </base>
-    </unit>
-    <unit type="alias">
-      <hidden>true</hidden>
-      <title>Zambian Kwacha</title>
-      <title xml:lang="sv">Zambisk kwacha</title>
-      <names>ar:ZMW</names>
-      <countries>Zambia</countries>
-      <base>
-        <unit>ZMK</unit>
-        <relation>1000</relation>
-        <exponent>1</exponent>
-      </base>
-    </unit>
-    <unit type="alias">
-      <hidden>true</hidden>
-      <title>Mauritanian Ouguiya</title>
-      <title xml:lang="sv">Mauretansk ouguiya</title>
-      <names>ar:MRU</names>
-      <countries>Mauritania</countries>
-      <countries xml:lang="sv">Mauretanien</countries>
-      <base>
-        <unit>MRO</unit>
-        <relation>10</relation>
         <exponent>1</exponent>
       </base>
     </unit>
