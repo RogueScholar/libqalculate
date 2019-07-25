@@ -30,6 +30,7 @@
 * A simple application using libqalculate need only create a calculator object, perhaps load definitions (functions, variables, units, etc.), and calculate (and output) an expression as follows:
 * \code 
 * new Calculator();
+* CALCULATOR->loadExchangeRates();
 * CALCULATOR->loadGlobalDefinitions();
 * CALCULATOR->loadLocalDefinitions();
 * cout << CALCULATOR->calculateAndPrint("1 + 1", 2000) << endl;\endcode
@@ -832,6 +833,7 @@ class Calculator {
 	Unit* getActiveUnit(string name_);
 	Unit* getCompositeUnit(string internal_name_);
 	Unit* getLocalCurrency();
+	void setLocalCurrency(Unit *u);
 	/** Returns prefix for an index (starting at zero). All prefixes can be traversed by starting at index zero and increasing the index until NULL is returned.
 	*
 	* @param index Index of prefix.
@@ -1020,7 +1022,7 @@ class Calculator {
 	* @param is_user_defs true if the definitions are local, false if they are global.
 	* @returns true if the definitions were successfully loaded.
 	*/
-	int loadDefinitions(const char *file_name, bool is_user_defs = true);
+	int loadDefinitions(const char *file_name, bool is_user_defs = true, bool check_duplicates_of_global = false);
 	/** Save local definitions to ~/.qalculate/definitions/
 	*
 	* @returns true if definitions was successfully saved.
@@ -1052,7 +1054,7 @@ class Calculator {
 	bool hasGVFS();
 	///Deprecated: gvfs is not needed anymore.
 	bool hasGnomeVFS();
-	/** Load saved (local) currency units and exchange rates.
+	/** Load exchange rates. Use before loadGlobalCurrencies() or loadGlobalDefinitions().
 	*
 	* @returns true if operation successful.
 	*/
@@ -1144,6 +1146,11 @@ class Calculator {
 	void beginTemporaryEnableIntervalArithmetic();
 	void endTemporaryEnableIntervalArithmetic();
 	//@}
+	
+	void setCustomInputBase(Number nr);
+	void setCustomOutputBase(Number nr);
+	const Number &customInputBase() const;
+	const Number &customOutputBase() const;
 
 	/** @name Functions for localization */
 	//@{

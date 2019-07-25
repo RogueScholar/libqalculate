@@ -1672,7 +1672,7 @@ int main(int argc, char *argv[]) {
 	new Calculator(true);
 	CALCULATOR->loadGlobalDefinitions();
 	CALCULATOR->loadLocalDefinitions();
-	CALCULATOR->setPrecision(8);
+	CALCULATOR->setPrecision(10);
 	
 	CALCULATOR->useIntervalArithmetic();
 	PrintOptions po = CALCULATOR->messagePrintOptions();
@@ -1714,6 +1714,27 @@ int main(int argc, char *argv[]) {
 	//test_integration();
 	//return 0;
 	//test_intervals(true);
+	
+	Number nr;
+	evalops.approximation = APPROXIMATION_TRY_EXACT;
+	po.number_fraction_format = FRACTION_DECIMAL;
+	po.show_ending_zeroes = false;
+	//while(nr >= -1000) {
+	nr.set("-22.49");
+	CALCULATOR->setCustomOutputBase(Number("-10"));
+	po.base = BASE_CUSTOM;
+		string str = nr.print(po);
+		po.base = BASE_DECIMAL;
+		string expr = "base(";
+		expr += str;
+		expr += ",-10)";
+		string str2 = CALCULATOR->calculateAndPrint(expr, 0, evalops, po);
+		cout << nr << ":" << str << ":" << str2 << endl;
+		if(nr.print(po) != str2) sleep(1);
+		display_errors();
+		//nr--;
+	//}
+	return 0;
 
 	CALCULATOR->setVariableUnitsEnabled(false);
 	

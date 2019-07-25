@@ -322,6 +322,9 @@ class Calculator_p {
 		unordered_map<size_t, bool> ids_p;
 		vector<size_t> freed_ids;
 		size_t ids_i;
+		Number custom_input_base, custom_output_base;
+		long int custom_input_base_i;
+		Unit *local_currency;
 };
 
 #define BITWISE_XOR "⊻"
@@ -355,6 +358,9 @@ Calculator::Calculator() {
 	gmp_randseed_ui(randstate, (unsigned long int) time(NULL));
 
 	priv = new Calculator_p;
+	priv->custom_input_base_i = 0;
+	priv->ids_i = 0;
+	priv->local_currency = NULL;
 
 #ifdef HAVE_ICU
 	UErrorCode err = U_ZERO_ERROR;
@@ -406,6 +412,7 @@ Calculator::Calculator() {
 	addStringAlternative("∧", BITWISE_AND);
 	addStringAlternative("∨", BITWISE_OR);
 	addStringAlternative("¬", BITWISE_NOT);
+	addStringAlternative(SIGN_MICRO, "μ");
 	
 	per_str = _("per");
 	per_str_len = per_str.length();
@@ -470,8 +477,6 @@ Calculator::Calculator() {
 	
 	string str = _(" to ");
 	local_to = (str != " to ");
-	
-	priv->ids_i = 0;
 	
 	decimal_null_prefix = new DecimalPrefix(0, "", "");
 	binary_null_prefix = new BinaryPrefix(0, "", "");
@@ -572,6 +577,9 @@ Calculator::Calculator(bool ignore_locale) {
 	gmp_randseed_ui(randstate, (unsigned long int) time(NULL));
 
 	priv = new Calculator_p;
+	priv->custom_input_base_i = 0;
+	priv->ids_i = 0;
+	priv->local_currency = NULL;
 
 #ifdef HAVE_ICU
 	UErrorCode err = U_ZERO_ERROR;
@@ -623,6 +631,7 @@ Calculator::Calculator(bool ignore_locale) {
 	addStringAlternative("∧", BITWISE_AND);
 	addStringAlternative("∨", BITWISE_OR);
 	addStringAlternative("¬", BITWISE_NOT);
+	addStringAlternative(SIGN_MICRO, "μ");
 	
 	per_str = _("per");
 	per_str_len = per_str.length();
@@ -687,9 +696,7 @@ Calculator::Calculator(bool ignore_locale) {
 	
 	string str = _(" to ");
 	local_to = (str != " to ");
-	
-	priv->ids_i = 0;
-	
+
 	decimal_null_prefix = new DecimalPrefix(0, "", "");
 	binary_null_prefix = new BinaryPrefix(0, "", "");
 	m_undefined.setUndefined();
@@ -1476,6 +1483,20 @@ void Calculator::endTemporaryEnableIntervalArithmetic() {
 	i_start_interval--;
 }
 
+void Calculator::setCustomInputBase(Number nr) {
+	priv->custom_input_base = nr;
+	if(!nr.isReal()) {
+		priv->custom_input_base_i = LONG_MAX;
+	} else {
+		nr.abs(); nr.ceil();
+		priv->custom_input_base_i = nr.lintValue();
+		if(priv->custom_input_base_i < 2) priv->custom_input_base_i = 2;
+	}
+}
+void Calculator::setCustomOutputBase(Number nr) {priv->custom_output_base = nr;}
+const Number &Calculator::customInputBase() const {return priv->custom_input_base;}
+const Number &Calculator::customOutputBase() const {return priv->custom_output_base;}
+
 const string &Calculator::getDecimalPoint() const {return DOT_STR;}
 const string &Calculator::getComma() const {return COMMA_STR;}
 string Calculator::localToString(bool include_spaces) const {
@@ -1937,6 +1958,7 @@ void Calculator::addBuiltinFunctions() {
 	f_base = addFunction(new BaseFunction());
 	f_bin = addFunction(new BinFunction());
 	f_oct = addFunction(new OctFunction());
+	addFunction(new DecFunction());
 	f_hex = addFunction(new HexFunction());
 	f_roman = addFunction(new RomanFunction());
 
@@ -2013,7 +2035,7 @@ void Calculator::addBuiltinFunctions() {
 }
 void Calculator::addBuiltinUnits() {
 	u_euro = addUnit(new Unit(_("Currency"), "EUR", "euros", "euro", "European Euros", false, true, true));
-	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "7820.81", 1, "", false, true, true));
+	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "8794.46", 1, "", false, true, true));
 	u_btc->setApproximate();
 	u_btc->setPrecision(-2);
 	u_btc->setChanged(false);
@@ -2233,7 +2255,7 @@ void Calculator::terminateThreads() {
 }
 
 string Calculator::localizeExpression(string str, const ParseOptions &po) const {
-	if(DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) return str;
+	if((DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) || po.base == BASE_UNICODE || (po.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return str;
 	vector<size_t> q_begin;
 	vector<size_t> q_end;
 	size_t i3 = 0;
@@ -2289,7 +2311,7 @@ string Calculator::localizeExpression(string str, const ParseOptions &po) const 
 	return str;
 }
 string Calculator::unlocalizeExpression(string str, const ParseOptions &po) const {
-	if(DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) return str;
+	if((DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) || po.base == BASE_UNICODE || (po.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return str;
 	vector<size_t> q_begin;
 	vector<size_t> q_end;
 	size_t i3 = 0;
@@ -2843,6 +2865,8 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 	MathStructure mstruct;
 	bool do_bases = false, do_factors = false, do_fraction = false, do_pfe = false, do_calendars = false, do_expand = false;
 	string from_str = str, to_str;
+	Number base_save;
+	if(printops.base == BASE_CUSTOM) base_save = customOutputBase();
 	if(separateToExpression(from_str, to_str, evalops, true)) {
 		remove_duplicate_blanks(to_str);
 		string to_str1, to_str2;
@@ -2877,6 +2901,9 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 		} else if(equalsIgnoreCase(to_str, "time") || equalsIgnoreCase(to_str, _("time"))) {
 			str = from_str;
 			printops.base = BASE_TIME;
+		} else if(equalsIgnoreCase(to_str, "unicode")) {
+			str = from_str;
+			printops.base = BASE_UNICODE;
 		} else if(equalsIgnoreCase(to_str, "utc") || equalsIgnoreCase(to_str, "gmt")) {
 			str = from_str;
 			printops.time_zone = TIME_ZONE_UTC;
@@ -2932,9 +2959,26 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 			str = from_str;
 			evalops.parse_options.units_enabled = true;
 			evalops.auto_post_conversion = POST_CONVERSION_BASE;
-		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str1, "base", _("base")) && s2i(to_str2) >= 2 && (s2i(to_str2) <= 36 || s2i(to_str2) == BASE_SEXAGESIMAL)) {
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str1, "base", _("base"))) {
 			str = from_str;
-			printops.base = s2i(to_str2);
+			if(equalsIgnoreCase(to_str2, "golden") || equalsIgnoreCase(to_str2, "golden ratio") || to_str2 == "φ") printops.base = BASE_GOLDEN_RATIO;
+			else if(equalsIgnoreCase(to_str2, "unicode")) printops.base = BASE_UNICODE;
+			else if(equalsIgnoreCase(to_str2, "supergolden") || equalsIgnoreCase(to_str2, "supergolden ratio") || to_str2 == "ψ") printops.base = BASE_SUPER_GOLDEN_RATIO;
+			else if(equalsIgnoreCase(to_str2, "pi") || to_str2 == "π") printops.base = BASE_PI;
+			else if(to_str2 == "e") printops.base = BASE_E;
+			else if(to_str2 == "sqrt(2)" || to_str2 == "sqrt 2" || to_str2 == "sqrt2" || to_str2 == "√2") printops.base = BASE_SQRT2;
+			else {
+				EvaluationOptions eo = evalops;
+				eo.parse_options.base = 10;
+				MathStructure m = calculate(to_str2, eo);
+				if(m.isInteger() && m.number() >= 2 && m.number() <= 36) {
+					printops.base = m.number().intValue();
+				} else {
+					printops.base = BASE_CUSTOM;
+					base_save = customOutputBase();
+					setCustomOutputBase(m.number());
+				}
+			}
 		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "mixed", _("mixed"))) {
 			str = from_str;
 			evalops.parse_options.units_enabled = true;
@@ -3012,6 +3056,7 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 	mstruct.format(printops);
 	str = mstruct.print(printops);
 	stopControl();
+	if(printops.base == BASE_CUSTOM) setCustomOutputBase(base_save);
 	return str;
 }
 bool Calculator::calculate(MathStructure *mstruct, string str, int msecs, const EvaluationOptions &eo, MathStructure *parsed_struct, MathStructure *to_struct, bool make_to_division) {
@@ -4439,15 +4484,20 @@ Unit* Calculator::getActiveUnit(string name_) {
 	return NULL;
 }
 Unit* Calculator::getLocalCurrency() {
+	if(priv->local_currency) return priv->local_currency;
 	struct lconv *lc = localeconv();
 	if(lc) {
 		string local_currency = lc->int_curr_symbol;
 		remove_blank_ends(local_currency);
 		if(!local_currency.empty()) {
+			if(local_currency.length() > 3) local_currency = local_currency.substr(0, 3);
 			return getActiveUnit(local_currency);
 		}
 	}
 	return NULL;
+}
+void Calculator::setLocalCurrency(Unit *u) {
+	priv->local_currency = u;
 }
 Unit* Calculator::getCompositeUnit(string internal_name_) {
 	if(internal_name_.empty()) return NULL;
@@ -4942,11 +4992,17 @@ bool Calculator::unitIsUsedByOtherUnits(const Unit *u) const {
 
 bool is_not_number(char c, int base) {
 	if(c >= '0' && c <= '9') return false;
-	if(base >= 2 && base <= 10) return true;
-	if(base == BASE_DUODECIMAL) return c != 'E' && c != 'X';
-	if(base > 10) {
+	if(base == -1) return false;
+	if(base == -12) return c != 'E' && c != 'X';
+	if(base <= 10) return true;
+	if(base <= 36) {
 		if(c >= 'a' && c < 'a' + (base - 10)) return false;
 		if(c >= 'A' && c < 'A' + (base - 10)) return false;
+		return true;
+	}
+	if(base <= 62) {
+		if(c >= 'a' && c < 'a' + (base - 36)) return false;
+		if(c >= 'A' && c < 'Z') return false;
 		return true;
 	}
 	return false;
@@ -5238,6 +5294,25 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 	ParseOptions po = parseoptions;
 	MathStructure *unended_function = po.unended_function;
 	po.unended_function = NULL;
+	
+	if(po.base == BASE_UNICODE || (po.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) {
+		mstruct->set(Number(str, po));
+		return;
+	}
+	int base = po.base;
+	if(base == BASE_CUSTOM) {
+		base = (int) priv->custom_input_base_i;
+	} else if(base == BASE_GOLDEN_RATIO || base == BASE_SUPER_GOLDEN_RATIO || base == BASE_SQRT2) {
+		base = 2;
+	} else if(base == BASE_PI) {
+		base = 4;
+	} else if(base == BASE_E) {
+		base = 3;
+	} else if(base == BASE_DUODECIMAL) {
+		base = -12;
+	} else if(base < 2 || base > 36) {
+		base = -1;
+	}
 
 	mstruct->clear();
 
@@ -5330,7 +5405,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 	if(po.default_dataset != NULL && str.length() > 1) {
 		size_t str_index = str.find(DOT_CH, 1);
 		while(str_index != string::npos) {
-			if(str_index + 1 < str.length() && ((is_not_number(str[str_index + 1], po.base) && is_not_in(INTERNAL_OPERATORS NOT_IN_NAMES, str[str_index + 1]) && is_not_in(INTERNAL_OPERATORS NOT_IN_NAMES, str[str_index - 1])) || (is_not_in(INTERNAL_OPERATORS NOT_IN_NAMES, str[str_index + 1]) && is_not_number(str[str_index - 1], po.base) && is_not_in(INTERNAL_OPERATORS NOT_IN_NAMES, str[str_index - 1])))) {
+			if(str_index + 1 < str.length() && ((is_not_number(str[str_index + 1], base) && is_not_in(INTERNAL_OPERATORS NOT_IN_NAMES, str[str_index + 1]) && is_not_in(INTERNAL_OPERATORS NOT_IN_NAMES, str[str_index - 1])) || (is_not_in(INTERNAL_OPERATORS NOT_IN_NAMES, str[str_index + 1]) && is_not_number(str[str_index - 1], base) && is_not_in(INTERNAL_OPERATORS NOT_IN_NAMES, str[str_index - 1])))) {
 				size_t dot_index = str.find_first_of(NOT_IN_NAMES INTERNAL_OPERATORS DOT, str_index + 1);
 				if(dot_index != string::npos && str[dot_index] == DOT_CH) {
 					str_index = dot_index;
@@ -5623,7 +5698,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					str_index = stmp.length() + i5 - stmp2.length();
 				}
 			}
-		} else if(!po.rpn && (str[str_index] == 'c' || str[str_index] == 'C') && str.length() > str_index + 6 && str[str_index + 5] == SPACE_CH && (str_index == 0 || is_in(OPERATORS INTERNAL_OPERATORS PARENTHESISS, str[str_index - 1])) && compare_name_no_case("compl", str, 5, str_index, po.base)) {
+		} else if(!po.rpn && (str[str_index] == 'c' || str[str_index] == 'C') && str.length() > str_index + 6 && str[str_index + 5] == SPACE_CH && (str_index == 0 || is_in(OPERATORS INTERNAL_OPERATORS PARENTHESISS, str[str_index - 1])) && compare_name_no_case("compl", str, 5, str_index, base)) {
 			str.replace(str_index, 6, BITWISE_NOT);
 		} else if(str[str_index] == SPACE_CH) {
 			size_t i = str.find(SPACE, str_index + 1);
@@ -5631,46 +5706,46 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 			if(i != string::npos) {
 				i -= str_index + 1;
 				size_t il = 0;
-				if(i == per_str_len && (il = compare_name_no_case(per_str, str, per_str_len, str_index + 1, po.base))) {
+				if(i == per_str_len && (il = compare_name_no_case(per_str, str, per_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, DIVISION);
 					str_index++;
-				} else if(i == times_str_len && (il = compare_name_no_case(times_str, str, times_str_len, str_index + 1, po.base))) {
+				} else if(i == times_str_len && (il = compare_name_no_case(times_str, str, times_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, MULTIPLICATION);
 					str_index++;
-				} else if(i == plus_str_len && (il = compare_name_no_case(plus_str, str, plus_str_len, str_index + 1, po.base))) {
+				} else if(i == plus_str_len && (il = compare_name_no_case(plus_str, str, plus_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, PLUS);
 					str_index++;
-				} else if(i == minus_str_len && (il = compare_name_no_case(minus_str, str, minus_str_len, str_index + 1, po.base))) {
+				} else if(i == minus_str_len && (il = compare_name_no_case(minus_str, str, minus_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, MINUS);
 					str_index++;
-				} else if(and_str_len > 0 && i == and_str_len && (il = compare_name_no_case(and_str, str, and_str_len, str_index + 1, po.base))) {
+				} else if(and_str_len > 0 && i == and_str_len && (il = compare_name_no_case(and_str, str, and_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, LOGICAL_AND);
 					str_index += 2;
-				} else if(i == AND_str_len && (il = compare_name_no_case(AND_str, str, AND_str_len, str_index + 1, po.base))) {
+				} else if(i == AND_str_len && (il = compare_name_no_case(AND_str, str, AND_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, LOGICAL_AND);
 					str_index += 2;
-				} else if(or_str_len > 0 && i == or_str_len && (il = compare_name_no_case(or_str, str, or_str_len, str_index + 1, po.base))) {
+				} else if(or_str_len > 0 && i == or_str_len && (il = compare_name_no_case(or_str, str, or_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, LOGICAL_OR);
 					str_index += 2;
-				} else if(i == OR_str_len && (il = compare_name_no_case(OR_str, str, OR_str_len, str_index + 1, po.base))) {
+				} else if(i == OR_str_len && (il = compare_name_no_case(OR_str, str, OR_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, LOGICAL_OR);
 					str_index += 2;
-				} else if(i == XOR_str_len && (il = compare_name_no_case(XOR_str, str, XOR_str_len, str_index + 1, po.base))) {
+				} else if(i == XOR_str_len && (il = compare_name_no_case(XOR_str, str, XOR_str_len, str_index + 1, base))) {
 					str.replace(str_index + 1, il, "\a");
 					str_index++;
-				} else if(i == 5 && (il = compare_name_no_case("bitor", str, 5, str_index + 1, po.base))) {
+				} else if(i == 5 && (il = compare_name_no_case("bitor", str, 5, str_index + 1, base))) {
 					str.replace(str_index + 1, il, BITWISE_OR);
 					str_index++;
-				} else if(i == 6 && (il = compare_name_no_case("bitand", str, 6, str_index + 1, po.base))) {
+				} else if(i == 6 && (il = compare_name_no_case("bitand", str, 6, str_index + 1, base))) {
 					str.replace(str_index + 1, il, BITWISE_AND);
 					str_index++;
-				} else if(i == 3 && (il = compare_name_no_case("mod", str, 3, str_index + 1, po.base))) {
+				} else if(i == 3 && (il = compare_name_no_case("mod", str, 3, str_index + 1, base))) {
 					str.replace(str_index + 1, il, "\%\%");
 					str_index += 2;
-				} else if(i == 3 && (il = compare_name_no_case("rem", str, 3, str_index + 1, po.base))) {
+				} else if(i == 3 && (il = compare_name_no_case("rem", str, 3, str_index + 1, base))) {
 					str.replace(str_index + 1, il, "%");
 					str_index++;
-				} else if(i == 3 && (il = compare_name_no_case("div", str, 3, str_index + 1, po.base))) {
+				} else if(i == 3 && (il = compare_name_no_case("div", str, 3, str_index + 1, base))) {
 					if(po.rpn) {
 						str.replace(str_index + 1, il, "\\");
 						str_index++;
@@ -5680,9 +5755,9 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					}
 				}
 			}
-		} else if(str_index > 0 && po.base >= 2 && po.base <= 10 && is_in(EXPS, str[str_index]) && str_index + 1 < str.length() && (is_in(NUMBER_ELEMENTS, str[str_index + 1]) || (is_in(PLUS MINUS, str[str_index + 1]) && str_index + 2 < str.length() && is_in(NUMBER_ELEMENTS, str[str_index + 2]))) && is_in(NUMBER_ELEMENTS, str[str_index - 1])) {
+		} else if(str_index > 0 && base >= 2 && base <= 10 && is_in(EXPS, str[str_index]) && str_index + 1 < str.length() && (is_in(NUMBER_ELEMENTS, str[str_index + 1]) || (is_in(PLUS MINUS, str[str_index + 1]) && str_index + 2 < str.length() && is_in(NUMBER_ELEMENTS, str[str_index + 2]))) && is_in(NUMBER_ELEMENTS, str[str_index - 1])) {
 			//don't do anything when e is used instead of E for EXP
-		} else if(po.base <= 33 && str[str_index] == '0' && (str_index == 0 || is_in(NOT_IN_NAMES INTERNAL_OPERATORS, str[str_index - 1]))) {
+		} else if(base <= 33 && str[str_index] == '0' && (str_index == 0 || is_in(NOT_IN_NAMES INTERNAL_OPERATORS, str[str_index - 1]))) {
 			if(str_index + 2 < str.length() && (str[str_index + 1] == 'x' || str[str_index + 1] == 'X') && is_in(NUMBER_ELEMENTS "abcdefABCDEF", str[str_index + 2])) {
 				//hexadecimal number 0x...
 				if(po.base == BASE_HEXADECIMAL) {
@@ -5693,6 +5768,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					else i = str.find_first_not_of(SPACE NUMBER_ELEMENTS "abcdefABCDEF", str_index + 2);
 					size_t name_length;
 					if(i == string::npos) i = str.length();
+					while(str[i - 1] == SPACE_CH) i--;
 					name_length = i - str_index;
 					ParseOptions po_hex = po;
 					po_hex.base = BASE_HEXADECIMAL;
@@ -5703,7 +5779,8 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					str.replace(str_index, name_length, stmp);
 					str_index += stmp.length() - 1;
 				}
-			} else if(po.base <= 12 && str_index + 2 < str.length() && (str[str_index + 1] == 'b' || str[str_index + 1] == 'B') && is_in("01", str[str_index + 2])) {
+
+			} else if(base <= 12 && str_index + 2 < str.length() && (str[str_index + 1] == 'b' || str[str_index + 1] == 'B') && is_in("01", str[str_index + 2])) {
 				//binary number 0b...
 				if(po.base == BASE_BINARY) {
 					str.erase(str_index, 2);
@@ -5713,6 +5790,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					else i = str.find_first_not_of(SPACE NUMBER_ELEMENTS, str_index + 2);
 					size_t name_length;
 					if(i == string::npos) i = str.length();
+					while(str[i - 1] == SPACE_CH) i--;
 					name_length = i - str_index;
 					ParseOptions po_bin = po;
 					po_bin.base = BASE_BINARY;
@@ -5723,7 +5801,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					str.replace(str_index, name_length, stmp);
 					str_index += stmp.length() - 1;
 				}
-			} else if(po.base <= 24 && str_index + 2 < str.length() && (str[str_index + 1] == 'o' || str[str_index + 1] == 'O') && is_in(NUMBERS, str[str_index + 2])) {
+			} else if(base <= 24 && str_index + 2 < str.length() && (str[str_index + 1] == 'o' || str[str_index + 1] == 'O') && is_in(NUMBERS, str[str_index + 2])) {
 				//octal number 0o...
 				if(po.base == BASE_OCTAL) {
 					str.erase(str_index, 2);
@@ -5733,6 +5811,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 					else i = str.find_first_not_of(SPACE NUMBER_ELEMENTS, str_index + 2);
 					size_t name_length;
 					if(i == string::npos) i = str.length();
+					while(str[i - 1] == SPACE_CH) i--;
 					name_length = i - str_index;
 					ParseOptions po_oct = po;
 					po_oct.base = BASE_OCTAL;
@@ -5957,7 +6036,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 						}						
 					}
 				}
-				if(name && name_length >= found_function_name_length && ((case_sensitive && compare_name(*name, str, name_length, str_index, po.base)) || (!case_sensitive && (name_length = compare_name_no_case(*name, str, name_length, str_index, po.base))))) {
+				if(name && name_length >= found_function_name_length && ((case_sensitive && compare_name(*name, str, name_length, str_index, base)) || (!case_sensitive && (name_length = compare_name_no_case(*name, str, name_length, str_index, base))))) {
 					moved_forward = false;
 					switch(ufvt) {
 						case 'v': {
@@ -6198,7 +6277,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 											break;
 										}
 									}								
-									if(name && ((case_sensitive && compare_name(*name, str, name_length, str_index, po.base)) || (!case_sensitive && (name_length = compare_name_no_case(*name, str, name_length, str_index, po.base))))) {
+									if(name && ((case_sensitive && compare_name(*name, str, name_length, str_index, base)) || (!case_sensitive && (name_length = compare_name_no_case(*name, str, name_length, str_index, base))))) {
 										if((!p_mode && name_length_old > 1) || (p_mode && (name_length + name_length_old > best_pl || ((ufvt != 'P' || !((Unit*) ufvl[ufv_index2])->getName(ufvl_i[ufv_index2]).abbreviation) && name_length + name_length_old == best_pl)))) {
 											p_mode = true;
 											best_p = p;
@@ -6231,7 +6310,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 									case_sensitive = ((Unit*) ufv[2][index][ufv_index2])->getName(ufv_i[2][index][ufv_index2]).case_sensitive;
 									name_length = name->length();
 									if(index + 1 == (int) unit_chars_left || !((Unit*) ufv[2][index][ufv_index2])->getName(ufv_i[2][index][ufv_index2]).plural) {
-										if(name_length <= unit_chars_left && ((case_sensitive && compare_name(*name, str, name_length, str_index, po.base)) || (!case_sensitive && (name_length = compare_name_no_case(*name, str, name_length, str_index, po.base))))) {
+										if(name_length <= unit_chars_left && ((case_sensitive && compare_name(*name, str, name_length, str_index, base)) || (!case_sensitive && (name_length = compare_name_no_case(*name, str, name_length, str_index, base))))) {
 											if((!p_mode && name_length_old > 1) || (p_mode && (name_length + name_length_old > best_pl || ((ufvt != 'P' || !((Unit*) ufv[2][index][ufv_index2])->getName(ufv_i[2][index][ufv_index2]).abbreviation) && name_length + name_length_old == best_pl)))) {
 												p_mode = true;
 												best_p = p;
@@ -6277,7 +6356,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 				goto set_function;
 			}
 			if(!moved_forward) {
-				bool b = po.unknowns_enabled && is_not_number(str[str_index], po.base) && !(str_index > 0 && is_in(EXPS, str[str_index]) && str_index + 1 < str.length() && (is_in(NUMBER_ELEMENTS, str[str_index + 1]) || (is_in(PLUS MINUS, str[str_index + 1]) && str_index + 2 < str.length() && is_in(NUMBER_ELEMENTS, str[str_index + 2]))) && is_in(NUMBER_ELEMENTS, str[str_index - 1]));
+				bool b = po.unknowns_enabled && is_not_number(str[str_index], base) && !(str_index > 0 && is_in(EXPS, str[str_index]) && str_index + 1 < str.length() && (is_in(NUMBER_ELEMENTS, str[str_index + 1]) || (is_in(PLUS MINUS, str[str_index + 1]) && str_index + 2 < str.length() && is_in(NUMBER_ELEMENTS, str[str_index + 2]))) && is_in(NUMBER_ELEMENTS, str[str_index - 1]));
 				if(po.limit_implicit_multiplication) {
 					if(b) {
 						stmp = LEFT_PARENTHESIS ID_WRAP_LEFT;
@@ -6382,6 +6461,8 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 
 }
 
+#define BASE_2_10 ((po.base >= 2 && po.base <= 10) || (po.base < BASE_CUSTOM && po.base != BASE_UNICODE) || (po.base == BASE_CUSTOM && priv->custom_input_base_i <= 10))
+
 bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOptions &po) {
 	mstruct->clear();
 	if(str.empty()) return false;
@@ -6405,7 +6486,7 @@ bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOpti
 			str.erase(i, 1);
 		} else if(str[i] == SPACE_CH) {
 			str.erase(i, 1);
-		} else if(!b_exp && (po.base <= 10 && po.base >= 2) && (str[i] == EXP_CH || str[i] == EXP2_CH)) {
+		} else if(!b_exp && BASE_2_10 && (str[i] == EXP_CH || str[i] == EXP2_CH)) {
 			b_exp = true;
 			had_non_sign = true;
 			after_sign_e = true;
@@ -6479,7 +6560,7 @@ bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOpti
 		return true;
 	}
 	size_t itmp;
-	if(((po.base >= 2 && po.base <= 10) || po.base == BASE_DUODECIMAL) && (itmp = str.find_first_not_of(po.base == BASE_DUODECIMAL ? NUMBER_ELEMENTS INTERNAL_NUMBER_CHARS MINUS DUODECIMAL_CHARS : NUMBER_ELEMENTS INTERNAL_NUMBER_CHARS EXPS MINUS, 0)) != string::npos) {
+	if((BASE_2_10 || po.base == BASE_DUODECIMAL) && (itmp = str.find_first_not_of(po.base == BASE_DUODECIMAL ? NUMBER_ELEMENTS INTERNAL_NUMBER_CHARS MINUS DUODECIMAL_CHARS : NUMBER_ELEMENTS INTERNAL_NUMBER_CHARS EXPS MINUS, 0)) != string::npos) {
 		if(itmp == 0) {
 			error(true, _("\"%s\" is not a valid variable/function/unit."), str.c_str(), NULL);
 			if(minus_count % 2 == 1 && !po.preserve_format) {
@@ -6531,7 +6612,7 @@ bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOpti
 bool Calculator::parseAdd(string &str, MathStructure *mstruct, const ParseOptions &po) {
 	if(str.length() > 0) {
 		size_t i;
-		if(po.base >= 2 && po.base <= 10) {
+		if(BASE_2_10) {
 			i = str.find_first_of(SPACE MULTIPLICATION_2 OPERATORS INTERNAL_OPERATORS PARENTHESISS EXPS ID_WRAP_LEFT, 1);
 		} else {
 			i = str.find_first_of(SPACE MULTIPLICATION_2 OPERATORS INTERNAL_OPERATORS PARENTHESISS ID_WRAP_LEFT, 1);
@@ -6547,7 +6628,7 @@ bool Calculator::parseAdd(string &str, MathStructure *mstruct, const ParseOption
 bool Calculator::parseAdd(string &str, MathStructure *mstruct, const ParseOptions &po, MathOperation s, bool append) {
 	if(str.length() > 0) {
 		size_t i;
-		if(po.base >= 2 && po.base <= 10) {
+		if(BASE_2_10) {
 			i = str.find_first_of(SPACE MULTIPLICATION_2 OPERATORS INTERNAL_OPERATORS PARENTHESISS EXPS ID_WRAP_LEFT, 1);
 		} else {
 			i = str.find_first_of(SPACE MULTIPLICATION_2 OPERATORS INTERNAL_OPERATORS PARENTHESISS ID_WRAP_LEFT, 1);
@@ -6650,7 +6731,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 				break;
 			}
 		}
-		if(i > 0 && is_not_in(MULTIPLICATION_2 OPERATORS INTERNAL_OPERATORS PARENTHESISS SPACE, str[i - 1]) && (po.base > 10 || po.base < 2 || (str[i - 1] != EXP_CH && str[i - 1] != EXP2_CH))) {
+		if(i > 0 && is_not_in(MULTIPLICATION_2 OPERATORS INTERNAL_OPERATORS PARENTHESISS SPACE, str[i - 1]) && (!BASE_2_10 || (str[i - 1] != EXP_CH && str[i - 1] != EXP2_CH))) {
 			if(po.rpn) {
 				str.insert(i2 + 1, MULTIPLICATION);	
 				str.insert(i, SPACE);
@@ -6658,7 +6739,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 				i2++;		
 			}
 		}
-		if(i2 + 1 < str.length() && is_not_in(MULTIPLICATION_2 OPERATORS INTERNAL_OPERATORS PARENTHESISS SPACE, str[i2 + 1]) && (po.base > 10 || po.base < 2 || (str[i2 + 1] != EXP_CH && str[i2 + 1] != EXP2_CH))) {
+		if(i2 + 1 < str.length() && is_not_in(MULTIPLICATION_2 OPERATORS INTERNAL_OPERATORS PARENTHESISS SPACE, str[i2 + 1]) && (!BASE_2_10 || (str[i2 + 1] != EXP_CH && str[i2 + 1] != EXP2_CH))) {
 			if(po.rpn) {
 				i3 = str.find(SPACE, i2 + 1);
 				if(i3 == string::npos) {
@@ -6916,7 +6997,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 			remove_blank_ends(str2);
 			if(!str2.empty()) {
 				mstack.push_back(new MathStructure());
-				if((str[i] == GREATER_CH || str[i] == LESS_CH) && po2.base < 10 && i + 1 < str.length() && str[i + 1] == str[i] && str2.find_first_not_of(NUMBERS SPACE PLUS MINUS) == string::npos) {
+				if((str[i] == GREATER_CH || str[i] == LESS_CH) && po2.base < 10 && po2.base >= 2 && i + 1 < str.length() && str[i + 1] == str[i] && str2.find_first_not_of(NUMBERS SPACE PLUS MINUS) == string::npos) {
 					for(i = 0; i < str2.size(); i++) {
 						if(str2[i] >= '0' && str2[i] <= '9' && po.base <= str2[i] - '0') {
 							po2.base = BASE_DECIMAL;
@@ -7267,7 +7348,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		str2 = str.substr(0, i);
 		str = str.substr(i + 2, str.length() - (i + 2));
 		parseAdd(str2, &mstruct1, po);
-		if(po.base < 10 && str.find_first_not_of(NUMBERS SPACE PLUS MINUS) == string::npos) {
+		if(po.base < 10 && po.base >= 2 && str.find_first_not_of(NUMBERS SPACE PLUS MINUS) == string::npos) {
 			for(i = 0; i < str.size(); i++) {
 				if(str[i] >= '0' && str[i] <= '9' && po.base <= str[i] - '0') {
 					ParseOptions po2 = po;
@@ -7853,7 +7934,7 @@ bool Calculator::parseOperators(MathStructure *mstruct, string str, const ParseO
 		mstruct->transform(f_uncertainty);
 		mstruct->addChild_nocopy(mstruct2);
 		mstruct->addChild(m_zero);
-	} else if(po.base >= 2 && po.base <= 10 && (i = str.find_first_of(EXPS, 1)) != string::npos && i + 1 != str.length() && str.find("\b") == string::npos) {
+	} else if(BASE_2_10 && (i = str.find_first_of(EXPS, 1)) != string::npos && i + 1 != str.length() && str.find("\b") == string::npos) {
 		str2 = str.substr(0, i);
 		str = str.substr(i + 1, str.length() - (i + 1));
 		parseAdd(str2, mstruct, po);
@@ -8057,7 +8138,7 @@ bool Calculator::loadLocalDefinitions() {
 	}
 	eps.sort();
 	for(list<string>::iterator it = eps.begin(); it != eps.end(); ++it) {
-		loadDefinitions(buildPath(homedir, *it).c_str(), (*it) == "functions.xml" || (*it) == "variables.xml" || (*it) == "units.xml" || (*it) == "datasets.xml");
+		loadDefinitions(buildPath(homedir, *it).c_str(), (*it) == "functions.xml" || (*it) == "variables.xml" || (*it) == "units.xml" || (*it) == "datasets.xml", true);
 	}
 	for(size_t i = 0; i < variables.size(); i++) {
 		if(!variables[i]->isLocal() && !variables[i]->isActive() && !getActiveExpressionItem(variables[i])) variables[i]->setActive(true);
@@ -8557,9 +8638,9 @@ bool Calculator::loadLocalDefinitions() {
 						if(!ref_names[i].name.empty()) {\
 							ref_names[i].name = "";\
 						}\
-					}					
+					}
 
-int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
+int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool check_duplicates) {
 
 	xmlDocPtr doc;
 	xmlNodePtr cur, child, child2, child3;
@@ -8657,7 +8738,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 		xmlFreeDoc(doc);
 		return false;
 	}
-	int version_numbers[] = {3, 2, 0};
+	int version_numbers[] = {3, 3, 0};
 	parse_qalculate_version(version, version_numbers);
 
 	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);
@@ -8868,6 +8949,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					ITEM_SET_NAME_3
 				}
 				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= f->countNames();) {
+						if(getActiveFunction(f->getName(i).name)) f->removeName(i);
+						else i++;
+					}
+				}
 				if(f->countNames() == 0) {
 					f->destroy();
 					f = NULL;
@@ -9236,6 +9323,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					}
 				}
 				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= dc->countNames();) {
+						if(getActiveFunction(dc->getName(i).name)) dc->removeName(i);
+						else i++;
+					}
+				}
 				if(!builtin && dc->countNames() == 0) {
 					dc->destroy();
 					dc = NULL;
@@ -9376,6 +9469,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					ITEM_SET_NAME_3
 				}
 				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= v->countNames();) {
+						if(getActiveVariable(v->getName(i).name) || getActiveUnit(v->getName(i).name) || getCompositeUnit(v->getName(i).name)) v->removeName(i);
+						else i++;
+					}
+				}
 				for(size_t i = 1; i <= v->countNames(); i++) {
 					if(v->getName(i).name == "x") {v_x->destroy(); v_x = (UnknownVariable*) v; break;}
 					if(v->getName(i).name == "y") {v_y->destroy(); v_y = (UnknownVariable*) v; break;}
@@ -9432,6 +9531,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					ITEM_SET_NAME_3
 				}
 				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= v->countNames();) {
+						if(getActiveVariable(v->getName(i).name) || getActiveUnit(v->getName(i).name) || getCompositeUnit(v->getName(i).name)) v->removeName(i);
+						else i++;
+					}
+				}
 				if(v->countNames() == 0) {
 					v->destroy();
 					v = NULL;
@@ -9530,6 +9635,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					ITEM_SET_DTH
 					if(use_with_prefixes_set) {
 						u->setUseWithPrefixesByDefault(use_with_prefixes);
+					}
+					if(check_duplicates && !is_user_defs) {
+						for(size_t i = 1; i <= u->countNames();) {
+							if(getActiveVariable(u->getName(i).name) || getActiveUnit(u->getName(i).name) || getCompositeUnit(u->getName(i).name)) u->removeName(i);
+							else i++;
+						}
 					}
 					if(u->countNames() == 0) {
 						u->destroy();
@@ -9664,6 +9775,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							u = getUnit(au->referenceName());
 							if(u && u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->baseUnit() == u_euro) u->destroy();
 						}
+						if(check_duplicates && !is_user_defs) {
+							for(size_t i = 1; i <= au->countNames();) {
+								if(getActiveVariable(au->getName(i).name) || getActiveUnit(au->getName(i).name) || getCompositeUnit(au->getName(i).name)) au->removeName(i);
+								else i++;
+							}
+						}
 						if(au->countNames() == 0) {
 							au->destroy();
 							au = NULL;
@@ -9789,6 +9906,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							ITEM_SET_NAME_3
 						}
 						ITEM_SET_DTH
+						if(check_duplicates && !is_user_defs) {
+							for(size_t i = 1; i <= cu->countNames();) {
+								if(getActiveVariable(cu->getName(i).name) || getActiveUnit(cu->getName(i).name) || getCompositeUnit(cu->getName(i).name)) cu->removeName(i);
+								else i++;
+							}
+						}
 						if(cu->countNames() == 0) {
 							cu->destroy();
 							cu = NULL;
@@ -9867,17 +9990,33 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "prefix")) {
 				child = cur->xmlChildrenNode;
 				XML_GET_STRING_FROM_PROP(cur, "type", type)
-				uname = ""; sexp = ""; svalue = "";
+				uname = ""; sexp = ""; svalue = ""; name = "";
+				bool b_best = false;
 				while(child != NULL) {
 					if(!xmlStrcmp(child->name, (const xmlChar*) "name")) {
-						XML_GET_STRING_FROM_TEXT(child, name);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "abbreviation")) {	
+						lang = xmlNodeGetLang(child);
+						if(!lang) {
+							if(name.empty()) {
+								XML_GET_STRING_FROM_TEXT(child, name);
+							}
+						} else {
+							if(!b_best && !locale.empty()) {
+								if(locale == (char*) lang) {
+									XML_GET_STRING_FROM_TEXT(child, name);
+									b_best = true;
+								} else if(strlen((char*) lang) >= 2 && lang[0] == localebase[0] && lang[1] == localebase[1]) {
+									XML_GET_STRING_FROM_TEXT(child, name);
+								}
+							}
+							xmlFree(lang);
+						}
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "abbreviation")) {
 						XML_GET_STRING_FROM_TEXT(child, stmp);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "unicode")) {	
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "unicode")) {
 						XML_GET_STRING_FROM_TEXT(child, uname);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "exponent")) {	
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "exponent")) {
 						XML_GET_STRING_FROM_TEXT(child, sexp);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "value")) {	
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "value")) {
 						XML_GET_STRING_FROM_TEXT(child, svalue);
 					}
 					child = child->next;
