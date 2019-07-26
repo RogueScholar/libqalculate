@@ -4,6 +4,7 @@ libqalculate (3.3.0-1) experimental; urgency=medium
   * Switch to debhelper 12
     - remove debian/compat
     - use debhelper-compat (= 12) in debian/control
+  * move to machine-readable debian/copyright file
 
  -- Vincent Legout <vlegout@debian.org>  Thu, 25 Jul 2019 07:31:04 +0200
 
