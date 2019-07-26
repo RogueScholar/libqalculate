@@ -1,6 +1,9 @@
 libqalculate (3.3.0-1) experimental; urgency=medium
 
   * New upstream release
+  * Switch to debhelper 12
+    - remove debian/compat
+    - use debhelper-compat (= 12) in debian/control
 
  -- Vincent Legout <vlegout@debian.org>  Thu, 25 Jul 2019 07:31:04 +0200
 
