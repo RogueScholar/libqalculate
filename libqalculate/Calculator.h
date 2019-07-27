@@ -30,6 +30,7 @@
 * A simple application using libqalculate need only create a calculator object, perhaps load definitions (functions, variables, units, etc.), and calculate (and output) an expression as follows:
 * \code
 * new Calculator();
+* CALCULATOR->loadExchangeRates();
 * CALCULATOR->loadGlobalDefinitions();
 * CALCULATOR->loadLocalDefinitions();
 * cout << CALCULATOR->calculateAndPrint("1 + 1", 2000) << endl;\endcode

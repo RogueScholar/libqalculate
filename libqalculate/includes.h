@@ -31,7 +31,7 @@
 #include <stdint.h>
 
 #define QALCULATE_MAJOR_VERSION (3)
-#define QALCULATE_MINOR_VERSION (2)
+#define QALCULATE_MINOR_VERSION (3)
 #define QALCULATE_MICRO_VERSION (0)
 
 /// \cond
@@ -321,8 +321,12 @@ typedef enum {
 #define BASE_HEXADECIMAL	16
 #define BASE_SEXAGESIMAL	60
 #define BASE_CUSTOM		-3
-#define BASE_GOLDEN_RATIO	-4
-#define BASE_UNICODE		-5
+#define BASE_UNICODE		-4
+#define BASE_GOLDEN_RATIO	-5
+#define BASE_SUPER_GOLDEN_RATIO	-6
+#define BASE_PI			-7
+#define BASE_E			-8
+#define BASE_SQRT2		-9
 
 #define EXP_BASE_3		-3
 #define EXP_PRECISION		-1

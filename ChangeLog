@@ -1,3 +1,40 @@
+2019-07-22 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add Calculator::setLocalCurrency() (overrides currency specified by LC_MONETARY)
+
+2019-07-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support both micro sign and small mu as symbol for micro prefix
+	* Allow translation of prefixes
+	* Fix English spelling of "deca"
+
+2019-07-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Treat text after '_' as suffix by default when user creates a new function, unit, or variable
+	* Check for duplicate names when loading imported definitions
+
+2019-07-13 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add "to unicode" conversion
+	* Display messages generated during initial loading of definitions immediately (instead of after first calculation) in qalc
+
+2019-07-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add support for text arguments when hiding default function values in output
+	* Fix italicization of symbol when function argument
+
+2019-07-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* dec() function
+	* Fix show ending zereos for non-integer rational numbers with non-decimal radix
+	* Improved handling of interval arithmetics for cubic equations
+
+2019-06-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* General support for bases > 36, negative bases, and non-integer bases
+	* Reduce length of expressions in messages (primarily when using high precision)
+	* Fix max decimals for small intervals with +/- display enabled
+
 2019-06-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Add support for bases > 36, negative bases, and non-integer bases, in base() function
