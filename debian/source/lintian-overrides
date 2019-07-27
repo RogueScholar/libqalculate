@@ -1,0 +1,2 @@
+# Upstream release tarballs are not signed
+libqalculate source: debian-watch-does-not-check-gpg-signature

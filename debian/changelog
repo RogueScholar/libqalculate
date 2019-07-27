@@ -7,18 +7,34 @@ libqalculate (3.3.0-1) unstable; urgency=medium
       (Closes: #579491)
     - Reduce length of expressions in warnings and errors (esp. high precision)
     - Fix parsing of "0x80 mod 3" and similar
+  * d/tests: Add control file for autopkgtest and simple qalc test script
 
  -- Peter J. Mello <admin@petermello.net>  Sat, 27 Jul 2019 05:00:34 -0700
 
 libqalculate (3.2.0-1) unstable; urgency=medium
 
   * New upstream release
+    - Updated physical constants (CODATA 2018)
+    - bitrot() function for bit rotation
+    - Bitwise XOR, mod and rem operators, % as modulo, // and \ for div. ops.
+    - Change order of operations for logical and bitwise operators
+    - Improved support for functions, variables and units with input base > 10
+    - Programming mode
+    - Unicode support in char() and code()
+    - Simplification and factorization improvements
+    - RPN syntax improvements
+    - Recognize "factor" and "expand" commands at the beginning expressions
+    - For vector + scalar, add scalar to all components
+    - uptime variable
+    - Fix abs(x)=a for complex x
+    - Minor bug fixes and feature improvements (for details see the changelog)
   * Switch to debhelper 12
     - Removed d/compat
     - d/control: add "debhelper-compat (= 12)" to Build-Depends
   * d/control: Add autopkgtest to Testsuite
   * d/control: Bump Standards-Version to 4.4.0
-  * d/copyright: Changed formatting to comply with DEP5 (SPDX short license IDs used)
+  * d/copyright: Changed formatting to comply with DEP5 (w/ SPDX short lic. IDs)
+  * d/u/metadata: Created file for UMEGAYA project inclusion
   * libqalculate21: Add Provides libqalculate20
   * libqalculate21-data: Add Provides libqalculate20-data
 

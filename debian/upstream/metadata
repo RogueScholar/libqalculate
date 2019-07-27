@@ -1,0 +1,16 @@
+---
+Bug:
+  Database: "https://github.com/Qalculate/libqalculate/issues"
+  Submit: "https://github.com/Qalculate/libqalculate/issues/new"
+Changelog: "https://github.com/Qalculate/libqalculate/blob/master/ChangeLog"
+Contact: "Hanna Knutsson <hanna.knutsson@protonmail.com>"
+Documentation: "http://qalculate.github.io/manual/index.html"
+Name: "libqalculate"
+Other:
+  References: "http://qalculate.github.io/"
+Repository: "https://github.com/Qalculate/libqalculate.git"
+Repository-Browse: "https://github.com/Qalculate/libqalculate"
+Screenshots: "http://qalculate.github.io/screenshots.html"
+Security:
+  Contact: "Hanna Knutsson <hanna.knutsson@protonmail.com>"
+...

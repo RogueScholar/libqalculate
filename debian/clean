@@ -1,0 +1,13 @@
+intltool-extract
+intltool-merge
+intltool-update
+data/currencies.xml
+data/datasets.xml
+data/elements.xml
+data/functions.xml
+data/planets.xml
+data/prefixes.xml
+data/units.xml
+data/variables.xml
+docs/reference/html/*
+po-defs/.intltool-merge-cache

@@ -1,0 +1,11 @@
+Document: libqalculate-doc
+Title: Manual for libqalculate
+Author: Hanna Knutsson
+Abstract: This manual is for libqalculate, which is a math library for
+ expression evaluation with units, variables and functions support and CAS
+ functionality.
+Section: Programming/C++
+
+Format: HTML
+Index: /usr/share/doc/libqalculate-doc/html/index.html
+Files: /usr/share/doc/libqalculate-doc/html/*

@@ -1,0 +1,90 @@
+Source: libqalculate
+Section: math
+Priority: optional
+Maintainer: Peter J. Mello <admin@petermello.net>
+Build-Depends: debhelper-compat (= 12), doxygen, gnuplot, intltool,
+ perl (>= 5.8.0), libcln-dev (>> 1.2), libgettextpo-dev, libglib2.0-dev,
+ libcurl4-gnutls-dev | libcurl4-nss-dev | libcurl4-openssl-dev,
+ libgmp-dev, libicu-dev, libmpfr-dev, libncurses-dev, libreadline-dev,
+ libxml-parser-perl, libxml2-dev,
+Standards-Version: 4.4.0
+Homepage: https://qalculate.github.io/
+Vcs-Git: https://github.com/Qalculate/libqalculate.git
+Vcs-Browser: https://github.com/Qalculate/libqalculate
+Testsuite: autopkgtest
+
+Package: libqalculate21
+Section: libs
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libqalculate21-data
+Breaks: qalc (<< 0.9.7-2)
+Replaces: libqalculate5, libqalculate5v5, libqalculate14, libqalculate20
+Conflicts: libqalculate5, libqalculate5v5, libqalculate14, libqalculate20
+Provides: libqalculate20
+Description: Powerful and easy to use desktop calculator - library
+ Qalculate! is small and simple to use but with much power and versatility
+ underneath.  Features include customizable functions, units, arbitrary
+ precision, plotting, and a graphical interface that uses a one-line
+ fault-tolerant expression entry (although it supports optional traditional
+ buttons).
+ .
+ This package contains the shared library used by all Qalculate! frontends.
+
+Package: libqalculate21-data
+Section: libs
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}
+Breaks: libqalculate5v5 (<< 0.9.7-7), libqalculate5-data, libqalculate6-data,
+ libqalculate14-data, libqalculate20-data
+Replaces: libqalculate5v5 (<< 0.9.7-7), libqalculate5-data, libqalculate6-data,
+ libqalculate14-data, libqalculate20-data
+Provides: libqalculate20-data
+Description: Powerful and easy to use desktop calculator - data
+ Qalculate! is small and simple to use but with much power and versatility
+ underneath.  Features include customizable functions, units, arbitrary
+ precision, plotting, and a graphical interface that uses a one-line
+ fault-tolerant expression entry (although it supports optional traditional
+ buttons).
+ .
+ This package contains the data files needed by libqalculate.
+
+Package: libqalculate-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libqalculate21 (= ${binary:Version}), ${misc:Depends}, libcln-dev (>> 1.2), libxml2-dev, libmpfr-dev
+Description: Powerful and easy to use desktop calculator - development
+ Qalculate! is small and simple to use but with much power and versatility
+ underneath.  Features include customizable functions, units, arbitrary
+ precision, plotting, and a graphical interface that uses a one-line
+ fault-tolerant expression entry (although it supports optional traditional
+ buttons).
+ .
+ This package contains the development files needed to build the frontends.
+
+Package: libqalculate-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends}
+Description: Powerful and easy to use desktop calculator - documentation
+ Qalculate! is small and simple to use but with much power and versatility
+ underneath.  Features include customizable functions, units, arbitrary
+ precision, plotting, and a graphical interface that uses a one-line
+ fault-tolerant expression entry (although it supports optional traditional
+ buttons).
+ .
+ This package contains the libqalculate documentation for developers.
+
+Package: qalc
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: wget
+Description: Powerful and easy to use command line calculator
+ Qalculate! is small and simple to use but with much power and versatility
+ underneath.  Features include customizable functions, units, arbitrary
+ precision using a one-line fault-tolerant expression entry.
+ .
+ This package contains the command line version of Qalculate!.
