@@ -324,7 +324,26 @@ class Calculator_p {
 		size_t ids_i;
 		Number custom_input_base, custom_output_base;
 		long int custom_input_base_i;
+		Unit *local_currency;
 };
+
+bool is_not_number(char c, int base) {
+	if(c >= '0' && c <= '9') return false;
+	if(base == -1) return false;
+	if(base == -12) return c != 'E' && c != 'X';
+	if(base <= 10) return true;
+	if(base <= 36) {
+		if(c >= 'a' && c < 'a' + (base - 10)) return false;
+		if(c >= 'A' && c < 'A' + (base - 10)) return false;
+		return true;
+	}
+	if(base <= 62) {
+		if(c >= 'a' && c < 'a' + (base - 36)) return false;
+		if(c >= 'A' && c < 'Z') return false;
+		return true;
+	}
+	return false;
+}
 
 #define BITWISE_XOR "⊻"
 
@@ -357,6 +376,9 @@ Calculator::Calculator() {
 	gmp_randseed_ui(randstate, (unsigned long int) time(NULL));
 
 	priv = new Calculator_p;
+	priv->custom_input_base_i = 0;
+	priv->ids_i = 0;
+	priv->local_currency = NULL;
 
 #ifdef HAVE_ICU
 	UErrorCode err = U_ZERO_ERROR;
@@ -408,6 +430,7 @@ Calculator::Calculator() {
 	addStringAlternative("∧", BITWISE_AND);
 	addStringAlternative("∨", BITWISE_OR);
 	addStringAlternative("¬", BITWISE_NOT);
+	addStringAlternative(SIGN_MICRO, "μ");
 	
 	per_str = _("per");
 	per_str_len = per_str.length();
@@ -451,6 +474,7 @@ Calculator::Calculator() {
 	place_currency_code_before_negative = place_currency_sign_before_negative;
 #endif	
 	local_digit_group_separator = lc->thousands_sep;
+	if((local_digit_group_separator.length() == 1 && local_digit_group_separator[0] < 0) || local_digit_group_separator == " ") local_digit_group_separator = " ";
 	local_digit_group_format = lc->grouping;
 	remove_blank_ends(local_digit_group_format);
 	default_dot_as_separator = (local_digit_group_separator == ".");
@@ -472,8 +496,6 @@ Calculator::Calculator() {
 	
 	string str = _(" to ");
 	local_to = (str != " to ");
-	
-	priv->ids_i = 0;
 	
 	decimal_null_prefix = new DecimalPrefix(0, "", "");
 	binary_null_prefix = new BinaryPrefix(0, "", "");
@@ -575,6 +597,8 @@ Calculator::Calculator(bool ignore_locale) {
 
 	priv = new Calculator_p;
 	priv->custom_input_base_i = 0;
+	priv->ids_i = 0;
+	priv->local_currency = NULL;
 
 #ifdef HAVE_ICU
 	UErrorCode err = U_ZERO_ERROR;
@@ -626,6 +650,7 @@ Calculator::Calculator(bool ignore_locale) {
 	addStringAlternative("∧", BITWISE_AND);
 	addStringAlternative("∨", BITWISE_OR);
 	addStringAlternative("¬", BITWISE_NOT);
+	addStringAlternative(SIGN_MICRO, "μ");
 	
 	per_str = _("per");
 	per_str_len = per_str.length();
@@ -669,6 +694,7 @@ Calculator::Calculator(bool ignore_locale) {
 	place_currency_code_before_negative = place_currency_sign_before_negative;
 #endif	
 	local_digit_group_separator = lc->thousands_sep;
+	if((local_digit_group_separator.length() == 1 && local_digit_group_separator[0] < 0) || local_digit_group_separator == " ") local_digit_group_separator = " ";
 	local_digit_group_format = lc->grouping;
 	remove_blank_ends(local_digit_group_format);
 	default_dot_as_separator = (local_digit_group_separator == ".");
@@ -690,9 +716,7 @@ Calculator::Calculator(bool ignore_locale) {
 	
 	string str = _(" to ");
 	local_to = (str != " to ");
-	
-	priv->ids_i = 0;
-	
+
 	decimal_null_prefix = new DecimalPrefix(0, "", "");
 	binary_null_prefix = new BinaryPrefix(0, "", "");
 	m_undefined.setUndefined();
@@ -1954,6 +1978,7 @@ void Calculator::addBuiltinFunctions() {
 	f_base = addFunction(new BaseFunction());
 	f_bin = addFunction(new BinFunction());
 	f_oct = addFunction(new OctFunction());
+	addFunction(new DecFunction());
 	f_hex = addFunction(new HexFunction());
 	f_roman = addFunction(new RomanFunction());
 
@@ -2030,7 +2055,7 @@ void Calculator::addBuiltinFunctions() {
 }
 void Calculator::addBuiltinUnits() {
 	u_euro = addUnit(new Unit(_("Currency"), "EUR", "euros", "euro", "European Euros", false, true, true));
-	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "7820.81", 1, "", false, true, true));
+	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "8794.46", 1, "", false, true, true));
 	u_btc->setApproximate();
 	u_btc->setPrecision(-2);
 	u_btc->setChanged(false);
@@ -2307,6 +2332,20 @@ string Calculator::localizeExpression(string str, const ParseOptions &po) const 
 }
 string Calculator::unlocalizeExpression(string str, const ParseOptions &po) const {
 	if((DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) || po.base == BASE_UNICODE || (po.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return str;
+	int base = po.base;
+	if(base == BASE_CUSTOM) {
+		base = (int) priv->custom_input_base_i;
+	} else if(base == BASE_GOLDEN_RATIO || base == BASE_SUPER_GOLDEN_RATIO || base == BASE_SQRT2) {
+		base = 2;
+	} else if(base == BASE_PI) {
+		base = 4;
+	} else if(base == BASE_E) {
+		base = 3;
+	} else if(base == BASE_DUODECIMAL) {
+		base = -12;
+	} else if(base < 2 || base > 36) {
+		base = -1;
+	}
 	vector<size_t> q_begin;
 	vector<size_t> q_end;
 	size_t i3 = 0;
@@ -2325,6 +2364,32 @@ string Calculator::unlocalizeExpression(string str, const ParseOptions &po) cons
 		i3++;
 	}
 	if(DOT_STR != DOT) {
+		if(DOT_STR == COMMA && str.find(COMMA_STR) == string::npos && base > 0 && base <= 10) {
+			size_t ui = str.find(DOT_STR);
+			while(ui != string::npos) {
+				bool b = false;
+				for(size_t ui2 = 0; ui2 < q_end.size(); ui2++) {
+					if(ui <= q_end[ui2] && ui >= q_begin[ui2]) {
+						ui = str.find(DOT_STR, q_end[ui2] + 1);
+						b = true;
+						break;
+					}
+				}
+				if(!b && ui > 0) {
+					size_t ui2 = str.find_last_not_of(SPACES, ui - 1);
+					if(ui2 != string::npos && ((str[ui2] > 'a' && str[ui2] < 'z') || (str[ui2] > 'A' && str[ui2] < 'Z')) && is_not_number(str[ui2], base)) return str;
+				}
+				if(!b && ui != str.length() - 1) {
+					size_t ui2 = str.find_last_not_of(SPACES, ui + 1);
+					if(ui2 != string::npos && is_not_number(str[ui2], base)) return str;
+					ui2 = str.find_first_not_of(SPACES NUMBERS, ui2 + 1);
+					if(ui2 != string::npos && str[ui2] == COMMA_CH) return str;
+				}
+				if(!b) {
+					ui = str.find(DOT_STR, ui + 1);
+				}
+			}
+		}
 		if(po.dot_as_separator) {
 			size_t ui = str.find(DOT);
 			while(ui != string::npos) {
@@ -2860,6 +2925,8 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 	MathStructure mstruct;
 	bool do_bases = false, do_factors = false, do_fraction = false, do_pfe = false, do_calendars = false, do_expand = false;
 	string from_str = str, to_str;
+	Number base_save;
+	if(printops.base == BASE_CUSTOM) base_save = customOutputBase();
 	if(separateToExpression(from_str, to_str, evalops, true)) {
 		remove_duplicate_blanks(to_str);
 		string to_str1, to_str2;
@@ -2894,6 +2961,9 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 		} else if(equalsIgnoreCase(to_str, "time") || equalsIgnoreCase(to_str, _("time"))) {
 			str = from_str;
 			printops.base = BASE_TIME;
+		} else if(equalsIgnoreCase(to_str, "unicode")) {
+			str = from_str;
+			printops.base = BASE_UNICODE;
 		} else if(equalsIgnoreCase(to_str, "utc") || equalsIgnoreCase(to_str, "gmt")) {
 			str = from_str;
 			printops.time_zone = TIME_ZONE_UTC;
@@ -2949,9 +3019,26 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 			str = from_str;
 			evalops.parse_options.units_enabled = true;
 			evalops.auto_post_conversion = POST_CONVERSION_BASE;
-		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str1, "base", _("base")) && s2i(to_str2) >= 2 && (s2i(to_str2) <= 36 || s2i(to_str2) == BASE_SEXAGESIMAL)) {
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str1, "base", _("base"))) {
 			str = from_str;
-			printops.base = s2i(to_str2);
+			if(equalsIgnoreCase(to_str2, "golden") || equalsIgnoreCase(to_str2, "golden ratio") || to_str2 == "φ") printops.base = BASE_GOLDEN_RATIO;
+			else if(equalsIgnoreCase(to_str2, "unicode")) printops.base = BASE_UNICODE;
+			else if(equalsIgnoreCase(to_str2, "supergolden") || equalsIgnoreCase(to_str2, "supergolden ratio") || to_str2 == "ψ") printops.base = BASE_SUPER_GOLDEN_RATIO;
+			else if(equalsIgnoreCase(to_str2, "pi") || to_str2 == "π") printops.base = BASE_PI;
+			else if(to_str2 == "e") printops.base = BASE_E;
+			else if(to_str2 == "sqrt(2)" || to_str2 == "sqrt 2" || to_str2 == "sqrt2" || to_str2 == "√2") printops.base = BASE_SQRT2;
+			else {
+				EvaluationOptions eo = evalops;
+				eo.parse_options.base = 10;
+				MathStructure m = calculate(to_str2, eo);
+				if(m.isInteger() && m.number() >= 2 && m.number() <= 36) {
+					printops.base = m.number().intValue();
+				} else {
+					printops.base = BASE_CUSTOM;
+					base_save = customOutputBase();
+					setCustomOutputBase(m.number());
+				}
+			}
 		} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "mixed", _("mixed"))) {
 			str = from_str;
 			evalops.parse_options.units_enabled = true;
@@ -3029,6 +3116,7 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 	mstruct.format(printops);
 	str = mstruct.print(printops);
 	stopControl();
+	if(printops.base == BASE_CUSTOM) setCustomOutputBase(base_save);
 	return str;
 }
 bool Calculator::calculate(MathStructure *mstruct, string str, int msecs, const EvaluationOptions &eo, MathStructure *parsed_struct, MathStructure *to_struct, bool make_to_division) {
@@ -3085,7 +3173,14 @@ bool Calculator::hasToExpression(const string &str, bool allow_empty_from) const
 	if(allow_empty_from && (str.find("to ") == 0 || (str.find(_("to")) == 0 && str.length() > strlen(_("to")) && str[strlen(_("to"))] == ' '))) return true;
 	return false;
 }
+bool Calculator::hasToExpression(const string &str, bool allow_empty_from, const EvaluationOptions &eo) const {
+	if(eo.parse_options.base == BASE_UNICODE || (eo.parse_options.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return false;
+	if(str.rfind(_(" to ")) != string::npos || str.rfind(" to ") != string::npos) return true;
+	if(allow_empty_from && (str.find("to ") == 0 || (str.find(_("to")) == 0 && str.length() > strlen(_("to")) && str[strlen(_("to"))] == ' '))) return true;
+	return false;
+}
 bool Calculator::separateToExpression(string &str, string &to_str, const EvaluationOptions &eo, bool keep_modifiers, bool allow_empty_from) const {
+	if(eo.parse_options.base == BASE_UNICODE || (eo.parse_options.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return false;
 	to_str = "";
 	size_t i = 0;
 	if((i = str.find(_(" to "))) != string::npos) {
@@ -3117,8 +3212,122 @@ bool Calculator::separateToExpression(string &str, string &to_str, const Evaluat
 	}
 	return false;
 }
+bool Calculator::hasWhereExpression(const string &str, const EvaluationOptions &eo) const {
+	if(eo.parse_options.base == BASE_UNICODE || (eo.parse_options.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return false;
+	if(str.rfind(_(" where ")) != string::npos || str.rfind(" where ") != string::npos) return true;
+	size_t i = 0;
+	if((i = str.find(_("/."))) != string::npos && i != str.length() - 2 && eo.parse_options.base >= 2 && eo.parse_options.base <= 10 && (str[i + 2] < '0' || str[i + 2] > '9')) return true;
+	return false;
+}
+bool Calculator::separateWhereExpression(string &str, string &to_str, const EvaluationOptions &eo) const {
+	if(eo.parse_options.base == BASE_UNICODE || (eo.parse_options.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return false;
+	to_str = "";
+	size_t i = 0;
+	if((i = str.find(_(" where "))) != string::npos) {
+		size_t l = strlen(_(" where "));
+		to_str = str.substr(i + l, str.length() - i - l);
+	} else if((i = str.find(" where ")) != string::npos) {
+		to_str = str.substr(i + 7, str.length() - i - 7);
+	} else if((i = str.find(_("/."))) != string::npos && i != str.length() - 2 && eo.parse_options.base >= 2 && eo.parse_options.base <= 10 && (str[i + 2] < '0' || str[i + 2] > '9')) {
+		to_str = str.substr(i + 2, str.length() - i - 2);
+	} else {
+		return false;
+	}
+	if(!to_str.empty()) {
+		remove_blank_ends(to_str);
+		str = str.substr(0, i);
+		return true;
+	}
+	return false;
+}
+extern string format_and_print(const MathStructure &mstruct);
+bool handle_where_expression(MathStructure &m, MathStructure &mstruct, const EvaluationOptions &eo, vector<UnknownVariable*>& vars, vector<MathStructure>& varms) {
+	if(m.isComparison()) {
+		if(m.comparisonType() == COMPARISON_EQUALS) {
+			mstruct.replace(m[0], m[1]);
+			return true;
+		} else if(m[0].isSymbolic() || (m[0].isVariable() && !m[0].variable()->isKnown())) {
+			if(!m[1].isNumber()) m[1].eval(eo);
+			if(m[1].isNumber() || m[1].number().hasImaginaryPart()) {
+				Assumptions *ass = NULL;
+				for(size_t i = 0; i < varms.size(); i++) {
+					if(varms[i] == m[0]) {
+						ass = vars[0]->assumptions();
+						break;
+					}
+				}
+				if((m.comparisonType() != COMPARISON_NOT_EQUALS || (!ass && m[1].isZero()))) {
+					if(ass) {
+						if(m.comparisonType() == COMPARISON_EQUALS_GREATER) {
+							if(!ass->min() || (*ass->min() < m[1].number())) {
+								ass->setMin(&m[1].number()); ass->setIncludeEqualsMin(true);
+								return true;
+							} else if(*ass->min() >= m[1].number()) {
+								return true;
+							}
+						} else if(m.comparisonType() == COMPARISON_EQUALS_LESS) {
+							if(!ass->max() || (*ass->max() > m[1].number())) {
+								ass->setMax(&m[1].number()); ass->setIncludeEqualsMax(true);
+								return true;
+							} else if(*ass->max() <= m[1].number()) {
+								return true;
+							}
+						} else if(m.comparisonType() == COMPARISON_GREATER) {
+							if(!ass->min() || (ass->includeEqualsMin() && *ass->min() <= m[1].number()) || (!ass->includeEqualsMin() && *ass->min() < m[1].number())) {
+								ass->setMin(&m[1].number()); ass->setIncludeEqualsMin(false);
+								return true;
+							} else if((ass->includeEqualsMin() && *ass->min() > m[1].number()) || (!ass->includeEqualsMin() && *ass->min() >= m[1].number())) {
+								return true;
+							}
+						} else if(m.comparisonType() == COMPARISON_LESS) {
+							if(!ass->max() || (ass->includeEqualsMax() && *ass->max() >= m[1].number()) || (!ass->includeEqualsMax() && *ass->max() > m[1].number())) {
+								ass->setMax(&m[1].number()); ass->setIncludeEqualsMax(false);
+								return true;
+							} else if((ass->includeEqualsMax() && *ass->max() < m[1].number()) || (!ass->includeEqualsMax() && *ass->max() <= m[1].number())) {
+								return true;
+							}
+						}
+					} else {
+						UnknownVariable *var = new UnknownVariable("", format_and_print(m[0]));
+						ass = new Assumptions();
+						if(m[1].isZero()) {
+							if(m.comparisonType() == COMPARISON_EQUALS_GREATER) ass->setSign(ASSUMPTION_SIGN_NONNEGATIVE);
+							else if(m.comparisonType() == COMPARISON_EQUALS_LESS) ass->setSign(ASSUMPTION_SIGN_NONPOSITIVE);
+							else if(m.comparisonType() == COMPARISON_GREATER) ass->setSign(ASSUMPTION_SIGN_POSITIVE);
+							else if(m.comparisonType() == COMPARISON_LESS) ass->setSign(ASSUMPTION_SIGN_NEGATIVE);
+							else if(m.comparisonType() == COMPARISON_NOT_EQUALS) ass->setSign(ASSUMPTION_SIGN_NONZERO);
+						} else {
+							if(m.comparisonType() == COMPARISON_EQUALS_GREATER) {ass->setMin(&m[1].number()); ass->setIncludeEqualsMin(true);}
+							else if(m.comparisonType() == COMPARISON_EQUALS_LESS) {ass->setMax(&m[1].number()); ass->setIncludeEqualsMax(true);}
+							else if(m.comparisonType() == COMPARISON_GREATER) {ass->setMin(&m[1].number()); ass->setIncludeEqualsMin(false);}
+							else if(m.comparisonType() == COMPARISON_LESS) {ass->setMax(&m[1].number()); ass->setIncludeEqualsMax(false);}
+						}
+						var->setAssumptions(ass);
+						var->ref();
+						vars.push_back(var);
+						varms.push_back(m[0]);
+						MathStructure u_var(var);
+						mstruct.replace(m[0], u_var);
+						return true;
+					}
+				}
+			}
+		}
+	} else if(m.isLogicalAnd()) {
+		bool ret = true;
+		for(size_t i = 0; i < m.size(); i++) {
+			if(!handle_where_expression(m[i], mstruct, eo, vars, varms)) ret = false;
+		}
+		return ret;
+	}
+	CALCULATOR->error(true, _("Unhandled \"where\" expression: %s"), format_and_print(m).c_str(), NULL);
+	return false;
+}
 MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, MathStructure *parsed_struct, MathStructure *to_struct, bool make_to_division) {
-	string str2;
+	
+	string str2, str_where;
+	
+	separateWhereExpression(str, str_where, eo);
 	if(make_to_division) separateToExpression(str, str2, eo, true);
 	Unit *u = NULL;
 	if(to_struct) {
@@ -3132,6 +3341,7 @@ MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, Mat
 		}
 		to_struct->setUndefined();
 	}
+	
 	MathStructure mstruct;
 	current_stage = MESSAGE_STAGE_PARSING;
 	size_t n_messages = messages.size();
@@ -3143,44 +3353,102 @@ MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, Mat
 		parse(parsed_struct, str, po);
 		endTemporaryStopMessages();
 	}
+	
+	vector<UnknownVariable*> vars;
+	vector<MathStructure> varms;
+	if(!str_where.empty()) {
+		parseSigns(str_where);
+		if(str_where.find("&&") == string::npos) {
+			int par = 0;
+			int bra = 0;
+			for(size_t i = 0; i < str_where.length(); i++) {
+				switch(str_where[i]) {
+					case '(': {par++; break;}
+					case ')': {if(par > 0) par--; break;}
+					case '[': {bra++; break;}
+					case ']': {if(bra > 0) bra--; break;}
+					case COMMA_CH: {
+						if(par == 0 && bra == 0) {
+							str_where.replace(i, 1, LOGICAL_AND);
+							i++;
+						}
+						break;
+					}
+					default: {}
+				}
+			}
+		}
+		MathStructure where_struct;
+		parse(&where_struct, str_where, eo.parse_options);
+		if(mstruct.isComparison() || (mstruct.isFunction() && mstruct.function() == CALCULATOR->f_solve && mstruct.size() >= 1 && mstruct[0].isComparison())) {
+			beginTemporaryStopMessages();
+			MathStructure mbak(mstruct);
+			if(handle_where_expression(where_struct, mstruct, eo, vars, varms)) {
+				endTemporaryStopMessages(true);
+			} else {
+				endTemporaryStopMessages();
+				mstruct = mbak;
+				if(mstruct.isComparison()) mstruct.transform(STRUCT_LOGICAL_AND, where_struct);
+				else {mstruct[0].transform(STRUCT_LOGICAL_AND, where_struct); mstruct.childUpdated(1);}
+			}
+		} else {
+			if(eo.approximation == APPROXIMATION_EXACT) {
+				EvaluationOptions eo2 = eo;
+				eo2.approximation = APPROXIMATION_TRY_EXACT;
+				handle_where_expression(where_struct, mstruct, eo2, vars, varms);
+			} else {
+				handle_where_expression(where_struct, mstruct, eo, vars, varms);
+			}
+		}
+	}
+	
 	current_stage = MESSAGE_STAGE_CALCULATION;
 
 	mstruct.eval(eo);
 	
 	current_stage = MESSAGE_STAGE_UNSET;
-	if(aborted()) return mstruct;
-	bool b_units = mstruct.containsType(STRUCT_UNIT, true);
-	if(b_units && u) {
-		current_stage = MESSAGE_STAGE_CONVERSION;
-		if(to_struct) to_struct->set(u);
-		mstruct.set(convert(mstruct, u, eo, false, false));
-		if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
-	} else if(!str2.empty()) {
-		mstruct.set(convert(mstruct, str2, eo));
-	} else if(b_units) {
-		current_stage = MESSAGE_STAGE_CONVERSION;
-		switch(eo.auto_post_conversion) {
-			case POST_CONVERSION_OPTIMAL: {
-				mstruct.set(convertToOptimalUnit(mstruct, eo, false));
-				break;
+
+	if(!aborted()) {
+		bool b_units = mstruct.containsType(STRUCT_UNIT, true);
+		if(b_units && u) {
+			current_stage = MESSAGE_STAGE_CONVERSION;
+			if(to_struct) to_struct->set(u);
+			mstruct.set(convert(mstruct, u, eo, false, false));
+			if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
+		} else if(!str2.empty()) {
+			mstruct.set(convert(mstruct, str2, eo));
+		} else if(b_units) {
+			current_stage = MESSAGE_STAGE_CONVERSION;
+			switch(eo.auto_post_conversion) {
+				case POST_CONVERSION_OPTIMAL: {
+					mstruct.set(convertToOptimalUnit(mstruct, eo, false));
+					break;
+				}
+				case POST_CONVERSION_BASE: {
+					mstruct.set(convertToBaseUnits(mstruct, eo));
+					break;
+				}
+				case POST_CONVERSION_OPTIMAL_SI: {
+					mstruct.set(convertToOptimalUnit(mstruct, eo, true));
+					break;
+				}
+				default: {}
 			}
-			case POST_CONVERSION_BASE: {
-				mstruct.set(convertToBaseUnits(mstruct, eo));
-				break;
-			}
-			case POST_CONVERSION_OPTIMAL_SI: {
-				mstruct.set(convertToOptimalUnit(mstruct, eo, true));
-				break;
-			}
-			default: {}
+			if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
 		}
-		if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
 	}
 	
 	cleanMessages(mstruct, n_messages + 1);
 
 	current_stage = MESSAGE_STAGE_UNSET;
+	
+	for(size_t i = 0; i < vars.size(); i++) {
+		mstruct.replace(vars[i], varms[i]);
+		vars[i]->destroy();
+	}
+
 	return mstruct;
+
 }
 MathStructure Calculator::calculate(const MathStructure &mstruct_to_calculate, const EvaluationOptions &eo, string to_str) {
 
@@ -4456,15 +4724,20 @@ Unit* Calculator::getActiveUnit(string name_) {
 	return NULL;
 }
 Unit* Calculator::getLocalCurrency() {
+	if(priv->local_currency) return priv->local_currency;
 	struct lconv *lc = localeconv();
 	if(lc) {
 		string local_currency = lc->int_curr_symbol;
 		remove_blank_ends(local_currency);
 		if(!local_currency.empty()) {
+			if(local_currency.length() > 3) local_currency = local_currency.substr(0, 3);
 			return getActiveUnit(local_currency);
 		}
 	}
 	return NULL;
+}
+void Calculator::setLocalCurrency(Unit *u) {
+	priv->local_currency = u;
 }
 Unit* Calculator::getCompositeUnit(string internal_name_) {
 	if(internal_name_.empty()) return NULL;
@@ -4957,24 +5230,6 @@ bool Calculator::unitIsUsedByOtherUnits(const Unit *u) const {
 	return false;
 }
 
-bool is_not_number(char c, int base) {
-	if(c >= '0' && c <= '9') return false;
-	if(base == -1) return false;
-	if(base == -12) return c != 'E' && c != 'X';
-	if(base <= 10) return true;
-	if(base <= 36) {
-		if(c >= 'a' && c < 'a' + (base - 10)) return false;
-		if(c >= 'A' && c < 'A' + (base - 10)) return false;
-		return true;
-	}
-	if(base <= 62) {
-		if(c >= 'a' && c < 'a' + (base - 10)) return false;
-		if(c >= 'A' && c < 'A' + (base - 36)) return false;
-		return true;
-	}
-	return false;
-}
-
 bool compare_name(const string &name, const string &str, const size_t &name_length, const size_t &str_index, int base) {
 	if(name_length == 0) return false;
 	if(name[0] != str[str_index]) return false;
@@ -5269,8 +5524,12 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 	int base = po.base;
 	if(base == BASE_CUSTOM) {
 		base = (int) priv->custom_input_base_i;
-	} else if(base == BASE_GOLDEN_RATIO) {
+	} else if(base == BASE_GOLDEN_RATIO || base == BASE_SUPER_GOLDEN_RATIO || base == BASE_SQRT2) {
 		base = 2;
+	} else if(base == BASE_PI) {
+		base = 4;
+	} else if(base == BASE_E) {
+		base = 3;
 	} else if(base == BASE_DUODECIMAL) {
 		base = -12;
 	} else if(base < 2 || base > 36) {
@@ -6424,7 +6683,7 @@ void Calculator::parse(MathStructure *mstruct, string str, const ParseOptions &p
 
 }
 
-#define BASE_2_10 ((po.base >= 2 && po.base <= 10) || po.base == BASE_GOLDEN_RATIO || (po.base == BASE_CUSTOM && priv->custom_input_base_i <= 10))
+#define BASE_2_10 ((po.base >= 2 && po.base <= 10) || (po.base < BASE_CUSTOM && po.base != BASE_UNICODE) || (po.base == BASE_CUSTOM && priv->custom_input_base_i <= 10))
 
 bool Calculator::parseNumber(MathStructure *mstruct, string str, const ParseOptions &po) {
 	mstruct->clear();
@@ -8101,7 +8360,7 @@ bool Calculator::loadLocalDefinitions() {
 	}
 	eps.sort();
 	for(list<string>::iterator it = eps.begin(); it != eps.end(); ++it) {
-		loadDefinitions(buildPath(homedir, *it).c_str(), (*it) == "functions.xml" || (*it) == "variables.xml" || (*it) == "units.xml" || (*it) == "datasets.xml");
+		loadDefinitions(buildPath(homedir, *it).c_str(), (*it) == "functions.xml" || (*it) == "variables.xml" || (*it) == "units.xml" || (*it) == "datasets.xml", true);
 	}
 	for(size_t i = 0; i < variables.size(); i++) {
 		if(!variables[i]->isLocal() && !variables[i]->isActive() && !getActiveExpressionItem(variables[i])) variables[i]->setActive(true);
@@ -8601,9 +8860,9 @@ bool Calculator::loadLocalDefinitions() {
 						if(!ref_names[i].name.empty()) {\
 							ref_names[i].name = "";\
 						}\
-					}					
+					}
 
-int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
+int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool check_duplicates) {
 
 	xmlDocPtr doc;
 	xmlNodePtr cur, child, child2, child3;
@@ -8701,7 +8960,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 		xmlFreeDoc(doc);
 		return false;
 	}
-	int version_numbers[] = {3, 2, 0};
+	int version_numbers[] = {3, 3, 0};
 	parse_qalculate_version(version, version_numbers);
 
 	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);
@@ -8912,6 +9171,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					ITEM_SET_NAME_3
 				}
 				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= f->countNames();) {
+						if(getActiveFunction(f->getName(i).name)) f->removeName(i);
+						else i++;
+					}
+				}
 				if(f->countNames() == 0) {
 					f->destroy();
 					f = NULL;
@@ -9280,6 +9545,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					}
 				}
 				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= dc->countNames();) {
+						if(getActiveFunction(dc->getName(i).name)) dc->removeName(i);
+						else i++;
+					}
+				}
 				if(!builtin && dc->countNames() == 0) {
 					dc->destroy();
 					dc = NULL;
@@ -9420,6 +9691,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					ITEM_SET_NAME_3
 				}
 				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= v->countNames();) {
+						if(getActiveVariable(v->getName(i).name) || getActiveUnit(v->getName(i).name) || getCompositeUnit(v->getName(i).name)) v->removeName(i);
+						else i++;
+					}
+				}
 				for(size_t i = 1; i <= v->countNames(); i++) {
 					if(v->getName(i).name == "x") {v_x->destroy(); v_x = (UnknownVariable*) v; break;}
 					if(v->getName(i).name == "y") {v_y->destroy(); v_y = (UnknownVariable*) v; break;}
@@ -9476,6 +9753,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					ITEM_SET_NAME_3
 				}
 				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= v->countNames();) {
+						if(getActiveVariable(v->getName(i).name) || getActiveUnit(v->getName(i).name) || getCompositeUnit(v->getName(i).name)) v->removeName(i);
+						else i++;
+					}
+				}
 				if(v->countNames() == 0) {
 					v->destroy();
 					v = NULL;
@@ -9575,6 +9858,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					if(use_with_prefixes_set) {
 						u->setUseWithPrefixesByDefault(use_with_prefixes);
 					}
+					if(check_duplicates && !is_user_defs) {
+						for(size_t i = 1; i <= u->countNames();) {
+							if(getActiveVariable(u->getName(i).name) || getActiveUnit(u->getName(i).name) || getCompositeUnit(u->getName(i).name)) u->removeName(i);
+							else i++;
+						}
+					}
 					if(u->countNames() == 0) {
 						u->destroy();
 						u = NULL;
@@ -9602,6 +9891,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 					prec = -1;
 					ITEM_INIT_DTH
 					ITEM_INIT_NAME
+					unc_rel = false;
 					while(child != NULL) {
 						if(!xmlStrcmp(child->name, (const xmlChar*) "base")) {
 							child2 = child->xmlChildrenNode;
@@ -9611,7 +9901,6 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							svalue = "";
 							inverse = "";
 							suncertainty = "";
-							unc_rel = false;
 							b = true;
 							while(child2 != NULL) {
 								if(!xmlStrcmp(child2->name, (const xmlChar*) "unit")) {
@@ -9707,6 +9996,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 						if(b_currency && !au->referenceName().empty()) {
 							u = getUnit(au->referenceName());
 							if(u && u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->baseUnit() == u_euro) u->destroy();
+						}
+						if(check_duplicates && !is_user_defs) {
+							for(size_t i = 1; i <= au->countNames();) {
+								if(getActiveVariable(au->getName(i).name) || getActiveUnit(au->getName(i).name) || getCompositeUnit(au->getName(i).name)) au->removeName(i);
+								else i++;
+							}
 						}
 						if(au->countNames() == 0) {
 							au->destroy();
@@ -9833,6 +10128,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 							ITEM_SET_NAME_3
 						}
 						ITEM_SET_DTH
+						if(check_duplicates && !is_user_defs) {
+							for(size_t i = 1; i <= cu->countNames();) {
+								if(getActiveVariable(cu->getName(i).name) || getActiveUnit(cu->getName(i).name) || getCompositeUnit(cu->getName(i).name)) cu->removeName(i);
+								else i++;
+							}
+						}
 						if(cu->countNames() == 0) {
 							cu->destroy();
 							cu = NULL;
@@ -9911,17 +10212,33 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs) {
 			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "prefix")) {
 				child = cur->xmlChildrenNode;
 				XML_GET_STRING_FROM_PROP(cur, "type", type)
-				uname = ""; sexp = ""; svalue = "";
+				uname = ""; sexp = ""; svalue = ""; name = "";
+				bool b_best = false;
 				while(child != NULL) {
 					if(!xmlStrcmp(child->name, (const xmlChar*) "name")) {
-						XML_GET_STRING_FROM_TEXT(child, name);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "abbreviation")) {	
+						lang = xmlNodeGetLang(child);
+						if(!lang) {
+							if(name.empty()) {
+								XML_GET_STRING_FROM_TEXT(child, name);
+							}
+						} else {
+							if(!b_best && !locale.empty()) {
+								if(locale == (char*) lang) {
+									XML_GET_STRING_FROM_TEXT(child, name);
+									b_best = true;
+								} else if(strlen((char*) lang) >= 2 && lang[0] == localebase[0] && lang[1] == localebase[1]) {
+									XML_GET_STRING_FROM_TEXT(child, name);
+								}
+							}
+							xmlFree(lang);
+						}
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "abbreviation")) {
 						XML_GET_STRING_FROM_TEXT(child, stmp);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "unicode")) {	
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "unicode")) {
 						XML_GET_STRING_FROM_TEXT(child, uname);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "exponent")) {	
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "exponent")) {
 						XML_GET_STRING_FROM_TEXT(child, sexp);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "value")) {	
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "value")) {
 						XML_GET_STRING_FROM_TEXT(child, svalue);
 					}
 					child = child->next;
