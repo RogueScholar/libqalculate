@@ -3216,6 +3216,12 @@ bool Calculator::hasToExpression(const string &str, bool allow_empty_from, const
 	if(allow_empty_from && (str.find("to ") == 0 || (str.find(_("to")) == 0 && str.length() > strlen(_("to")) && str[strlen(_("to"))] == ' '))) return true;
 	return false;
 }
+bool Calculator::hasToExpression(const string &str, bool allow_empty_from, const EvaluationOptions &eo) const {
+	if(eo.parse_options.base == BASE_UNICODE || (eo.parse_options.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return false;
+	if(str.rfind(_(" to ")) != string::npos || str.rfind(" to ") != string::npos) return true;
+	if(allow_empty_from && (str.find("to ") == 0 || (str.find(_("to")) == 0 && str.length() > strlen(_("to")) && str[strlen(_("to"))] == ' '))) return true;
+	return false;
+}
 bool Calculator::separateToExpression(string &str, string &to_str, const EvaluationOptions &eo, bool keep_modifiers, bool allow_empty_from) const {
 	if(eo.parse_options.base == BASE_UNICODE || (eo.parse_options.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return false;
 	to_str = "";
