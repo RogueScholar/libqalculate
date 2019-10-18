@@ -2,7 +2,8 @@
 /*
     Qalculate (library)
 
-    Copyright (C) 2003-2007, 2008, 2016  Hanna Knutsson (hanna.knutsson@protonmail.com)
+    Copyright (C) 2003-2007, 2008, 2016  Hanna Knutsson
+   (hanna.knutsson@protonmail.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,100 +17,138 @@
 #include <libqalculate/Function.h>
 #include <libqalculate/includes.h>
 
-#define DECLARE_BUILTIN_FUNCTION(x)	class x : public MathFunction { \
-					  public: \
-						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
-						x(); \
-						x(const x *function) {set(function);} \
-						ExpressionItem *copy() const {return new x(this);} \
-					};
+#define DECLARE_BUILTIN_FUNCTION(x)                                            \
+  class x : public MathFunction {                                              \
+  public:                                                                      \
+    int calculate(MathStructure &mstruct, const MathStructure &vargs,          \
+                  const EvaluationOptions &eo);                                \
+    x();                                                                       \
+    x(const x *function) { set(function); }                                    \
+    ExpressionItem *copy() const { return new x(this); }                       \
+  };
 
-#define DECLARE_BUILTIN_FUNCTION_B(x)	class x : public MathFunction { \
-					  public: \
-						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
-						x(); \
-						x(const x *function) {set(function);} \
-						ExpressionItem *copy() const {return new x(this);} \
-						bool representsBoolean(const MathStructure&) const {return true;}\
-					};
+#define DECLARE_BUILTIN_FUNCTION_B(x)                                          \
+  class x : public MathFunction {                                              \
+  public:                                                                      \
+    int calculate(MathStructure &mstruct, const MathStructure &vargs,          \
+                  const EvaluationOptions &eo);                                \
+    x();                                                                       \
+    x(const x *function) { set(function); }                                    \
+    ExpressionItem *copy() const { return new x(this); }                       \
+    bool representsBoolean(const MathStructure &) const { return true; }       \
+  };
 
-#define DECLARE_BUILTIN_FUNCTION_PI(x)	class x : public MathFunction { \
-					  public: \
-						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
-						x(); \
-						x(const x *function) {set(function);} \
-						ExpressionItem *copy() const {return new x(this);} \
-						bool representsInteger(const MathStructure&, bool) const {return true;}\
-						bool representsPositive(const MathStructure&, bool) const {return true;}\
-					};
+#define DECLARE_BUILTIN_FUNCTION_PI(x)                                         \
+  class x : public MathFunction {                                              \
+  public:                                                                      \
+    int calculate(MathStructure &mstruct, const MathStructure &vargs,          \
+                  const EvaluationOptions &eo);                                \
+    x();                                                                       \
+    x(const x *function) { set(function); }                                    \
+    ExpressionItem *copy() const { return new x(this); }                       \
+    bool representsInteger(const MathStructure &, bool) const { return true; } \
+    bool representsPositive(const MathStructure &, bool) const {               \
+      return true;                                                             \
+    }                                                                          \
+  };
 
-#define DECLARE_BUILTIN_FUNCTION_RPI(x)	class x : public MathFunction { \
-					  public: \
-						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
-						x(); \
-						x(const x *function) {set(function);} \
-						ExpressionItem *copy() const {return new x(this);} \
-						bool representsReal(const MathStructure&, bool) const;\
-						bool representsInteger(const MathStructure&, bool) const;\
-						bool representsNonNegative(const MathStructure&, bool) const;\
-					};
+#define DECLARE_BUILTIN_FUNCTION_RPI(x)                                        \
+  class x : public MathFunction {                                              \
+  public:                                                                      \
+    int calculate(MathStructure &mstruct, const MathStructure &vargs,          \
+                  const EvaluationOptions &eo);                                \
+    x();                                                                       \
+    x(const x *function) { set(function); }                                    \
+    ExpressionItem *copy() const { return new x(this); }                       \
+    bool representsReal(const MathStructure &, bool) const;                    \
+    bool representsInteger(const MathStructure &, bool) const;                 \
+    bool representsNonNegative(const MathStructure &, bool) const;             \
+  };
 
-#define DECLARE_BUILTIN_FUNCTION_R(x)	class x : public MathFunction { \
-					  public: \
-						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
-						x(); \
-						x(const x *function) {set(function);} \
-						ExpressionItem *copy() const {return new x(this);} \
-						bool representsPositive(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNegative(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNonNegative(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNonPositive(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsInteger(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsRational(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsReal(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsComplex(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNonZero(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsEven(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsOdd(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsUndefined(const MathStructure &vargs) const;\
-					};
+#define DECLARE_BUILTIN_FUNCTION_R(x)                                          \
+  class x : public MathFunction {                                              \
+  public:                                                                      \
+    int calculate(MathStructure &mstruct, const MathStructure &vargs,          \
+                  const EvaluationOptions &eo);                                \
+    x();                                                                       \
+    x(const x *function) { set(function); }                                    \
+    ExpressionItem *copy() const { return new x(this); }                       \
+    bool representsPositive(const MathStructure &vargs,                        \
+                            bool allow_units = false) const;                   \
+    bool representsNegative(const MathStructure &vargs,                        \
+                            bool allow_units = false) const;                   \
+    bool representsNonNegative(const MathStructure &vargs,                     \
+                               bool allow_units = false) const;                \
+    bool representsNonPositive(const MathStructure &vargs,                     \
+                               bool allow_units = false) const;                \
+    bool representsInteger(const MathStructure &vargs,                         \
+                           bool allow_units = false) const;                    \
+    bool representsNumber(const MathStructure &vargs,                          \
+                          bool allow_units = false) const;                     \
+    bool representsRational(const MathStructure &vargs,                        \
+                            bool allow_units = false) const;                   \
+    bool representsReal(const MathStructure &vargs,                            \
+                        bool allow_units = false) const;                       \
+    bool representsNonComplex(const MathStructure &vargs,                      \
+                              bool allow_units = false) const;                 \
+    bool representsComplex(const MathStructure &vargs,                         \
+                           bool allow_units = false) const;                    \
+    bool representsNonZero(const MathStructure &vargs,                         \
+                           bool allow_units = false) const;                    \
+    bool representsEven(const MathStructure &vargs,                            \
+                        bool allow_units = false) const;                       \
+    bool representsOdd(const MathStructure &vargs,                             \
+                       bool allow_units = false) const;                        \
+    bool representsUndefined(const MathStructure &vargs) const;                \
+  };
 
-#define DECLARE_BUILTIN_FUNCTION_R2(x)	class x : public MathFunction { \
-					  public: \
-						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
-						x(); \
-						x(const x *function) {set(function);} \
-						ExpressionItem *copy() const {return new x(this);} \
-						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsReal(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
-					};
+#define DECLARE_BUILTIN_FUNCTION_R2(x)                                         \
+  class x : public MathFunction {                                              \
+  public:                                                                      \
+    int calculate(MathStructure &mstruct, const MathStructure &vargs,          \
+                  const EvaluationOptions &eo);                                \
+    x();                                                                       \
+    x(const x *function) { set(function); }                                    \
+    ExpressionItem *copy() const { return new x(this); }                       \
+    bool representsNumber(const MathStructure &vargs,                          \
+                          bool allow_units = false) const;                     \
+    bool representsReal(const MathStructure &vargs,                            \
+                        bool allow_units = false) const;                       \
+    bool representsNonComplex(const MathStructure &vargs,                      \
+                              bool allow_units = false) const;                 \
+  };
 
+#define DECLARE_BUILTIN_FUNCTION_R3(x)                                         \
+  class x : public MathFunction {                                              \
+  public:                                                                      \
+    int calculate(MathStructure &mstruct, const MathStructure &vargs,          \
+                  const EvaluationOptions &eo);                                \
+    x();                                                                       \
+    x(const x *function) { set(function); }                                    \
+    ExpressionItem *copy() const { return new x(this); }                       \
+    bool representsNumber(const MathStructure &vargs,                          \
+                          bool allow_units = false) const;                     \
+    bool representsReal(const MathStructure &vargs,                            \
+                        bool allow_units = false) const;                       \
+    bool representsNonComplex(const MathStructure &vargs,                      \
+                              bool allow_units = false) const;                 \
+    bool representsComplex(const MathStructure &vargs,                         \
+                           bool allow_units = false) const;                    \
+    bool representsNonZero(const MathStructure &vargs,                         \
+                           bool allow_units = false) const;                    \
+  };
 
-#define DECLARE_BUILTIN_FUNCTION_R3(x)	class x : public MathFunction { \
-					  public: \
-						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
-						x(); \
-						x(const x *function) {set(function);} \
-						ExpressionItem *copy() const {return new x(this);} \
-						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsReal(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsComplex(const MathStructure &vargs, bool allow_units = false) const;\
-						bool representsNonZero(const MathStructure &vargs, bool allow_units = false) const;\
-					};
-
-#define DECLARE_BUILTIN_FUNCTION_R1(x)	class x : public MathFunction { \
-					  public: \
-						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
-						x(); \
-						x(const x *function) {set(function);} \
-						ExpressionItem *copy() const {return new x(this);} \
-						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
-					};
-
+#define DECLARE_BUILTIN_FUNCTION_R1(x)                                         \
+  class x : public MathFunction {                                              \
+  public:                                                                      \
+    int calculate(MathStructure &mstruct, const MathStructure &vargs,          \
+                  const EvaluationOptions &eo);                                \
+    x();                                                                       \
+    x(const x *function) { set(function); }                                    \
+    ExpressionItem *copy() const { return new x(this); }                       \
+    bool representsNumber(const MathStructure &vargs,                          \
+                          bool allow_units = false) const;                     \
+  };
 
 DECLARE_BUILTIN_FUNCTION(VectorFunction)
 DECLARE_BUILTIN_FUNCTION(LimitsFunction)
