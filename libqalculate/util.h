@@ -27,7 +27,7 @@
 #endif
 
 #ifdef _WIN32
-	#define srand48 srand
+#define srand48 srand
 #endif
 
 /** @file */
@@ -108,65 +108,65 @@ int checkAvailableVersion(const char *version_id, const char *current_version, s
 
 class Thread {
 public:
-	Thread();
-	virtual ~Thread();
-	bool start();
-	bool cancel();
-	template <class T> bool write(T data) {
+    Thread();
+    virtual ~Thread();
+    bool start();
+    bool cancel();
+    template <class T> bool write(T data) {
 #ifdef _WIN32
-		int ret = PostThreadMessage(m_threadID, WM_USER, (WPARAM) data, 0);
-		return (ret != 0);
+        int ret = PostThreadMessage(m_threadID, WM_USER, (WPARAM) data, 0);
+        return (ret != 0);
 #else
-		int ret = fwrite(&data, sizeof(T), 1, m_pipe_w);
-		if(ret != 1) return false;
-		fflush(m_pipe_w);
-		return true;
+        int ret = fwrite(&data, sizeof(T), 1, m_pipe_w);
+        if(ret != 1) return false;
+        fflush(m_pipe_w);
+        return true;
 #endif
-	}
+    }
 
-	// FIXME: this is technically wrong -- needs memory barriers (std::atomic?)
-	volatile bool running;
+    // FIXME: this is technically wrong -- needs memory barriers (std::atomic?)
+    volatile bool running;
 
 protected:
-	virtual void run() = 0;
-	void enableAsynchronousCancel();
-	template <class T> T read() {
+    virtual void run() = 0;
+    void enableAsynchronousCancel();
+    template <class T> T read() {
 #ifdef _WIN32
-		MSG msg;
-		int ret = GetMessage(&msg, NULL, WM_USER, WM_USER);
-		return (T) msg.wParam;
+        MSG msg;
+        int ret = GetMessage(&msg, NULL, WM_USER, WM_USER);
+        return (T) msg.wParam;
 #else
-		T x;
-		fread(&x, sizeof(T), 1, m_pipe_r);
-		return x;
+        T x;
+        fread(&x, sizeof(T), 1, m_pipe_r);
+        return x;
 #endif
-	}
-	template <class T> bool read(T *data) {
+    }
+    template <class T> bool read(T *data) {
 #ifdef _WIN32
-		MSG msg;
-		int ret = GetMessage(&msg, NULL, WM_USER, WM_USER);
-		if(ret == 0 || ret == -1) return false;
-		*data = (T) msg.wParam;
-		return true;
+        MSG msg;
+        int ret = GetMessage(&msg, NULL, WM_USER, WM_USER);
+        if(ret == 0 || ret == -1) return false;
+        *data = (T) msg.wParam;
+        return true;
 #else
-		int ret = fread(data, sizeof(T), 1, m_pipe_r);
-		return ret == 1;
+        int ret = fread(data, sizeof(T), 1, m_pipe_r);
+        return ret == 1;
 #endif
-	}
+    }
 
 private:
 #ifdef _WIN32
-	static DWORD WINAPI doRun(void *data);
+    static DWORD WINAPI doRun(void *data);
 
-	HANDLE m_thread, m_threadReadyEvent;
-	DWORD m_threadID;
+    HANDLE m_thread, m_threadReadyEvent;
+    DWORD m_threadID;
 #else
-	static void doCleanup(void *data);
-	static void *doRun(void *data);
+    static void doCleanup(void *data);
+    static void *doRun(void *data);
 
-	pthread_t m_thread;
-	pthread_attr_t m_thread_attr;
-	FILE *m_pipe_r, *m_pipe_w;
+    pthread_t m_thread;
+    pthread_attr_t m_thread_attr;
+    FILE *m_pipe_r, *m_pipe_w;
 #endif
 };
 
