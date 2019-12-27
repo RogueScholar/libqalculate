@@ -58,14 +58,14 @@ void printRecursive(const MathStructure &mstruct);
 std::string format_and_print(const MathStructure &mstruct);
 
 struct sym_desc {
-	MathStructure sym;
-	Number deg_a;
-	Number deg_b;
-	Number ldeg_a;
-	Number ldeg_b;
-	Number max_deg;
-	size_t max_lcnops;
-	bool operator<(const sym_desc &x) const;
+    MathStructure sym;
+    Number deg_a;
+    Number deg_b;
+    Number ldeg_a;
+    Number ldeg_b;
+    Number max_deg;
+    size_t max_lcnops;
+    bool operator<(const sym_desc &x) const;
 };
 typedef std::vector<sym_desc> sym_desc_vec;
 
