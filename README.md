@@ -1,5 +1,8 @@
 # libqalculate
+
 Qalculate! library and CLI
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FRogueScholar%2Flibqalculate.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FRogueScholar%2Flibqalculate?ref=badge_shield)
 
 ![Image of qalc](http://qalculate.github.io/images/qalc.png)
 
@@ -99,4 +102,6 @@ Other software using libqalculate include
    * Several customization options
 * and more...
 
+## License
 
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FRogueScholar%2Flibqalculate.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FRogueScholar%2Flibqalculate?ref=badge_large)
