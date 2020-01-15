@@ -18,12 +18,13 @@
 #include "Calculator.h"
 #include "Variable.h"
 #include "Unit.h"
-#include "MathStructure-support.h"
 
 #include <sstream>
 #include <time.h>
 #include <limits>
 #include <algorithm>
+
+#include "MathStructure-support.h"
 
 using std::string;
 using std::cout;
@@ -259,7 +260,7 @@ int TransposeFunction::calculate(MathStructure &mstruct, const MathStructure &va
 	mstruct = vargs[0];
 	return mstruct.transposeMatrix();
 }
-IdentityFunction::IdentityFunction() : MathFunction("identity", 1) {
+IdentityMatrixFunction::IdentityMatrixFunction() : MathFunction("identity", 1) {
 	ArgumentSet *arg = new ArgumentSet();
 	arg->addArgument(new IntegerArgument("", ARGUMENT_MIN_MAX_POSITIVE, true, true, INTEGER_TYPE_SIZE));
 	MatrixArgument *marg = new MatrixArgument();
@@ -267,7 +268,7 @@ IdentityFunction::IdentityFunction() : MathFunction("identity", 1) {
 	arg->addArgument(marg);
 	setArgumentDefinition(1, arg);
 }
-int IdentityFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
+int IdentityMatrixFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
 	if(vargs[0].isMatrix()) {
 		if(vargs[0].rows() != vargs[0].columns()) {
 			return 0;

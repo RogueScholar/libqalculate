@@ -1828,7 +1828,7 @@ void speed_test() {
 
 int main(int argc, char *argv[]) {
 
-	new Calculator(false);
+	new Calculator(true);
 	CALCULATOR->loadGlobalDefinitions();
 	CALCULATOR->loadLocalDefinitions();
 	CALCULATOR->setPrecision(8);
@@ -1843,7 +1843,7 @@ int main(int argc, char *argv[]) {
 	po.show_ending_zeroes = false;
 	po.number_fraction_format = FRACTION_DECIMAL;
 	po.restrict_fraction_length = true;
-	//po.min_exp = 1;
+	po.min_exp = 1;
 	//po.max_decimals = 1;
 	//po.use_max_decimals = true;
 	CALCULATOR->setMessagePrintOptions(po);
@@ -1883,9 +1883,9 @@ int main(int argc, char *argv[]) {
 	mstruct.eval(evalops);
 	cout << mstruct << endl;*/
 	//speed_test();
-	test_integration();
+	/*test_integration();
 	cout << successes << ":" << imaginary << endl;
-	return 0;
+	return 0;*/
 	//test_intervals(true);
 
 	/*Number nr;
@@ -1983,7 +1983,7 @@ int main(int argc, char *argv[]) {
 	//CALCULATOR->defaultAssumptions()->setType(ASSUMPTION_TYPE_NUMBER);
 	//CALCULATOR->useIntervalArithmetic();
 
-	for(size_t i = 0; i <= 5000; i++) {
+	for(size_t i = 0; i <= 15000; i++) {
 		/*string str = rnd_expression(17, false, 20, 4, false, false, false, false, true);
 		cout << str << endl;
 		MathStructure mstruct;
@@ -1992,7 +1992,7 @@ int main(int argc, char *argv[]) {
 		cout << mstruct.print() << endl;
 		if(mstruct.isAborted()) break;*/
 		//if(mstruct.isPower() || (mstruct.isMultiplication() && !mstruct.containsType(STRUCT_DIVISION))) cout << str << "\n" << mstruct << endl;
-		rnd_test(evalops, 4, true, false, true, false, false, true);
+		rnd_test(evalops, 4, true, false, true, false, false, false);
 		if(i % 1000 == 0) cout << endl << rt1 << ":" << rt2 << ":" << rt3 << ":" << rt4 << ":" << rt5 << ":" << rt6 << ":" << rt7 << ":" << rt8 << ":" << rt9 << endl << endl;
 	}
 	cout << endl << endl << "-----------------------------------------" << endl << endl << endl;
