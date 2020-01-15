@@ -125,6 +125,7 @@ class Number {
 		bool setToFloatingPoint();
 		void precisionToInterval();
 		bool intervalToPrecision(long int min_precision = 2);
+		void intervalToMidValue(bool increase_precision_if_close);
 		void intervalToMidValue();
 		void splitInterval(unsigned int nr_of_parts, std::vector<Number> &v) const;
 		bool getCentralInteger(Number &nr_int, bool *b_multiple = NULL, std::vector<Number> *v = NULL) const;
@@ -461,6 +462,9 @@ class Number {
  		*/
 		bool zeta();
 
+		/// Hurwitz zeta function
+		bool zeta(const Number &o);
+
 		bool gamma();
 		bool digamma();
 		bool airy();
@@ -509,6 +513,8 @@ class Number {
 		bool binomial(const Number &m, const Number &k);
 		bool factorize(std::vector<Number> &factors);
 
+		bool bernoulli();
+
 		void rand();
 		void randn();
 		void intRand(const Number &ceil);
@@ -525,5 +531,7 @@ class Number {
 };
 
 std::ostream& operator << (std::ostream &os, const Number&);
+
+bool testComplexZero(const Number *this_nr, const Number *i_nr);
 
 #endif

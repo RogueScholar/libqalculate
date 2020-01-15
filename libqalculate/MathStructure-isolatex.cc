@@ -25,6 +25,56 @@ using std::endl;
 using std::string;
 using std::vector;
 
+bool combine_powers(MathStructure &m, const MathStructure &x_var, const EvaluationOptions &eo) {
+	bool b_ret = false;
+	if(!m.isMultiplication()) {
+		for(size_t i = 0; i < m.size(); i++) {
+			if(combine_powers(m[i], x_var, eo)) {
+				m.childUpdated(i + 1);
+				b_ret = true;
+			}
+		}
+		return b_ret;
+	}
+	for(size_t i = 0; i < m.size() - 1; i++) {
+		if(m[i].isPower() && !m[i][0].contains(x_var, true) && m[i][1].contains(x_var, true)) {
+			for(size_t i2 = i + 1; i2 < m.size(); i2++) {
+				// a^(f(x))*b^(g(x))=e^(f(x)/ln(a)+g(x)/ln(b))
+				if(m[i2].isPower() && !m[i2][0].contains(x_var, true) && m[i2][1].contains(x_var, true)) {
+					if(m[i2][0] != m[i][0]) {
+						if(!m[i2][0].isVariable() || m[i2][0].variable()->id() != VARIABLE_ID_E) {
+							MathStructure mln(m[i2][0]);
+							mln.transformById(FUNCTION_ID_LOG);
+							m[i2][1].calculateMultiply(mln, eo);
+						}
+						if(!m[i][0].isVariable() || m[i][0].variable()->id() != VARIABLE_ID_E) {
+							MathStructure mln(m[i][0]);
+							mln.transformById(FUNCTION_ID_LOG);
+							m[i][1].calculateMultiply(mln, eo);
+							m[i][0] = CALCULATOR->getVariableById(VARIABLE_ID_E);
+							m[i].childrenUpdated();
+						}
+					}
+					m[i2][1].ref();
+					m[i][1].add_nocopy(&m[i2][1], true);
+					m[i][1].calculateAddLast(eo);
+					m[i].childUpdated(2);
+					m.childUpdated(i + 1);
+					m.delChild(i2 + 1);
+					b_ret = true;
+				} else {
+					i2++;
+				}
+			}
+			if(b_ret && m.size() == 1) {
+				m.setToChild(1, true);
+			}
+			return b_ret;
+		}
+	}
+	return false;
+}
+
 bool isUnit_multi(const MathStructure &mstruct) {
   if (!mstruct.isMultiplication() || mstruct.size() == 0)
     return false;
@@ -6573,94 +6623,93 @@ bool sync_sine(MathStructure &mstruct, const EvaluationOptions &eo,
     if (!mstruct_parent.isUndefined() &&
         mstruct[0].function() ==
             (b_hyp ? CALCULATOR->f_sinh : CALCULATOR->f_sin) &&
-        mstruct[0][0].contains(x_var)) {
-      MathStructure m_half(mstruct[0]);
-      m_half[0].calculateDivide(nr_two, eo);
-      bool b = mstruct_parent.contains(m_half);
-      if (!b) {
-        m_half.setFunction(b_hyp ? CALCULATOR->f_cosh : CALCULATOR->f_cos);
-        b = mstruct_parent.contains(m_half);
-        m_half.setFunction(b_hyp ? CALCULATOR->f_sinh : CALCULATOR->f_sin);
-      }
-      if (b) {
-        MathStructure *mmul = new MathStructure(2, 1, 0);
-        mmul->raise(mstruct[1]);
-        mstruct[0] = m_half;
-        MathStructure *m_cos = new MathStructure(mstruct);
-        (*m_cos)[0].setFunction(b_hyp ? CALCULATOR->f_cosh : CALCULATOR->f_cos);
-        mstruct.multiply_nocopy(m_cos);
-        mstruct.multiply_nocopy(mmul);
-        sync_sine(mstruct, eo, x_var, use_cos, b_hyp, mstruct_parent);
-        return true;
-      }
-    }
-    if (mstruct[0].function() ==
-            (b_hyp ? CALCULATOR->f_tanh : CALCULATOR->f_tan) &&
-        mstruct[0][0].contains(x_var)) {
-      mstruct[0].setFunction(CALCULATOR->f_sin);
-      MathStructure *m_cos = new MathStructure(mstruct);
-      (*m_cos)[0].setFunction(CALCULATOR->f_cos);
-      (*m_cos)[1].number().negate();
-      mstruct.multiply_nocopy(m_cos);
-      sync_sine(mstruct, eo, x_var, use_cos, b_hyp, mstruct_parent);
-      return true;
-    }
-    if (mstruct[0].function() ==
-            (use_cos ? (b_hyp ? CALCULATOR->f_sinh : CALCULATOR->f_sin)
-                     : (b_hyp ? CALCULATOR->f_cosh : CALCULATOR->f_cos)) &&
-        mstruct[0][0].contains(x_var)) {
-      mstruct[0].setFunction(
-          use_cos ? (b_hyp ? CALCULATOR->f_cosh : CALCULATOR->f_cos)
-                  : (b_hyp ? CALCULATOR->f_sinh : CALCULATOR->f_sin));
-      Number nr_pow = mstruct[1].number();
-      nr_pow /= 2;
-      mstruct[1].set(nr_two, true);
-      if (b_hyp) {
-        if (use_cos)
-          mstruct += m_minus_one;
-        else
-          mstruct += m_one;
-      } else {
-        mstruct.negate();
-        mstruct += m_one;
-      }
-      if (!nr_pow.isOne()) {
-        mstruct ^= nr_pow;
-      }
-      return true;
-    }
-  }
-  bool b = false;
-  for (size_t i = 0; i < mstruct.size(); i++) {
-    if (CALCULATOR->aborted())
-      return false;
-    if (sync_sine(mstruct[i], eo, x_var, use_cos, b_hyp,
-                  mstruct_parent.isUndefined() ? mstruct : mstruct_parent))
-      b = true;
-  }
-  return b;
+bool sync_sine(MathStructure &mstruct, const EvaluationOptions &eo, const MathStructure &x_var, bool use_cos, bool b_hyp = false, const MathStructure &mstruct_parent = m_undefined) {
+	if(!mstruct_parent.isUndefined() && mstruct.isFunction() && mstruct.function()->id() == (b_hyp ? FUNCTION_ID_SINH : FUNCTION_ID_SIN) && mstruct[0].contains(x_var)) {
+		MathStructure m_half(mstruct);
+		m_half[0].calculateDivide(nr_two, eo);
+		bool b = mstruct_parent.contains(m_half);
+		if(!b) {
+			m_half.setFunctionId(b_hyp ? FUNCTION_ID_COSH : FUNCTION_ID_COS);
+			b = mstruct_parent.contains(m_half);
+			m_half.setFunctionId(b_hyp ? FUNCTION_ID_SINH : FUNCTION_ID_SIN);
+		}
+		if(b) {
+			mstruct = m_half;
+			MathStructure *m_cos = new MathStructure(mstruct);
+			(*m_cos).setFunctionId(b_hyp ? FUNCTION_ID_COSH : FUNCTION_ID_COS);
+			mstruct.multiply_nocopy(m_cos);
+			mstruct.multiply(nr_two);
+			return true;
+		}
+	} else if(mstruct.isPower() && mstruct[0].isFunction() && mstruct[1].isNumber() && mstruct[1].number().isEven() && mstruct[0].size() == 1) {
+		if(!mstruct_parent.isUndefined() && mstruct[0].function()->id() == (b_hyp ? FUNCTION_ID_SINH : FUNCTION_ID_SIN) && mstruct[0][0].contains(x_var)) {
+			MathStructure m_half(mstruct[0]);
+			m_half[0].calculateDivide(nr_two, eo);
+			bool b = mstruct_parent.contains(m_half);
+			if(!b) {
+				m_half.setFunctionId(b_hyp ? FUNCTION_ID_COSH : FUNCTION_ID_COS);
+				b = mstruct_parent.contains(m_half);
+				m_half.setFunctionId(b_hyp ? FUNCTION_ID_SINH : FUNCTION_ID_SIN);
+			}
+			if(b) {
+				MathStructure *mmul = new MathStructure(2, 1, 0);
+				mmul->raise(mstruct[1]);
+				mstruct[0] = m_half;
+				MathStructure *m_cos = new MathStructure(mstruct);
+				(*m_cos)[0].setFunctionId(b_hyp ? FUNCTION_ID_COSH : FUNCTION_ID_COS);
+				mstruct.multiply_nocopy(m_cos);
+				mstruct.multiply_nocopy(mmul);
+				sync_sine(mstruct, eo, x_var, use_cos, b_hyp, mstruct_parent);
+				return true;
+			}
+		}
+		if(mstruct[0].function()->id() == (b_hyp ? FUNCTION_ID_TANH : FUNCTION_ID_TAN) && mstruct[0][0].contains(x_var)) {
+			mstruct[0].setFunctionId(FUNCTION_ID_SIN);
+			MathStructure *m_cos = new MathStructure(mstruct);
+			(*m_cos)[0].setFunctionId(FUNCTION_ID_COS);
+			(*m_cos)[1].number().negate();
+			mstruct.multiply_nocopy(m_cos);
+			sync_sine(mstruct, eo, x_var, use_cos, b_hyp, mstruct_parent);
+			return true;
+		}
+		if(mstruct[0].function()->id() == (use_cos ? (b_hyp ? FUNCTION_ID_SINH : FUNCTION_ID_SIN) : (b_hyp ? FUNCTION_ID_COSH : FUNCTION_ID_COS)) && mstruct[0][0].contains(x_var)) {
+			mstruct[0].setFunctionId(use_cos ? (b_hyp ? FUNCTION_ID_COSH : FUNCTION_ID_COS) : (b_hyp ? FUNCTION_ID_SINH : FUNCTION_ID_SIN));
+			Number nr_pow = mstruct[1].number();
+			nr_pow /= 2;
+			mstruct[1].set(nr_two, true);
+			if(b_hyp) {
+				if(use_cos) mstruct += m_minus_one;
+				else mstruct += m_one;
+			} else {
+				mstruct.negate();
+				mstruct += m_one;
+			}
+			if(!nr_pow.isOne()) {
+				mstruct ^= nr_pow;
+			}
+			return true;
+		}
+	}
+	bool b = false;
+	for(size_t i = 0; i < mstruct.size(); i++) {
+		if(CALCULATOR->aborted()) return false;
+		if(sync_sine(mstruct[i], eo, x_var, use_cos, b_hyp, mstruct_parent.isUndefined() ? mstruct : mstruct_parent)) b = true;
+	}
+	return b;
 }
-void sync_find_cos_sin(const MathStructure &mstruct, const MathStructure &x_var,
-                       bool &b_sin, bool &b_cos, bool b_hyp = false) {
-  if (mstruct.isFunction() && mstruct.size() == 1) {
-    if (!b_sin &&
-        mstruct.function() ==
-            (b_hyp ? CALCULATOR->f_sinh : CALCULATOR->f_sin) &&
-        mstruct[0].contains(x_var)) {
-      b_sin = true;
-    } else if (!b_cos &&
-               mstruct.function() ==
-                   (b_hyp ? CALCULATOR->f_cosh : CALCULATOR->f_cos) &&
-               mstruct[0].contains(x_var)) {
-      b_cos = true;
-    }
-    if (b_sin && b_cos)
-      return;
-  }
-  for (size_t i = 0; i < mstruct.size(); i++) {
-    sync_find_cos_sin(mstruct[i], x_var, b_sin, b_cos, b_hyp);
-    if (b_sin && b_cos)
-      return;
+void sync_find_cos_sin(const MathStructure &mstruct, const MathStructure &x_var, bool &b_sin, bool &b_cos, bool b_hyp = false) {
+	if(mstruct.isFunction() && mstruct.size() == 1) {
+		if(!b_sin && mstruct.function()->id() == (b_hyp ? FUNCTION_ID_SINH : FUNCTION_ID_SIN) && mstruct[0].contains(x_var)) {
+			b_sin = true;
+		} else if(!b_cos && mstruct.function()->id() == (b_hyp ? FUNCTION_ID_COSH : FUNCTION_ID_COS) && mstruct[0].contains(x_var)) {
+			b_cos = true;
+		}
+		if(b_sin && b_cos) return;
+	}
+	for(size_t i = 0; i < mstruct.size(); i++) {
+		sync_find_cos_sin(mstruct[i], x_var, b_sin, b_cos, b_hyp);
+		if(b_sin && b_cos) return;
+	}
   }
 }
 bool sync_trigonometric_functions(MathStructure &mstruct,

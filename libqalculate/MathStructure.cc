@@ -1062,6 +1062,9 @@ void MathStructure::setFunction(MathFunction *f) {
     o_function->unref();
   o_function = f;
 }
+void MathStructure::setFunctionId(int id) {
+	setFunction(CALCULATOR->getFunctionById(id));
+}
 void MathStructure::setUnit(Unit *u) {
   if (u)
     u->ref();
@@ -2167,6 +2170,11 @@ void MathStructure::transform(MathFunction *o) {
   transform(STRUCT_FUNCTION);
   setFunction(o);
   b_parentheses = false;
+}
+void MathStructure::transformById(int id) {
+	transform(STRUCT_FUNCTION);
+	setFunctionId(id);
+	b_parentheses = false;
 }
 void MathStructure::transform(ComparisonType ctype, const MathStructure &o) {
   MathStructure *struct_o = new MathStructure(o);

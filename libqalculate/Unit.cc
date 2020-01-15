@@ -16,6 +16,7 @@
 #include "Calculator.h"
 #include "MathStructure.h"
 #include "Prefix.h"
+#include "BuiltinFunctions.h"
 
 using std::string;
 using std::vector;
@@ -116,7 +117,7 @@ void Unit::setUseWithPrefixesByDefault(bool use_with_prefixes) {
 	b_use_with_prefixes = use_with_prefixes;
 }
 bool Unit::isCurrency() const {
-	return baseUnit() == CALCULATOR->u_euro;
+	return baseUnit() == CALCULATOR->getUnitById(UNIT_ID_EURO);
 }
 const string &Unit::countries() const {return scountries;}
 void Unit::setCountries(string country_names) {
@@ -252,16 +253,19 @@ bool Unit::convert(Unit *u, MathStructure &mvalue, MathStructure &mexp) const {
 	} else if(u->baseUnit() == baseUnit()) {
 		u->convertToBaseUnit(mvalue, mexp);
 		convertFromBaseUnit(mvalue, mexp);
-		if(isCurrency() && u->isCurrency() && ((isBuiltin() && this != CALCULATOR->u_euro) || (u->isBuiltin() && u != CALCULATOR->u_euro))) {
+		if(isCurrency() && u->isCurrency() && ((isBuiltin() && this != CALCULATOR->getUnitById(UNIT_ID_EURO)) || (u->isBuiltin() && u != CALCULATOR->getUnitById(UNIT_ID_EURO)))) {
 			int i = 1;
-			if(u == CALCULATOR->u_btc || this == CALCULATOR->u_btc) i = 2;
-			if(u->subtype() == SUBTYPE_ALIAS_UNIT) {
-				if(i < 2 && ((AliasUnit*) u)->firstBaseUnit() == CALCULATOR->u_btc) i = 2;
-				else if(((AliasUnit*) u)->firstBaseUnit() != CALCULATOR->u_euro) i = 3;
+			if(i < 4 && (u == CALCULATOR->getUnitById(UNIT_ID_BYN) || this == CALCULATOR->getUnitById(UNIT_ID_BYN))) i = (i == 3 ? 5 : 4);
+			if(i < 2 && (u == CALCULATOR->getUnitById(UNIT_ID_BTC) || this == CALCULATOR->getUnitById(UNIT_ID_BTC))) i = 2;
+			if(i < 5 && u->subtype() == SUBTYPE_ALIAS_UNIT) {
+				if(i < 2 && ((AliasUnit*) u)->firstBaseUnit() == CALCULATOR->getUnitById(UNIT_ID_BTC)) i = 2;
+				else if(i < 5 && ((AliasUnit*) u)->firstBaseUnit() != CALCULATOR->getUnitById(UNIT_ID_EURO)) i = (i == 4 ? 5 : 3);
+				else if(i < 4 && ((AliasUnit*) u)->firstBaseUnit() == CALCULATOR->getUnitById(UNIT_ID_BYN)) i = (i == 3 ? 5 : 4);
 			}
-			if(i < 3 && subtype() == SUBTYPE_ALIAS_UNIT) {
-				if(i < 2 && ((AliasUnit*) this)->firstBaseUnit() == CALCULATOR->u_btc) i = 2;
-				else if(((AliasUnit*) this)->firstBaseUnit() != CALCULATOR->u_euro) i = 3;
+			if(i < 5 && subtype() == SUBTYPE_ALIAS_UNIT) {
+				if(i < 2 && ((AliasUnit*) this)->firstBaseUnit() == CALCULATOR->getUnitById(UNIT_ID_BTC)) i = 2;
+				else if(i < 5 && ((AliasUnit*) this)->firstBaseUnit() != CALCULATOR->getUnitById(UNIT_ID_EURO)) i = (i == 4 ? 5 : 3);
+				else if(i < 4 && ((AliasUnit*) this)->firstBaseUnit() == CALCULATOR->getUnitById(UNIT_ID_BYN)) i = (i == 3 ? 5 : 4);
 			}
 			CALCULATOR->setExchangeRatesUsed(i);
 		}
@@ -457,7 +461,7 @@ MathStructure &AliasUnit::convertFromFirstBaseUnit(MathStructure &mvalue, MathSt
 			} else {
 				CALCULATOR->parse(mstruct, svalue, po);
 				if(mstruct->containsType(STRUCT_UNIT, false, true, true)) {
-					mstruct->transform(CALCULATOR->f_stripunits);
+					mstruct->transformById(FUNCTION_ID_STRIP_UNITS);
 				}
 			}
 			if(!suncertainty.empty()) {
@@ -597,7 +601,7 @@ MathStructure &AliasUnit::convertToFirstBaseUnit(MathStructure &mvalue, MathStru
 		} else {
 			CALCULATOR->parse(mstruct, svalue, po);
 			if(mstruct->containsType(STRUCT_UNIT, false, true, true) > 0) {
-				mstruct->transform(CALCULATOR->f_stripunits);
+				mstruct->transformById(FUNCTION_ID_STRIP_UNITS);
 			}
 		}
 		if(!suncertainty.empty()) {
@@ -1011,7 +1015,7 @@ MathStructure CompositeUnit::generateMathStructure(bool make_division, bool set_
 		if(!has_p || units[i]->prefix()) {
 			mstruct2.set(units[i]->firstBaseUnit(), units[i]->prefix());
 		} else {
-			mstruct2.set(units[i]->firstBaseUnit(), CALCULATOR->decimal_null_prefix);
+			mstruct2.set(units[i]->firstBaseUnit(), CALCULATOR->getDecimalNullPrefix());
 		}
 		if(make_division && units[i]->firstBaseExponent() < 0) {
 			if(units[i]->firstBaseExponent() != -1) {

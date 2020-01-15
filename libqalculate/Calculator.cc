@@ -1444,6 +1444,8 @@ Prefix *Calculator::getPrefix(string name_) const {
   }
   return NULL;
 }
+Prefix *Calculator::getDecimalNullPrefix() const {return decimal_null_prefix;}
+Prefix *Calculator::getBinaryNullPrefix() const {return binary_null_prefix;}
 DecimalPrefix *Calculator::getExactDecimalPrefix(int exp10, int exp) const {
   for (size_t i = 0; i < decimal_prefixes.size(); i++) {
     if (decimal_prefixes[i]->exponent(exp) == exp10) {

@@ -1,3 +1,66 @@
+2019-01-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Rename IdentityFunction class to avoid crash in Cantor because of conflict with Poppler library class with same name
+
+2019-01-07 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix integral of asin(x)^-2
+	* Fix integral of a^(b+cx)/x (where a<0)
+	* Fix integrate(1/(a+b*i*x^(1/3)),c,0)
+
+2019-01-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Retrieve exchange rate for BYN (Belarusian ruble) from nbrb.by
+
+2019-01-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault when solving sqrt(x)!=-1 and similar
+
+2019-12-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* (-x)^a*x^b=-(-x)^(a+b) if b is odd
+	* tan((2n+1)*pi/2) might be either plus or minus infinity for each n (let function fail)
+
+2019-12-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add base units (or local currency) to expression when "to"-expression specifies unit conversion and original expression does not include any units
+
+2019-12-20 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix display of factorized 5/7234234234*x+5/9234234*y and similar (a(bx+y) where a and/or b are rational number displayed approximately)
+	* Fix cosh(x)^2+sinh(x)^2
+
+2019-12-14 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* bernoulli() function (number or polynomial)
+	* Support second argument in zeta() for Hurwitz zeta
+	* Exact values in zeta() for negative integers and even integers
+
+2019-12-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improved interval handling in besselj() and bessely(), and in gamma(), zeta(), and airy() when argument is negative
+
+2019-12-10 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix never ending loop in isolate x with interval() containing interval
+	* Improvements for x^(ax)=b
+	* Simplify output of sin(x)=a and cos(x)=a, when a=0 or a=1
+
+2019-12-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fixes and improvements for lambertw(x)=a
+	* Support complex arguments with non-zero imaginary and real parts in Si(), Ci(), Shi(), and Chi()
+
+2019-12-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Split up big source files
+
+2019-12-03 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support complex numbers in Ei() (and li())
+	* Extend supported arguments for Li()
+	* zeta() for all reals
+
 2019-12-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Support complex numbers in erf(), erfi(), and erfc()

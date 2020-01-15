@@ -184,6 +184,8 @@
   (SIZE == 2 && CHILD(1).isNumber() && CHILD(1).number().isInteger() &&        \
    CHILD(1).number().isPositive())
 
+#define FUNCTION_PROTECTED(evalops, id) (evalops.protected_function != NULL && evalops.protected_function == CALCULATOR->getFunctionById(id))
+
 void printRecursive(const MathStructure &mstruct);
 
 std::string format_and_print(const MathStructure &mstruct);
@@ -289,5 +291,25 @@ bool create_interval(MathStructure &mstruct, const MathStructure &m1,
 bool combine_powers(MathStructure &m, const MathStructure &x_var,
                     const EvaluationOptions &eo);
 bool contains_angle_unit(const MathStructure &m, const ParseOptions &po);
+bool has_predominately_negative_sign(const MathStructure &mstruct);
+void negate_struct(MathStructure &mstruct);
+bool test_eval(MathStructure &mtest, const EvaluationOptions &eo);
+bool has_interval_unknowns(MathStructure &m);
+bool flattenMultiplication(MathStructure &mstruct);
+void idm1(const MathStructure &mnum, bool &bfrac, bool &bint);
+void idm2(const MathStructure &mnum, bool &bfrac, bool &bint, Number &nr);
+int idm3(MathStructure &mnum, Number &nr, bool expand);
+bool combination_factorize(MathStructure &mstruct);
+bool replace_interval_unknowns(MathStructure &m, bool do_assumptions = false);
+bool remove_rad_unit(MathStructure &m, const EvaluationOptions &eo, bool top = true);
+int contains_ass_intval(const MathStructure &m);
+int compare_check_incompability(MathStructure *mtest);
+bool calculate_nondifferentiable_functions(MathStructure &m, const EvaluationOptions &eo, bool recursive = true, bool do_unformat = true, int i_type = 0);
+bool function_differentiable(MathFunction *o_function);
+bool montecarlo(const MathStructure &minteg, Number &nvalue, const MathStructure &x_var, const EvaluationOptions &eo, Number a, Number b, Number n);
+bool romberg(const MathStructure &minteg, Number &nvalue, const MathStructure &x_var, const EvaluationOptions &eo, Number a, Number b, long int max_steps = -1, long int min_steps = 6, bool safety_measures = true);
+bool sync_approximate_units(MathStructure &m, const EvaluationOptions &feo, std::vector<KnownVariable*> *vars = NULL, std::vector<MathStructure> *uncs = NULL, bool do_intervals = true);
+void fix_to_struct(MathStructure &m);
+int has_information_unit(const MathStructure &m, bool top = true);
 
 #endif
