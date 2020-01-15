@@ -1,3 +1,137 @@
+2019-12-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support complex numbers in erf(), erfi(), and erfc()
+	* Integrals of fresnelc() and fresnels()
+	* Integrals of 1/sin(ax)^n and 1/cos(ax)^n where n>2
+	* Improved handling of angle arguments
+
+2019-11-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Imaginary error function
+	* Fresnel integrals S and C
+	* Add id property to ExpressionItem to remove the need to add a variable for each new math function to Calculator class
+
+2019-11-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support for calculation of Lambert W for all branches and complex numbers
+
+2019-11-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Integral of a^(b*x)*c^(-d*x^2)
+	* Improve handling of definite integrals with abs()
+	* Fix definite integral for ln(abs(ax^b+c)) where and ax^b+b=0 and a*x^b is not an integer for lower or upper limit of x (0*infinity in result)
+
+2019-11-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Innumerous integration enhancements and fixes
+	* Fix begin temporary enable interval arithmetic without end (fixes some equations after exact mode has been disabled)
+	* Improve solution tests
+	* Use local instead of global buffer for i2s() and similar
+	* Include uncertainty() function when replacing function arguments and where replacements with variables
+
+2019-11-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix infinity^x=a (x != log(a, infinity))
+	* Fix interval replacement with variable in exact mode
+
+2019-11-22 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix incorrect solutions to equations not removed
+
+2019-11-17 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Circular mil units (cmil and kcmil/MCM)
+	* American wire gauge (awg) functions (area and diameter)
+
+2019-11-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Remove "using namespace std" from header files
+
+2019-11-13 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix ending zeroes and min decimals for approximate rational numbers
+	* Improved output of significant figures for number intervals in some cases
+
+2019-11-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Calculate uncertainty propagation, using variance formula, separately for imaginary and real numbers
+	* Numerous improvements/fixes for integrals
+
+2019-11-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Do not automatically recalculate expressions with answer variables when calculation/parsing mode has changed (CLI)
+
+2019-11-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* sinh(i*x)=i*sin(x), cosh(i*x)=cos(x), tanh(i*x)=i*tan(x)
+
+2019-11-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault when parsing "∠∠"
+	* Restrict the max number of displayed digits to 100000 when scientific notation is completely disabled
+	* Recognize the unicode fraction slash (interpreted as division sign)
+	* Only parse ' and " as foot and inch with number bases <= 16
+	* Check if complex tanh is continuous for definite integral
+
+2019-11-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Automatic detection of unknown variable (if corresponding argument is set to undefined or zero) in functions
+	* romberg() and montecarlo() functions for numerical integration
+	* root(x, a)*abs(x)^((a-1)/a)=x
+	* Use ln(abs(x)) instead of ln(x^2)/2 (in integral)
+	* Move integrate() variable argument from 2nd to 4th position
+
+2019-10-31 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Much improved numerical integration (using Romberg's method)
+	* integrate() argument which force numerical integration only
+	* Calculator::clearMessages()
+
+2019-10-28 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Depth of field (dof) function
+
+2019-10-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix numerical integration error calculation
+
+2019-10-26 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* expondist(), binomdist(), randpoisson(), randrayleigh(), and randexp() functions
+
+2019-10-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add argument specifying number of values in random number functions
+	* randnorm(), randuniform(), and normdist() functions
+
+2019-10-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix integral of a^(b*x^c)
+
+2019-10-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Allow angle argument in cis()
+	* Fix complex exponential form when default angle unit is not radians
+	* Complex cis form
+	* Complex angle/phasor notation (input and output)
+
+2019-10-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
+	
+	* Option to use "j" as default symbol for the imaginary unit in qalc
+
+2019-10-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix definite integral of abs(cos(x)) and similar
+	* Improve integration of abs(f(x))
+	* Fix sgn(x) = 0
+	* abs(x^a) = abs(x)^a if a is real
+	* ln(x^2) = 2*ln(x) if x > 0;
+
+2019-10-10 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Bijective base-26 support (including bijective() function)
+	* Fix never ending loop when formatting unknowns with more than one character, in qalc
+
 2019-10-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Option to use binary prefixes by default for information units

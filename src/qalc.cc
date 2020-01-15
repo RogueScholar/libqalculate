@@ -28,6 +28,14 @@
 #	include <windows.h>
 #endif
 
+using std::string;
+using std::cout;
+using std::vector;
+using std::endl;
+using std::iterator;
+using std::cerr;
+using std::list;
+
 class ViewThread : public Thread {
 protected:
 	virtual void run();
@@ -44,6 +52,7 @@ string result_text, parsed_text;
 bool load_global_defs, fetch_exchange_rates_at_startup, first_time, save_mode_on_exit, save_defs_on_exit;
 int auto_update_exchange_rates;
 PrintOptions printops, saved_printops;
+bool complex_angle_form = false, saved_caf = false;
 EvaluationOptions evalops, saved_evalops;
 Number saved_custom_output_base, saved_custom_input_base;
 AssumptionType saved_assumption_type;
@@ -94,6 +103,7 @@ void expression_format_updated(bool reparse);
 void expression_calculation_updated();
 bool display_errors(bool goto_input = false, int cols = 0);
 void replace_quotation_marks(string &result_text);
+void replace_result_cis(string &resstr);
 extern int has_information_unit(const MathStructure &m, bool top = true);
 
 FILE *cfile;
@@ -204,11 +214,11 @@ bool ask_question(const char *question, bool default_answer = false) {
 		fputs(" ", stdout);
 		if(!fgets(buffer, 1000, stdin)) return false;
 		string str = buffer;
-#endif		
+#endif
 		remove_blank_ends(str);
 		if(equalsIgnoreCaseFirst(str, "yes") || equalsIgnoreCaseFirst(str, _("yes")) || EQUALS_IGNORECASE_AND_LOCAL(str, "yes", _("yes"))) {
 			return true;
-		} else if(equalsIgnoreCaseFirst(str, "no") || equalsIgnoreCaseFirst(str, _("no")) || EQUALS_IGNORECASE_AND_LOCAL(str, "no", _("no"))) {	
+		} else if(equalsIgnoreCaseFirst(str, "no") || equalsIgnoreCaseFirst(str, _("no")) || EQUALS_IGNORECASE_AND_LOCAL(str, "no", _("no"))) {
 			return false;
 		} else if(str.empty()) {
 			return default_answer;
@@ -354,7 +364,7 @@ void handle_exit() {
 	CALCULATOR->abort();
 	if(enable_unicode >= 0) {
 		printops.use_unicode_signs = !enable_unicode;
-	} 
+	}
 	if(interactive_mode) {
 		if(save_mode_on_exit) {
 			save_mode();
@@ -373,7 +383,7 @@ void handle_exit() {
 #ifdef HAVE_LIBREADLINE
 int rlcom_tab(int, int) {
 	rl_complete_internal('!');
-	return 0;	
+	return 0;
 }
 #endif
 
@@ -606,6 +616,7 @@ void set_option(string str) {
 		bool b_in = EQUALS_IGNORECASE_AND_LOCAL(svar, "input base", _("input base")) || svar == "inbase";
 		bool b_out = EQUALS_IGNORECASE_AND_LOCAL(svar, "output base", _("output base")) || svar == "outbase";
 		if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "roman", _("roman"))) v = BASE_ROMAN_NUMERALS;
+		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "bijective", _("bijective")) || str == "b26" || str == "B26") v = BASE_BIJECTIVE_26;
 		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "time", _("time"))) {if(b_in) v = 0; else v = BASE_TIME;}
 		else if(equalsIgnoreCase(svalue, "hex") || EQUALS_IGNORECASE_AND_LOCAL(svalue, "hexadecimal", _("hexadecimal"))) v = BASE_HEXADECIMAL;
 		else if(equalsIgnoreCase(svalue, "golden") || equalsIgnoreCase(svalue, "golden ratio") || svalue == "φ") v = BASE_GOLDEN_RATIO;
@@ -619,7 +630,7 @@ void set_option(string str) {
 		else if(equalsIgnoreCase(svalue, "oct") || EQUALS_IGNORECASE_AND_LOCAL(svalue, "octal", _("octal"))) v = BASE_OCTAL;
 		else if(equalsIgnoreCase(svalue, "dec") || EQUALS_IGNORECASE_AND_LOCAL(svalue, "decimal", _("decimal"))) v = BASE_DECIMAL;
 		else if(equalsIgnoreCase(svalue, "sexa") || EQUALS_IGNORECASE_AND_LOCAL(svalue, "sexagesimal", _("sexagesimal"))) {if(b_in) v = 0; else v = BASE_SEXAGESIMAL;}
-		
+
 		else if(!b_in && !b_out && (index = svalue.find_first_of(SPACES)) != string::npos) {
 			str = svalue;
 			svalue = str.substr(index + 1, str.length() - (index + 1));
@@ -723,11 +734,27 @@ void set_option(string str) {
 	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "sync units", _("sync units")) || svar == "sync") SET_BOOL_E(evalops.sync_units)
 	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "round to even", _("round to even")) || svar == "rndeven") SET_BOOL_D(printops.round_halfway_to_even)
 	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "rpn syntax", _("rpn syntax")) || svar == "rpnsyn") SET_BOOL_PF(evalops.parse_options.rpn)
-	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "rpn", _("rpn")) && svalue.find(" ") == string::npos) {SET_BOOL(rpn_mode) if(!rpn_mode) CALCULATOR->clearRPNStack();} 
+	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "rpn", _("rpn")) && svalue.find(" ") == string::npos) {SET_BOOL(rpn_mode) if(!rpn_mode) CALCULATOR->clearRPNStack();}
 	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "short multiplication", _("short multiplication")) || svar == "shortmul") SET_BOOL_D(printops.short_multiplication)
 	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "lowercase e", _("lowercase e")) || svar == "lowe") SET_BOOL_D(printops.lower_case_e)
 	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "lowercase numbers", _("lowercase numbers")) || svar == "lownum") SET_BOOL_D(printops.lower_case_numbers)
-	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "base display", _("base display")) || svar == "basedisp") {
+	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "imaginary j", _("imaginary j")) || svar == "imgj") {
+		bool b = CALCULATOR->v_i->hasName("j") > 0;
+		SET_BOOL(b)
+		if(b != (CALCULATOR->v_i->hasName("j") > 0)) {
+			if(b) {
+				ExpressionName ename = CALCULATOR->v_i->getName(1);
+				ename.name = "j";
+				ename.reference = false;
+				CALCULATOR->v_i->addName(ename, 1, true);
+				CALCULATOR->v_i->setChanged(false);
+			} else {
+				CALCULATOR->v_i->clearNonReferenceNames();
+				CALCULATOR->v_i->setChanged(false);
+			}
+			result_display_updated();
+		}
+	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "base display", _("base display")) || svar == "basedisp") {
 		int v = -1;
 		if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "none", _("none"))) v = BASE_DISPLAY_NONE;
 		else if(empty_value || EQUALS_IGNORECASE_AND_LOCAL(svalue, "normal", _("normal"))) v = BASE_DISPLAY_NORMAL;
@@ -784,7 +811,7 @@ void set_option(string str) {
 			}
 		}
 	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "limit implicit multiplication", _("limit implicit multiplication")) || svar == "limimpl") {
-		int v = s2b(svalue); if(v < 0) {PUTS_UNICODE(_("Illegal value"));} else {printops.limit_implicit_multiplication = v; evalops.parse_options.limit_implicit_multiplication = v; expression_format_updated(true);}		
+		int v = s2b(svalue); if(v < 0) {PUTS_UNICODE(_("Illegal value"));} else {printops.limit_implicit_multiplication = v; evalops.parse_options.limit_implicit_multiplication = v; expression_format_updated(true);}
 	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "spacious", _("spacious")) || svar == "space") SET_BOOL_D(printops.spacious)
 	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "unicode", _("unicode")) || svar == "uni") {
 		int v = s2b(svalue); if(v < 0) {PUTS_UNICODE(_("Illegal value"));} else {printops.use_unicode_signs = v; result_display_updated();}
@@ -940,11 +967,11 @@ void set_option(string str) {
 			expression_calculation_updated();
 		}
 	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "exact", _("exact"))) {
-		int v = s2b(svalue); 
+		int v = s2b(svalue);
 		if(v < 0) {
-			PUTS_UNICODE(_("Illegal value")); 
+			PUTS_UNICODE(_("Illegal value"));
 		} else if(v > 0) {
-			evalops.approximation = APPROXIMATION_EXACT; 
+			evalops.approximation = APPROXIMATION_EXACT;
 			if(printops.number_fraction_format == FRACTION_DECIMAL) {
 				automatic_fraction = true;
 				printops.number_fraction_format = FRACTION_DECIMAL_EXACT;
@@ -959,30 +986,30 @@ void set_option(string str) {
 			expression_calculation_updated();
 		}
 	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "ignore locale", _("ignore locale"))) {
-		int v = s2b(svalue); 
+		int v = s2b(svalue);
 		if(v < 0) {
-			PUTS_UNICODE(_("Illegal value")); 
+			PUTS_UNICODE(_("Illegal value"));
 		} else if(v != ignore_locale) {
 			if(v > 0) {
 				ignore_locale = true;
 			} else {
 				ignore_locale = false;
 			}
-			PUTS_UNICODE("Please restart the program for the change to take effect."); 
+			PUTS_UNICODE("Please restart the program for the change to take effect.");
 		}
 	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "save mode", _("save mode"))) {
-		int v = s2b(svalue); 
+		int v = s2b(svalue);
 		if(v < 0) {
-			PUTS_UNICODE(_("Illegal value")); 
+			PUTS_UNICODE(_("Illegal value"));
 		} else if(v > 0) {
 			save_mode_on_exit = true;
 		} else {
 			save_mode_on_exit = false;
 		}
 	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "save definitions", _("save definitions")) || svar == "save defs") {
-		int v = s2b(svalue); 
+		int v = s2b(svalue);
 		if(v < 0) {
-			PUTS_UNICODE(_("Illegal value")); 
+			PUTS_UNICODE(_("Illegal value"));
 		} else if(v > 0) {
 			save_defs_on_exit = true;
 		} else {
@@ -1102,12 +1129,16 @@ void set_option(string str) {
 		if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "rectangular", _("rectangular")) || EQUALS_IGNORECASE_AND_LOCAL(svalue, "cartesian", _("cartesian")) || svalue == "rect") v = COMPLEX_NUMBER_FORM_RECTANGULAR;
 		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "exponential", _("exponential")) || svalue == "exp") v = COMPLEX_NUMBER_FORM_EXPONENTIAL;
 		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "polar", _("polar"))) v = COMPLEX_NUMBER_FORM_POLAR;
+		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "angle", _("angle")) || EQUALS_IGNORECASE_AND_LOCAL(svalue, "phasor", _("phasor"))) v = COMPLEX_NUMBER_FORM_CIS + 1;
+		else if(svar == "cis") v = COMPLEX_NUMBER_FORM_CIS;
 		else if(!empty_value && svalue.find_first_not_of(SPACES NUMBERS) == string::npos) {
 			v = s2i(svalue);
 		}
-		if(v < 0 || v > 2) {
+		if(v < 0 || v > 4) {
 			PUTS_UNICODE(_("Illegal value."));
 		} else {
+			complex_angle_form = (v > 3);
+			if(v == 4) v--;
 			evalops.complex_number_form = (ComplexNumberForm) v;
 			expression_calculation_updated();
 		}
@@ -1287,7 +1318,7 @@ void show_calendars(const QalculateDateTime &date, bool indentation = true) {
 	PUTS_CALENDAR(string(_("Islamic:")), CALENDAR_ISLAMIC); puts("");
 	PUTS_CALENDAR(string(_("Persian:")), CALENDAR_PERSIAN); puts("");
 	PUTS_CALENDAR(string(_("Indian national:")), CALENDAR_INDIAN); puts("");
-	PUTS_CALENDAR(string(_("Chinese:")), CALENDAR_CHINESE); 
+	PUTS_CALENDAR(string(_("Chinese:")), CALENDAR_CHINESE);
 	long int cy, yc, st, br;
 	chineseYearInfo(y, cy, yc, st, br);
 	if(!b_fail) {FPUTS_UNICODE((string(" (") + chineseStemName(st) + string(" ") + chineseBranchName(br) + ")").c_str(), stdout);}
@@ -1311,7 +1342,7 @@ void list_defs(bool in_interactive, char list_type = 0, string search_str = "") 
 		cols = 80;
 	}
 #else
-	int cols = 80; 
+	int cols = 80;
 #endif
 	string str_lb;
 	string str;
@@ -1440,7 +1471,7 @@ void list_defs(bool in_interactive, char list_type = 0, string search_str = "") 
 							fputs(" (", stdout);
 							FPUTS_UNICODE(_("approximate"), stdout);
 							fputs(")", stdout);
-							
+
 						}
 					} else {
 						if(((KnownVariable*) v)->get().isMatrix()) {
@@ -1459,7 +1490,7 @@ void list_defs(bool in_interactive, char list_type = 0, string search_str = "") 
 							fputs(")", stdout);
 						}
 					}
-					
+
 				} else {
 					if(((UnknownVariable*) v)->assumptions()) {
 						switch(((UnknownVariable*) v)->assumptions()->sign()) {
@@ -1598,6 +1629,8 @@ void list_defs(bool in_interactive, char list_type = 0, string search_str = "") 
 	}
 }
 
+bool do_imaginary_j = false;
+
 int main(int argc, char *argv[]) {
 
 	string calc_arg;
@@ -1613,7 +1646,7 @@ int main(int argc, char *argv[]) {
 	fetch_exchange_rates_at_startup = false;
 	char list_type = 'n';
 	string search_str;
-	
+
 #ifdef ENABLE_NLS
 	string filename = buildPath(getLocalDir(), "qalc.cfg");
 	FILE *file = fopen(filename.c_str(), "r");
@@ -1637,9 +1670,9 @@ int main(int argc, char *argv[]) {
 		textdomain(GETTEXT_PACKAGE);
 	}
 #endif
-	
+
 	if(!ignore_locale) setlocale(LC_ALL, "");
-	
+
 	for(int i = 1; i < argc; i++) {
 		string svalue, svar;
 		if(calc_arg_begun) {
@@ -1833,7 +1866,7 @@ int main(int argc, char *argv[]) {
 		} else {
 			printops.use_unicode_signs = enable_unicode;
 		}
-	} 
+	}
 
 	mstruct = new MathStructure();
 	parsed_mstruct = new MathStructure();
@@ -1841,12 +1874,12 @@ int main(int argc, char *argv[]) {
 	canfetch = CALCULATOR->canFetch();
 
 	string str;
-#ifdef HAVE_LIBREADLINE	
+#ifdef HAVE_LIBREADLINE
 	static char* rlbuffer;
 #endif
 
 	ask_questions = (command_file.empty() || interactive_mode) && !result_only;
-	
+
 	//exchange rates
 	if(fetch_exchange_rates_at_startup && canfetch) {
 		CALCULATOR->fetchExchangeRates(15);
@@ -1879,7 +1912,15 @@ int main(int argc, char *argv[]) {
 
 	//load local definitions
 	CALCULATOR->loadLocalDefinitions();
-	
+
+	if(do_imaginary_j && CALCULATOR->v_i->hasName("j") == 0) {
+		ExpressionName ename = CALCULATOR->v_i->getName(1);
+		ename.name = "j";
+		ename.reference = false;
+		CALCULATOR->v_i->addName(ename, 1, true);
+		CALCULATOR->v_i->setChanged(false);
+	}
+
 	if(!result_only) {
 		int cols = 0;
 		if(!command_file.empty()) {
@@ -1892,7 +1933,7 @@ int main(int argc, char *argv[]) {
 		}
 		display_errors(false, cols);
 	}
-	
+
 	if(list_type != 'n') {
 		CALCULATOR->terminateThreads();
 		list_defs(false, list_type, search_str);
@@ -1902,7 +1943,7 @@ int main(int argc, char *argv[]) {
 	//reset
 	result_text = "0";
 	parsed_text = "0";
-	
+
 	view_thread = new ViewThread;
 	command_thread = new CommandThread;
 
@@ -1979,10 +2020,10 @@ int main(int argc, char *argv[]) {
 	rl_completion_entry_function = qalc_completion;
 	rl_bind_key('\t', rlcom_tab);
 #endif
-	
+
 	string scom;
 	size_t slen, ispace;
-	
+
 	while(true) {
 		if(cfile) {
 			if(i_maxtime < 0 || !fgets(buffer, 1000, cfile)) {
@@ -2019,7 +2060,7 @@ int main(int argc, char *argv[]) {
 				if(gstr) {
 					str = gstr;
 					free(gstr);
-				} else { 
+				} else {
 					str = buffer;
 				}
 			} else {
@@ -2051,13 +2092,13 @@ int main(int argc, char *argv[]) {
 				if(gstr) {
 					str = gstr;
 					free(gstr);
-				} else { 
+				} else {
 					str = buffer;
 				}
 			} else {
 				str = buffer;
 			}
-#endif	
+#endif
 		}
 		bool explicit_command = (!str.empty() && str[0] == '/');
 		if(explicit_command) str.erase(0, 1);
@@ -2316,9 +2357,9 @@ int main(int argc, char *argv[]) {
 				}
 				rpn_mode = true;
 			} else {
-				int v = s2b(str); 
+				int v = s2b(str);
 				if(v < 0) {
-					PUTS_UNICODE(_("Illegal value")); 
+					PUTS_UNICODE(_("Illegal value"));
 				} else {
 					rpn_mode = v;
 				}
@@ -2356,6 +2397,7 @@ int main(int argc, char *argv[]) {
 					m.format(printops);
 					string regstr = m.print(printops);
 					if(!cfile) replace_quotation_marks(regstr);
+					if(complex_angle_form) replace_result_cis(regstr);
 					printf("  %i:\t%s\n", (int) i, regstr.c_str());
 				}
 				puts("");
@@ -2389,12 +2431,12 @@ int main(int argc, char *argv[]) {
 				}
 				index1 = s2i(str);
 				if(str2.empty()) index2 = 1;
-				else index2 = s2i(str2);				
+				else index2 = s2i(str2);
 				if(index1 < 0) index1 = (int) CALCULATOR->RPNStackSize() + 1 + index1;
 				if(index2 < 0) index2 = (int) CALCULATOR->RPNStackSize() + 1 + index2;
 				if(index1 <= 0 || index1 > (int) CALCULATOR->RPNStackSize() || (!str2.empty() && (index2 <= 0 || index2 > (int) CALCULATOR->RPNStackSize()))) {
 					PUTS_UNICODE(_("The specified RPN stack index does not exist."));
-				} else if(index1 > index2) {					
+				} else if(index1 > index2) {
 					CALCULATOR->moveRPNRegister((size_t) index2, (size_t) index1);
 					CALCULATOR->moveRPNRegister((size_t) index1 - 1, (size_t) index2);
 				} else if(index1 != index2) {
@@ -2422,7 +2464,7 @@ int main(int argc, char *argv[]) {
 				}
 				index1 = s2i(str);
 				if(str2.empty()) index2 = 1;
-				else index2 = s2i(str2);				
+				else index2 = s2i(str2);
 				if(index1 < 0) index1 = (int) CALCULATOR->RPNStackSize() + 1 + index1;
 				if(index2 < 0) index2 = (int) CALCULATOR->RPNStackSize() + 1 + index2;
 				if(index1 <= 0 || index1 > (int) CALCULATOR->RPNStackSize() || (!str2.empty() && (index2 <= 0 || index2 > (int) CALCULATOR->RPNStackSize()))) {
@@ -2566,6 +2608,11 @@ int main(int argc, char *argv[]) {
 				printops.base = BASE_ROMAN_NUMERALS;
 				setResult(NULL, false);
 				printops.base = save_base;
+			} else if(equalsIgnoreCase(str, "bijective") || equalsIgnoreCase(str, _("bijective"))) {
+				int save_base = printops.base;
+				printops.base = BASE_BIJECTIVE_26;
+				setResult(NULL, false);
+				printops.base = save_base;
 			} else if(equalsIgnoreCase(str, "sexa") || EQUALS_IGNORECASE_AND_LOCAL(str, "sexagesimal", _("sexagesimal"))) {
 				int save_base = printops.base;
 				printops.base = BASE_SEXAGESIMAL;
@@ -2620,30 +2667,63 @@ int main(int argc, char *argv[]) {
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "rectangular", _("rectangular")) || EQUALS_IGNORECASE_AND_LOCAL(str, "cartesian", _("cartesian")) || str == "rect") {
 				avoid_recalculation = false;
 				ComplexNumberForm cnf_bak = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = false;
 				evalops.complex_number_form = COMPLEX_NUMBER_FORM_EXPONENTIAL;
 				hide_parse_errors = true;
 				if(rpn_mode) execute_command(COMMAND_EVAL);
 				else execute_expression();
 				hide_parse_errors = false;
 				evalops.complex_number_form = cnf_bak;
+				complex_angle_form = caf_bak;
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "exponential", _("exponential")) || str == "exp") {
 				avoid_recalculation = false;
 				ComplexNumberForm cnf_bak = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = false;
 				evalops.complex_number_form = COMPLEX_NUMBER_FORM_EXPONENTIAL;
 				hide_parse_errors = true;
 				if(rpn_mode) execute_command(COMMAND_EVAL);
 				else execute_expression();
 				hide_parse_errors = false;
 				evalops.complex_number_form = cnf_bak;
+				complex_angle_form = caf_bak;
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "polar", _("polar"))) {
 				avoid_recalculation = false;
 				ComplexNumberForm cnf_bak = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = false;
 				evalops.complex_number_form = COMPLEX_NUMBER_FORM_POLAR;
 				hide_parse_errors = true;
 				if(rpn_mode) execute_command(COMMAND_EVAL);
 				else execute_expression();
 				hide_parse_errors = false;
 				evalops.complex_number_form = cnf_bak;
+				complex_angle_form = caf_bak;
+			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "angle", _("angle")) || EQUALS_IGNORECASE_AND_LOCAL(str, "phasor", _("phasor"))) {
+				avoid_recalculation = false;
+				ComplexNumberForm cnf_bak = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = true;
+				evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
+				hide_parse_errors = true;
+				if(rpn_mode) execute_command(COMMAND_EVAL);
+				else execute_expression();
+				hide_parse_errors = false;
+				evalops.complex_number_form = cnf_bak;
+				complex_angle_form = caf_bak;
+			} else if(str == "cis") {
+				avoid_recalculation = false;
+				ComplexNumberForm cnf_bak = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = false;
+				evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
+				hide_parse_errors = true;
+				if(rpn_mode) execute_command(COMMAND_EVAL);
+				else execute_expression();
+				hide_parse_errors = false;
+				evalops.complex_number_form = cnf_bak;
+				complex_angle_form = caf_bak;
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "bases", _("bases"))) {
 				int save_base = printops.base;
 				string save_result_text = result_text;
@@ -2675,7 +2755,7 @@ int main(int argc, char *argv[]) {
 					base_str += " = ";
 					printops.base = BASE_DECIMAL;
 					setResult(NULL, false, true, 0, false, true);
-					base_str += result_text;					
+					base_str += result_text;
 				}
 				if(save_base != BASE_HEXADECIMAL) {
 					base_str += " = ";
@@ -2760,10 +2840,10 @@ int main(int argc, char *argv[]) {
 				bool save_all = printops.use_all_prefixes;
 				bool save_cur = printops.use_prefixes_for_currencies;
 				bool save_allu = printops.use_prefixes_for_all_units;
-				int save_bin = CALCULATOR->usesBinaryPrefixes();
 				bool save_den = printops.use_denominator_prefix;
+				int save_bin = CALCULATOR->usesBinaryPrefixes();
 				if(str[0] == '?' || (str.length() > 1 && str[1] == '?' && (str[0] == 'a' || str[0] == 'd'))) {
-					
+
 					printops.use_unit_prefixes = true;
 					printops.use_prefixes_for_currencies = true;
 					printops.use_prefixes_for_all_units = true;
@@ -2808,7 +2888,7 @@ int main(int argc, char *argv[]) {
 			INIT_SCREEN_CHECK
 
 			int pctl;
-			
+
 			CHECK_IF_SCREEN_FILLED_HEADING(_("Algebraic Mode"));
 
 #define PRINT_AND_COLON_TABS(x, s) str = x; pctl = unicode_length_check(x); if(strlen(s) > 0) {str += " (" s ")"; pctl += unicode_length_check(" (" s ")");} do {str += '\t'; pctl += 8;} while(pctl < 48);
@@ -2854,7 +2934,7 @@ int main(int argc, char *argv[]) {
 				default: {str += _("none"); break;}
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("approximation"), "appr"); 
+			PRINT_AND_COLON_TABS(_("approximation"), "appr");
 			switch(evalops.approximation) {
 				case APPROXIMATION_EXACT: {str += _("exact"); break;}
 				case APPROXIMATION_TRY_EXACT: {str += _("try exact"); break;}
@@ -2862,7 +2942,7 @@ int main(int argc, char *argv[]) {
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("interval arithmetic"), "ia"); str += b2oo(CALCULATOR->usesIntervalArithmetic(), false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("interval calculation"), "ic"); 
+			PRINT_AND_COLON_TABS(_("interval calculation"), "ic");
 			switch(evalops.interval_calculation) {
 				case INTERVAL_CALCULATION_NONE: {str += _("none"); break;}
 				case INTERVAL_CALCULATION_VARIANCE_FORMULA: {str += _("variance formula"); break;}
@@ -2911,9 +2991,10 @@ int main(int argc, char *argv[]) {
 
 			CHECK_IF_SCREEN_FILLED_HEADING(_("Numerical Display"));
 
-			PRINT_AND_COLON_TABS(_("base"), ""); 
+			PRINT_AND_COLON_TABS(_("base"), "");
 			switch(printops.base) {
 				case BASE_ROMAN_NUMERALS: {str += _("roman"); break;}
+				case BASE_BIJECTIVE_26: {str += _("bijective"); break;}
 				case BASE_SEXAGESIMAL: {str += _("sexagesimal"); break;}
 				case BASE_TIME: {str += _("time"); break;}
 				case BASE_GOLDEN_RATIO: {str += "golden"; break;}
@@ -2933,11 +3014,12 @@ int main(int argc, char *argv[]) {
 				case BASE_DISPLAY_ALTERNATIVE: {str += _("alternative"); break;}
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("complex form"), "cplxform"); 
+			PRINT_AND_COLON_TABS(_("complex form"), "cplxform");
 			switch(evalops.complex_number_form) {
 				case COMPLEX_NUMBER_FORM_RECTANGULAR: {str += _("rectangular"); break;}
 				case COMPLEX_NUMBER_FORM_EXPONENTIAL: {str += _("exponential"); break;}
 				case COMPLEX_NUMBER_FORM_POLAR: {str += _("polar"); break;}
+				case COMPLEX_NUMBER_FORM_CIS: {if(complex_angle_form) {str += _("angle");} else {str += "cis";} break;}
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("decimal comma"), "");
@@ -2952,17 +3034,7 @@ int main(int argc, char *argv[]) {
 				case DIGIT_GROUPING_LOCALE: {str += _("locale"); break;}
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("scientific notation"), "exp");
-			switch(printops.min_exp) {
-				case EXP_NONE: {str += _("off"); break;}
-				case EXP_PRECISION: {str += _("auto"); break;}
-				case EXP_PURE: {str += _("pure"); break;}
-				case EXP_SCIENTIFIC: {str += _("scientific"); break;}
-				case EXP_BASE_3: {str += _("engineering"); break;}
-				default: {str += i2s(printops.min_exp); break;}
-			}
-			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("fractions"), "fr"); 
+			PRINT_AND_COLON_TABS(_("fractions"), "fr");
 			switch(printops.number_fraction_format) {
 				case FRACTION_DECIMAL: {str += _("off"); break;}
 				case FRACTION_DECIMAL_EXACT: {str += _("exact"); break;}
@@ -2970,6 +3042,8 @@ int main(int argc, char *argv[]) {
 				case FRACTION_COMBINED: {str += _("mixed"); break;}
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
+			PRINT_AND_COLON_TABS(_("hexadecimal two's"), "hextwos"); str += b2oo(printops.hexadecimal_twos_complement, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
+			PRINT_AND_COLON_TABS(_("imaginary j"), "imgj"); str += b2oo(CALCULATOR->v_i->hasName("j") > 0, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("interval display"), "ivdisp");
 			if(adaptive_interval_display) {
 				str += _("adaptive");
@@ -2994,7 +3068,7 @@ int main(int argc, char *argv[]) {
 				str += _("off");
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("min decimals"), "mindeci"); 
+			PRINT_AND_COLON_TABS(_("min decimals"), "mindeci");
 			if(printops.use_min_decimals && printops.min_decimals > 0) {
 				str += i2s(printops.min_decimals);
 			} else {
@@ -3003,9 +3077,18 @@ int main(int argc, char *argv[]) {
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("repeating decimals"), "repdeci"); str += b2oo(printops.indicate_infinite_series, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("round to even"), "rndeven"); str += b2oo(printops.round_halfway_to_even, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
+			PRINT_AND_COLON_TABS(_("scientific notation"), "exp");
+			switch(printops.min_exp) {
+				case EXP_NONE: {str += _("off"); break;}
+				case EXP_PRECISION: {str += _("auto"); break;}
+				case EXP_PURE: {str += _("pure"); break;}
+				case EXP_SCIENTIFIC: {str += _("scientific"); break;}
+				case EXP_BASE_3: {str += _("engineering"); break;}
+				default: {str += i2s(printops.min_exp); break;}
+			}
+			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("show ending zeroes"), "zeroes"); str += b2oo(printops.show_ending_zeroes, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("two's complement"), "twos"); str += b2oo(printops.twos_complement, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("hexadecimal two's"), "hextwos"); str += b2oo(printops.hexadecimal_twos_complement, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 
 			CHECK_IF_SCREEN_FILLED_HEADING(_("Parsing"));
 
@@ -3021,9 +3104,11 @@ int main(int argc, char *argv[]) {
 			if(CALCULATOR->getDecimalPoint() != DOT) {
 				PRINT_AND_COLON_TABS(_("ignore dot"), ""); str += b2oo(evalops.parse_options.dot_as_separator, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			}
-			PRINT_AND_COLON_TABS(_("input base"), "inbase"); 
+			PRINT_AND_COLON_TABS(_("imaginary j"), "imgj"); str += b2oo(CALCULATOR->v_i->hasName("j") > 0, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
+			PRINT_AND_COLON_TABS(_("input base"), "inbase");
 			switch(evalops.parse_options.base) {
 				case BASE_ROMAN_NUMERALS: {str += _("roman"); break;}
+				case BASE_BIJECTIVE_26: {str += _("bijective"); break;}
 				case BASE_GOLDEN_RATIO: {str += "golden"; break;}
 				case BASE_SUPER_GOLDEN_RATIO: {str += "supergolden"; break;}
 				case BASE_E: {str += "e"; break;}
@@ -3035,14 +3120,14 @@ int main(int argc, char *argv[]) {
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("limit implicit multiplication"), "limimpl"); str += b2oo(evalops.parse_options.limit_implicit_multiplication, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("parsing mode"), "parse"); 
+			PRINT_AND_COLON_TABS(_("parsing mode"), "parse");
 			switch(evalops.parse_options.parsing_mode) {
 				case PARSING_MODE_ADAPTIVE: {str += _("adaptive"); break;}
 				case PARSING_MODE_IMPLICIT_MULTIPLICATION_FIRST: {str += _("implicit first"); break;}
 				case PARSING_MODE_CONVENTIONAL: {str += _("conventional"); break;}
 			}
 			CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("read precision"), "readprec"); 
+			PRINT_AND_COLON_TABS(_("read precision"), "readprec");
 			switch(evalops.parse_options.read_precision) {
 				case DONT_READ_PRECISION: {str += _("off"); break;}
 				case ALWAYS_READ_PRECISION: {str += _("always"); break;}
@@ -3072,7 +3157,7 @@ int main(int argc, char *argv[]) {
 			PRINT_AND_COLON_TABS(_("place units separately"), "unitsep"); str += b2oo(printops.place_units_separately, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("prefixes"), "pref"); str += b2oo(printops.use_unit_prefixes, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("sync units"), "sync"); str += b2oo(evalops.sync_units, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
-			PRINT_AND_COLON_TABS(_("update exchange rates"), "upxrates"); 
+			PRINT_AND_COLON_TABS(_("update exchange rates"), "upxrates");
 			switch(auto_update_exchange_rates) {
 				case -1: {str += _("ask"); break;}
 				case 0: {str += _("never"); break;}
@@ -3091,14 +3176,14 @@ int main(int argc, char *argv[]) {
 		} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "help", _("help")) || str == "?") {
 			INIT_SCREEN_CHECK
 			CHECK_IF_SCREEN_FILLED_PUTS("");
-			CHECK_IF_SCREEN_FILLED_PUTS(_("Enter a mathematical expression or a command and press enter.")); 
+			CHECK_IF_SCREEN_FILLED_PUTS(_("Enter a mathematical expression or a command and press enter."));
 			CHECK_IF_SCREEN_FILLED_PUTS(_("Complete functions, units and variables with the tabulator key."));
 			CHECK_IF_SCREEN_FILLED_PUTS("");
 			CHECK_IF_SCREEN_FILLED_PUTS(_("Available commands are:"));
 			CHECK_IF_SCREEN_FILLED_PUTS("");
 			PUTS_UNICODE(_("approximate")); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("assume"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("ASSUMPTIONS")); CHECK_IF_SCREEN_FILLED
-			FPUTS_UNICODE(_("base"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("BASE")); CHECK_IF_SCREEN_FILLED			
+			FPUTS_UNICODE(_("base"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("BASE")); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("delete"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("NAME")); CHECK_IF_SCREEN_FILLED
 			PUTS_UNICODE(_("exact")); CHECK_IF_SCREEN_FILLED
 			if(canfetch) {
@@ -3115,7 +3200,7 @@ int main(int argc, char *argv[]) {
 			PUTS_UNICODE(_("save definitions")); CHECK_IF_SCREEN_FILLED
 			PUTS_UNICODE(_("save mode")); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("set"), stdout); fputs(" ", stdout); FPUTS_UNICODE(_("OPTION"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("VALUE")); CHECK_IF_SCREEN_FILLED
-			PUTS_UNICODE(_("expand")); CHECK_IF_SCREEN_FILLED			
+			PUTS_UNICODE(_("expand")); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("to"), stdout); fputs("/", stdout); FPUTS_UNICODE(_("convert"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("UNIT or \"TO\" COMMAND")); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("variable"), stdout); fputs(" ", stdout); FPUTS_UNICODE(_("NAME"), stdout); fputs(" ", stdout); FPUTS_UNICODE(_("EXPRESSION"), stdout); CHECK_IF_SCREEN_FILLED_PUTS("");
 			FPUTS_UNICODE(_("quit"), stdout); fputs("/", stdout); PUTS_UNICODE(_("exit")); CHECK_IF_SCREEN_FILLED_PUTS("");
@@ -3127,7 +3212,7 @@ int main(int argc, char *argv[]) {
 			FPUTS_UNICODE(_("move"), stdout); fputs(" ", stdout); FPUTS_UNICODE(_("INDEX 1"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("INDEX 2")); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("pop"), stdout); fputs(" [", stdout); FPUTS_UNICODE(_("INDEX"), stdout); puts("]"); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("rotate"), stdout); fputs(" [", stdout); FPUTS_UNICODE(_("DIRECTION"), stdout); puts("]"); CHECK_IF_SCREEN_FILLED
-			FPUTS_UNICODE(_("swap"), stdout); fputs(" [", stdout); FPUTS_UNICODE(_("INDEX 1"), stdout); fputs("] [", stdout); FPUTS_UNICODE(_("INDEX 2"), stdout); puts("]"); CHECK_IF_SCREEN_FILLED			
+			FPUTS_UNICODE(_("swap"), stdout); fputs(" [", stdout); FPUTS_UNICODE(_("INDEX 1"), stdout); fputs("] [", stdout); FPUTS_UNICODE(_("INDEX 2"), stdout); puts("]"); CHECK_IF_SCREEN_FILLED
 			CHECK_IF_SCREEN_FILLED_PUTS("");
 			CHECK_IF_SCREEN_FILLED_PUTS(_("Type help COMMAND for more information (example: help save)."));
 			CHECK_IF_SCREEN_FILLED_PUTS(_("Type info NAME for information about a function, variable or unit (example: info sin)."));
@@ -3196,9 +3281,9 @@ int main(int argc, char *argv[]) {
 						if(iargs < 0) {
 							iargs = f->minargs() + 1;
 						}
-						str += "(";				
+						str += "(";
 						if(iargs != 0) {
-							for(int i2 = 1; i2 <= iargs; i2++) {	
+							for(int i2 = 1; i2 <= iargs; i2++) {
 								if(i2 > f->minargs()) {
 									str += "[";
 								}
@@ -3237,27 +3322,27 @@ int main(int argc, char *argv[]) {
 							CHECK_IF_SCREEN_FILLED_PUTS(buffer);
 						}
 						if(!f->description().empty()) {
-							CHECK_IF_SCREEN_FILLED_PUTS(""); 
+							CHECK_IF_SCREEN_FILLED_PUTS("");
 							CHECK_IF_SCREEN_FILLED_PUTS(f->description().c_str());
 						}
 						if(!f->example(true).empty()) {
-							CHECK_IF_SCREEN_FILLED_PUTS(""); 
+							CHECK_IF_SCREEN_FILLED_PUTS("");
 							str = _("Example:"); str += " "; str += f->example(false, ename->name);
 							CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
 						}
 						if(f->subtype() == SUBTYPE_DATA_SET && !((DataSet*) f)->copyright().empty()) {
-							CHECK_IF_SCREEN_FILLED_PUTS(""); 
+							CHECK_IF_SCREEN_FILLED_PUTS("");
 							CHECK_IF_SCREEN_FILLED_PUTS(((DataSet*) f)->copyright().c_str());
 						}
 						if(iargs) {
 							CHECK_IF_SCREEN_FILLED_PUTS("");
 							CHECK_IF_SCREEN_FILLED_PUTS(_("Arguments"));
-							for(int i2 = 1; i2 <= iargs; i2++) {	
+							for(int i2 = 1; i2 <= iargs; i2++) {
 								arg = f->getArgumentDefinition(i2);
 								if(arg && !arg->name().empty()) {
 									str = arg->name();
 								} else {
-									str = i2s(i2);	
+									str = i2s(i2);
 								}
 								str += ": ";
 								if(arg) {
@@ -3282,7 +3367,7 @@ int main(int argc, char *argv[]) {
 							}
 						}
 						if(!f->condition().empty()) {
-							CHECK_IF_SCREEN_FILLED_PUTS(""); 
+							CHECK_IF_SCREEN_FILLED_PUTS("");
 							str = _("Requirement");
 							str += ": ";
 							str += f->printCondition();
@@ -3294,10 +3379,10 @@ int main(int argc, char *argv[]) {
 							CHECK_IF_SCREEN_FILLED_PUTS(_("Properties"));
 							DataPropertyIter it;
 							DataProperty *dp = ds->getFirstProperty(&it);
-							while(dp) {	
+							while(dp) {
 								if(!dp->isHidden()) {
 									if(!dp->title(false).empty()) {
-										str = dp->title();	
+										str = dp->title();
 										str += ": ";
 									}
 									for(size_t i = 1; i <= dp->countNames(); i++) {
@@ -3311,7 +3396,7 @@ int main(int argc, char *argv[]) {
 									}
 									if(!dp->description().empty()) {
 										str += "\n";
-										str += dp->description();										
+										str += dp->description();
 									}
 									CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
 								}
@@ -3327,7 +3412,7 @@ int main(int argc, char *argv[]) {
 						break;
 					}
 					case TYPE_UNIT: {
-						puts("");						
+						puts("");
 						if(!item->title(false).empty()) {
 							PRINT_AND_COLON_TABS_INFO(_("Unit"));
 							FPUTS_UNICODE(item->title().c_str(), stdout);
@@ -3372,7 +3457,7 @@ int main(int argc, char *argv[]) {
 									fputs(" (", stdout);
 									FPUTS_UNICODE(_("approximate"), stdout);
 									fputs(")", stdout);
-									
+
 								}
 								if(!au->inverseExpression().empty()) {
 									puts("");
@@ -3392,7 +3477,7 @@ int main(int argc, char *argv[]) {
 								PUTS_UNICODE(((CompositeUnit*) item)->print(false, true, printops.use_unicode_signs).c_str());
 								break;
 							}
-						}					
+						}
 						if(!item->description().empty()) {
 							puts("");
 							PUTS_UNICODE(item->description().c_str());
@@ -3401,7 +3486,7 @@ int main(int argc, char *argv[]) {
 						break;
 					}
 					case TYPE_VARIABLE: {
-						puts("");						
+						puts("");
 						if(!item->title(false).empty()) {
 							PRINT_AND_COLON_TABS_INFO(_("Variable"));
 							FPUTS_UNICODE(item->title().c_str(), stdout);
@@ -3459,7 +3544,7 @@ int main(int argc, char *argv[]) {
 								if(value.empty()) value = _("unknown");
 							} else {
 								value = _("default assumptions");
-							}		
+							}
 						}
 						puts("");
 						bool is_relative = false;
@@ -3544,17 +3629,17 @@ int main(int argc, char *argv[]) {
 				CHECK_IF_SCREEN_FILLED_PUTS(_("Example: set base 16."));
 				CHECK_IF_SCREEN_FILLED_PUTS("");
 				CHECK_IF_SCREEN_FILLED_PUTS(_("Available options and accepted values are (the current value is marked with '*'):"));
-				
+
 				CHECK_IF_SCREEN_FILLED_HEADING_S(_("Algebraic Mode"));
 
 				STR_AND_TABS_2b(_("algebra mode"), "alg", _("Determines if the expression is factorized or not after calculation."), evalops.structuring, _("expand"), _("factorize"));
 				STR_AND_TABS_BOOL(_("assume nonzero denominators"), "nzd", _("Determines if unknown values will be assumed non-zero (x/x=1)."), evalops.assume_denominators_nonzero);
 				STR_AND_TABS_BOOL(_("warn nonzero denominators"), "warnnzd", _("Display a message after a value has been assumed non-zero."), evalops.warn_about_denominators_assumed_nonzero);
 				Assumptions *ass = CALCULATOR->defaultAssumptions();
-				STR_AND_TABS_SET(_("assumptions"), "ass"); 
+				STR_AND_TABS_SET(_("assumptions"), "ass");
 				SET_DESCRIPTION(_("Default assumptions for unknown variables."));
 			 	str += "(";
-				str += _("unknown"); 
+				str += _("unknown");
 				if(ass->sign() == ASSUMPTION_SIGN_UNKNOWN) str += "*";
 				str += ", "; str += _("non-zero");
 				if(ass->sign() == ASSUMPTION_SIGN_NONZERO) str += "*";
@@ -3576,19 +3661,19 @@ int main(int argc, char *argv[]) {
 				if(ass->type() == ASSUMPTION_TYPE_INTEGER) str += "*";
 				 str += ")";
 				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
-				
+
 				CHECK_IF_SCREEN_FILLED_HEADING_S(_("Calculation"));
 
 				STR_AND_TABS_3(_("angle unit"), "angle", "Default angle unit for trigonometric functions.", evalops.parse_options.angle_unit, _("none"), _("radians"), _("degrees"), _("gradians"));
 				STR_AND_TABS_2(_("approximation"), "appr", _("How approximate variables and calculations are handled. In exact mode approximate values will not be calculated."), evalops.approximation, _("exact"), _("try exact"), _("approximate"));
 				STR_AND_TABS_BOOL(_("interval arithmetic"), "ia", _("If activated, interval arithmetic determines the final precision of calculations (avoids wrong results after loss of significance) with approximate functions and/or irrational numbers."), CALCULATOR->usesIntervalArithmetic());
 				STR_AND_TABS_2b(_("interval calculation"), "ic", _("Determines the method used for interval calculation / uncertainty propagation."), evalops.interval_calculation, _("variance formula"), _("interval arithmetic"));
-				STR_AND_TABS_SET(_("precision"), "prec");  
+				STR_AND_TABS_SET(_("precision"), "prec");
 				SET_DESCRIPTION(_("Specifies the default number of significant digits displayed and determines the precision used for approximate calculations."));
 				str += "(> 0) "; str += i2s(CALCULATOR->getPrecision()); str += "*"; CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
-				
+
 				CHECK_IF_SCREEN_FILLED_HEADING_S(_("Enabled Objects"));
-				
+
 				STR_AND_TABS_BOOL(_("calculate functions"), "calcfunc", "", evalops.calculate_functions);
 				STR_AND_TABS_BOOL(_("calculate variables"), "calcvar", "", evalops.calculate_variables);
 				STR_AND_TABS_BOOL(_("complex numbers"), "cplx", "", evalops.allow_complex);
@@ -3598,7 +3683,7 @@ int main(int argc, char *argv[]) {
 				STR_AND_TABS_BOOL(_("unknowns"), "", _("Interprete undefined symbols in expressions as unknown variables."), evalops.parse_options.unknowns_enabled);
 				STR_AND_TABS_BOOL(_("variables"), "var", "", evalops.parse_options.variables_enabled);
 				STR_AND_TABS_BOOL(_("variable units"), "varunit", _("If activated physical constants include units (e.g. c = 299 792 458 m∕s)."), CALCULATOR->variableUnitsEnabled());
-				
+
 				CHECK_IF_SCREEN_FILLED_HEADING_S(_("Generic Display Options"));
 
 				STR_AND_TABS_BOOL(_("abbreviations"), "abbr", _("Use abbreviated names for units and variables."), printops.abbreviate_names);
@@ -3639,11 +3724,11 @@ int main(int argc, char *argv[]) {
 				else if(printops.base > 2 && printops.base <= 36 && printops.base != BASE_OCTAL && printops.base != BASE_DECIMAL && printops.base != BASE_HEXADECIMAL) {str += " "; str += i2s(printops.base); str += "*";}
 				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
 				STR_AND_TABS_2(_("base display"), "basedisp", "", printops.base_display, _("none"), _("normal"), _("alternative"));
-				STR_AND_TABS_2(_("complex form"), "cplxform", "", evalops.complex_number_form, _("rectangular"), _("exponential"), _("polar"));
+				STR_AND_TABS_4(_("complex form"), "cplxform", "", evalops.complex_number_form + (complex_angle_form ? 1 : 0), _("rectangular"), _("exponential"), _("polar"), "cis", _("angle"));
 				STR_AND_TABS_SET(_("decimal comma"), "");
 				SET_DESCRIPTION(_("Determines the default decimal separator."));
 				str += "(";
-				str += _("locale"); 
+				str += _("locale");
 				if(b_decimal_comma < 0) str += "*";
 				str += ", "; str += _("off");
 				if(b_decimal_comma == 0) str += "*";
@@ -3652,10 +3737,34 @@ int main(int argc, char *argv[]) {
 				str += ")";
 				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
 				STR_AND_TABS_2(_("digit grouping"), "group", "", printops.digit_grouping, _("off"), _("standard"), _("locale"));
+				int nff = printops.number_fraction_format;
+				if(!printops.restrict_fraction_length && printops.number_fraction_format == FRACTION_FRACTIONAL) nff = 4;
+				STR_AND_TABS_4(_("fractions"), "fr", _("Determines how rational numbers are displayed (e.g. 5/4 = 1 + 1/4 = 1.25). 'long' removes limits on the size of the numerator and denonimator."), nff, _("off"), _("exact"), _("on"), _("mixed"), _("long"));
+				STR_AND_TABS_BOOL(_("hexadecimal two's"), "hextwos", _("Enables two's complement representation for display of negative hexadecimal numbers."), printops.twos_complement);
+				STR_AND_TABS_BOOL(_("imaginary j"), "imgj", _("Use 'j' (instead of 'i') as default symbol for the imaginary unit."), (CALCULATOR->v_i->hasName("j") > 0));
+				STR_AND_TABS_7(_("interval display"), "ivdisp", "", (adaptive_interval_display ? 0 : printops.interval_display + 1), _("adaptive"), _("significant"), _("interval"), _("plusminus"), _("midpoint"), _("upper"), _("lower"))
+				STR_AND_TABS_BOOL(_("lowercase e"), "lowe", _("Use lowercase e for E-notation (5e2 = 5 * 10^2)."), printops.lower_case_e);
+				STR_AND_TABS_BOOL(_("lowercase numbers"), "lownum", _("Use lowercase letters for number bases > 10."), printops.lower_case_numbers);
+				STR_AND_TABS_SET(_("max decimals"), "maxdeci");
+				str += "(";
+				str += _("off");
+				if(printops.max_decimals < 0) str += "*";
+				str += ", >= 0)";
+				if(printops.max_decimals >= 0) {str += " "; str += i2s(printops.max_decimals); str += "*";}
+				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
+				STR_AND_TABS_SET(_("min decimals"), "mindeci");
+				str += "(";
+				str += _("off");
+				if(printops.min_decimals < 0) str += "*";
+				str += ", >= 0)";
+				if(printops.min_decimals >= 0) {str += " "; str += i2s(printops.min_decimals); str += "*";}
+				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
+				STR_AND_TABS_BOOL(_("repeating decimals"), "repdec", _("If activated, 1/6 is displayed as '0.1 666...', otherwise as '0.166667'."), printops.indicate_infinite_series);
+				STR_AND_TABS_BOOL(_("round to even"), "rndeven", _("Determines whether halfway numbers are rounded upwards or towards the nearest even integer."), printops.round_halfway_to_even);
 				STR_AND_TABS_SET(_("scientific notation"), "exp");
 				SET_DESCRIPTION(_("Determines how scientific notation are used (e.g. 5 543 000 = 5.543E6)."));
 				str += "(";
-				str += _("off"); 
+				str += _("off");
 				if(printops.min_exp == EXP_NONE) str += "*";
 				str += ", "; str += _("auto");
 				if(printops.min_exp == EXP_PRECISION) str += "*";
@@ -3668,40 +3777,16 @@ int main(int argc, char *argv[]) {
 				str += ", >= 0)";
 				if(printops.min_exp != EXP_NONE && printops.min_exp != EXP_NONE && printops.min_exp != EXP_PRECISION && printops.min_exp != EXP_BASE_3 && printops.min_exp != EXP_PURE && printops.min_exp != EXP_SCIENTIFIC) {str += " "; str += i2s(printops.min_exp); str += "*";}
 				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
-				int nff = printops.number_fraction_format;
-				if(!printops.restrict_fraction_length && printops.number_fraction_format == FRACTION_FRACTIONAL) nff = 4;
-				STR_AND_TABS_4(_("fractions"), "fr", _("Determines how rational numbers are displayed (e.g. 5/4 = 1 + 1/4 = 1.25). 'long' removes limits on the size of the numerator and denonimator."), nff, _("off"), _("exact"), _("on"), _("mixed"), _("long"));
-				STR_AND_TABS_7(_("interval display"), "ivdisp", "", (adaptive_interval_display ? 0 : printops.interval_display + 1), _("adaptive"), _("significant"), _("interval"), _("plusminus"), _("midpoint"), _("upper"), _("lower"))
-				STR_AND_TABS_BOOL(_("lowercase e"), "lowe", _("Use lowercase e for E-notation (5e2 = 5 * 10^2)."), printops.lower_case_e);
-				STR_AND_TABS_BOOL(_("lowercase numbers"), "lownum", _("Use lowercase letters for number bases > 10."), printops.lower_case_numbers);
-				STR_AND_TABS_SET(_("max decimals"), "maxdeci"); 
-				str += "(";
-				str += _("off");
-				if(printops.max_decimals < 0) str += "*";
-				str += ", >= 0)";
-				if(printops.max_decimals >= 0) {str += " "; str += i2s(printops.max_decimals); str += "*";}
-				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
-				STR_AND_TABS_SET(_("min decimals"), "mindeci"); 
-				str += "(";
-				str += _("off");
-				if(printops.min_decimals < 0) str += "*";
-				str += ", >= 0)";
-				if(printops.min_decimals >= 0) {str += " "; str += i2s(printops.min_decimals); str += "*";}
-				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
-				STR_AND_TABS_BOOL(_("repeating decimals"), "repdec", _("If activated, 1/6 is displayed as '0.1 666...', otherwise as '0.166667'."), printops.indicate_infinite_series);
-				STR_AND_TABS_BOOL(_("round to even"), "rndeven", _("Determines whether halfway numbers are rounded upwards or towards the nearest even integer."), printops.round_halfway_to_even);
 				STR_AND_TABS_BOOL(_("show ending zeroes"), "zeroes", _("If actived, zeroes are kept at the end of approximate numbers."), printops.show_ending_zeroes);
 				STR_AND_TABS_BOOL(_("two's complement"), "twos", _("Enables two's complement representation for display of negative binary numbers."), printops.twos_complement);
-				
-				STR_AND_TABS_BOOL(_("hexadecimal two's"), "hextwos", _("Enables two's complement representation for display of negative hexadecimal numbers."), printops.twos_complement);
-				
+
 				CHECK_IF_SCREEN_FILLED_HEADING_S(_("Parsing"));
 
 				STR_AND_TABS_BOOL(_("caret as xor"), "xor^", _("Use ^ as bitwise exclusive OR operator."), caret_as_xor);
-				STR_AND_TABS_SET(_("decimal comma"), ""); 
+				STR_AND_TABS_SET(_("decimal comma"), "");
 				SET_DESCRIPTION(_("Determines the default decimal separator."));
 				str += "(";
-				str += _("locale"); 
+				str += _("locale");
 				if(b_decimal_comma < 0) str += "*";
 				str += ", "; str += _("off");
 				if(b_decimal_comma == 0) str += "*";
@@ -3715,6 +3800,7 @@ int main(int argc, char *argv[]) {
 				if(CALCULATOR->getDecimalPoint() != DOT) {
 					STR_AND_TABS_BOOL(_("ignore dot"), "", _("Allows use of '.' as thousands separator."), evalops.parse_options.dot_as_separator);
 				}
+				STR_AND_TABS_BOOL(_("imaginary j"), "imgj", _("Use 'j' (instead of 'i') as default symbol for the imaginary unit."), (CALCULATOR->v_i->hasName("j") > 0));
 				STR_AND_TABS_SET(_("input base"), "inbase"); str += "(-1114112 - 1114112"; str += ", "; str += _("bin");
 				if(evalops.parse_options.base == BASE_BINARY) str += "*";
 				str += ", "; str += _("oct");
@@ -3764,14 +3850,14 @@ int main(int argc, char *argv[]) {
 				STR_AND_TABS_BOOL(_("place units separately"), "unitsep", _("If activated, units are separated from variables at the end of the result."), printops.place_units_separately);
 				STR_AND_TABS_BOOL(_("prefixes"), "pref", _("Enables automatic use of prefixes in the result."), printops.use_unit_prefixes);
 				STR_AND_TABS_BOOL(_("sync units"), "sync", "", evalops.sync_units);
-				STR_AND_TABS_SET(_("update exchange rates"), "upxrates"); 
+				STR_AND_TABS_SET(_("update exchange rates"), "upxrates");
 				str += "(-1 = "; str += _("ask"); if(auto_update_exchange_rates < 0) str += "*";
 				str += ", 0 = "; str += _("never"); if(auto_update_exchange_rates == 0) str += "*";
 				str += ", > 0 = "; str += _("days");
 				str += ")";
 				if(auto_update_exchange_rates > 0) {str += " "; str += i2s(auto_update_exchange_rates); str += "*";}
 				CHECK_IF_SCREEN_FILLED_PUTS(str.c_str());
-				
+
 				CHECK_IF_SCREEN_FILLED_HEADING_S(_("Other"));
 
 				STR_AND_TABS_YESNO(_("ignore locale"), "", _("Ignore system language and use English (requires restart)."), ignore_locale);
@@ -3924,12 +4010,11 @@ int main(int argc, char *argv[]) {
 				CHECK_IF_SCREEN_FILLED_PUTS("");
 				CHECK_IF_SCREEN_FILLED_PUTS(_("Possible values:"));
 				CHECK_IF_SCREEN_FILLED_PUTS("");
-				CHECK_IF_SCREEN_FILLED_PUTS(_("- a unit (e.g. meter)"));
-				CHECK_IF_SCREEN_FILLED_PUTS(_("prepend with ? to request the optimal decimal prefix"));
+				CHECK_IF_SCREEN_FILLED_PUTS(_("- a unit or unit expression (e.g. meter or km/h)"));
+				CHECK_IF_SCREEN_FILLED_PUTS(_("prepend with ? to request the optimal prefix"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("prepend with b? to request the optimal binary prefix"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("prepend with + or - to force/disable use of mixed units"));
-				CHECK_IF_SCREEN_FILLED_PUTS(_("- a unit expression (e.g. km/h)"));
-				CHECK_IF_SCREEN_FILLED_PUTS(_("- a physical constant (e.g. c)"));
+				CHECK_IF_SCREEN_FILLED_PUTS(_("- a variable or physical constant (e.g. c)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- base (convert to base units)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- optimal (convert to optimal unit)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- mixed (convert to mixed units, e.g. hours + minutes)"));
@@ -3939,6 +4024,7 @@ int main(int argc, char *argv[]) {
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- duo / duodecimal (show as duodecimal number)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- hex / hexadecimal (show as hexadecimal number)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- sex / sexagesimal (show as sexagesimal number)"));
+				CHECK_IF_SCREEN_FILLED_PUTS(_("- bijective (shown in bijective base-26)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- roman (show as roman numerals)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- time (show in time format)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- unicode"));
@@ -3948,6 +4034,8 @@ int main(int argc, char *argv[]) {
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- rectangular / cartesian (show complex numbers in rectangular form)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- exponential (show complex numbers in exponential form)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- polar (show complex numbers in polar form)"));
+				CHECK_IF_SCREEN_FILLED_PUTS(_("- cis (show complex numbers in cis form)"));
+				CHECK_IF_SCREEN_FILLED_PUTS(_("- angle / phasor (show complex numbers in angle/phasor notation)"));
 				CHECK_IF_SCREEN_FILLED_PUTS("");
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- fraction (show result as mixed fraction)"));
 				CHECK_IF_SCREEN_FILLED_PUTS(_("- factors (factorize result)"));
@@ -3959,7 +4047,7 @@ int main(int argc, char *argv[]) {
 				CHECK_IF_SCREEN_FILLED_PUTS(_("Example: to ?g"));
 				CHECK_IF_SCREEN_FILLED_PUTS("");
 				if(EQUALS_IGNORECASE_AND_LOCAL(str, "to", _("to"))) {
-					CHECK_IF_SCREEN_FILLED_PUTS(_("This command can also be typed directly at the end of the mathematical expression."));
+					CHECK_IF_SCREEN_FILLED_PUTS(_("This command can also be typed directly at the end of the mathematical expression (e.g. 5 ft + 2 in to meter)."));
 					CHECK_IF_SCREEN_FILLED_PUTS("");
 				}
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "quit", _("quit")) || EQUALS_IGNORECASE_AND_LOCAL(str, "exit", _("exit"))) {
@@ -3971,10 +4059,10 @@ int main(int argc, char *argv[]) {
 				PUTS_BOLD(_("conventional"));
 				puts(_("Implicit multiplication does not differ from explicit multiplication (\"12/2(1+2) = 12/2*3 = 18\", \"5x/5y = 5*x/5*y = xy\")."));
 				puts("");
-				PUTS_BOLD(_("implicit first")); 
+				PUTS_BOLD(_("implicit first"));
 				puts(_("Implicit multiplication is parsed before explicit multiplication (\"12/2(1+2) = 12/(2*3) = 2\", \"5x/5y = (5*x)/(5*y) = x/y\")."));
 				puts("");
-				PUTS_BOLD(_("adaptive")); 
+				PUTS_BOLD(_("adaptive"));
 				puts(_("The default adaptive mode works as the \"implicit first\" mode, unless spaces are found (\"1/5x = 1/(5*x)\", but \"1/5 x = (1/5)*x\"). In the adaptive mode unit expressions are parsed separately (\"5 m/5 m/s = (5*m)/(5*(m/s)) = 1 s\")."));
 				puts("");
 				puts(_("Function arguments without parentheses are an exception, where implicit multiplication in front of variables and units is parsed first regardless of mode (\"sqrt 2x = sqrt(2x)\")."));
@@ -3988,7 +4076,7 @@ int main(int argc, char *argv[]) {
 			if(!cfile) {
 				free(rlbuffer);
 			}
-#endif			
+#endif
 			break;
 		} else if(explicit_command) {
 			PUTS_UNICODE(_("Unknown command."));
@@ -4021,11 +4109,11 @@ int main(int argc, char *argv[]) {
 	if(cfile && cfile != stdin) {
 		fclose(cfile);
 	}
-	
+
 	handle_exit();
-	
+
 	return 0;
-	
+
 }
 
 void RPNRegisterAdded(string, int = 0) {}
@@ -4057,19 +4145,23 @@ void on_abort_display() {
 	CALCULATOR->abort();
 }
 
+void replace_result_cis(string &resstr) {
+	gsub(" cis ", "∠", resstr);
+}
+
 void replace_quotation_marks(string &str) {
 #ifndef _WIN32
 	if(cfile) return;
 	size_t i1 = 0, i2 = 0, i_prev = 0;
 	size_t i_equals = str.find(_("approx.")) + strlen(_("approx."));
-	while(i1 + 2 < str.length()) {
+	while(i_prev + 2 < str.length()) {
 		i1 = str.find_first_of("\"\'", i_prev);
 		if(i1 == string::npos) break;
 		i2 = str.find(str[i1], i1 + 1);
 		if(i2 == string::npos) break;
 		if(i2 - i1 > 2) {
 			if(!text_length_is_one(str.substr(i1 + 1, i2 - i1 - 1))) {
-				i1 = i2 + 1;
+				i_prev = i2 + 1;
 				continue;
 			}
 		}
@@ -4139,11 +4231,12 @@ void ViewThread::run() {
 			}
 		}
 		printops.allow_non_usable = false;
-		
+
 		m.removeDefaultAngleUnit(evalops);
 		m.format(printops);
 		result_text = m.print(printops);
-	
+		if(complex_angle_form) replace_result_cis(result_text);
+
 		if(result_text == _("aborted")) {
 			*printops.is_approximate = false;
 		}
@@ -4173,9 +4266,9 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 	if(i_maxtime < 0) return;
 
 	b_busy = true;
-	
+
 	if(!view_thread->running && !view_thread->start()) {b_busy = false; return;}
-	
+
 	if(!interactive_mode || cfile) goto_input = false;
 
 	string prev_result_text = result_text;
@@ -4196,7 +4289,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 	if(register_moved) {
 		result_text = _("RPN Register Moved");
 	}
-	
+
 	printops.prefix = prefix;
 
 	bool parsed_approx = false;
@@ -4218,9 +4311,9 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 	} else {
 		if(!view_thread->write((void *) NULL)) {b_busy = false; view_thread->cancel(); return;}
 	}
-	
+
 	bool has_printed = false;
-	
+
 	if(i_maxtime != 0) {
 #ifndef CLOCK_MONOTONIC
 		struct timeval tv;
@@ -4249,13 +4342,13 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 		i = 0;
 
 		if(b_busy && view_thread->running && !cfile) {
-			if(!result_only) { 
+			if(!result_only) {
 				FPUTS_UNICODE(_("Processing (press Enter to abort)"), stdout);
 				has_printed = true;
 				fflush(stdout);
 			}
 		}
-#ifdef HAVE_LIBREADLINE	
+#ifdef HAVE_LIBREADLINE
 		int c = 0;
 #else
 		char c = 0;
@@ -4265,7 +4358,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 				sleep_ms(100);
 			} else {
 				if(wait_for_key_press(100)) {
-#ifdef HAVE_LIBREADLINE		
+#ifdef HAVE_LIBREADLINE
 					if(use_readline) {
 						c = rl_read_key();
 					} else {
@@ -4273,7 +4366,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 					}
 #else
 					if(read(STDIN_FILENO, &c, 1) == -1) c = 0;
-#endif			
+#endif
 					if(c == '\n') {
 						on_abort_display();
 						has_printed = false;
@@ -4296,7 +4389,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 	}
 
 	b_busy = true;
-	
+
 	if(has_printed) printf("\n");
 	if(goto_input) printf("\n");
 
@@ -4315,7 +4408,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 		cols = 80;
 #endif
 	}
-	
+
 	if(!result_only) display_errors(goto_input, cols);
 
 	if(stack_index != 0) {
@@ -4396,6 +4489,11 @@ void result_prefix_changed(Prefix *prefix) {
 }
 void expression_calculation_updated() {
 	if(expression_executed && !avoid_recalculation && !rpn_mode) {
+		if(parsed_mstruct) {
+			for(size_t i = 0; i < 5; i++) {
+				if(parsed_mstruct->contains(vans[i])) return;
+			}
+		}
 		hide_parse_errors = true;
 		execute_expression();
 		hide_parse_errors = false;
@@ -4407,6 +4505,11 @@ void expression_format_updated(bool reparse) {
 		avoid_recalculation = true;
 	}
 	if(expression_executed && reparse) {
+		if(parsed_mstruct) {
+			for(size_t i = 0; i < 5; i++) {
+				if(parsed_mstruct->contains(vans[i])) return;
+			}
+		}
 		execute_expression();
 	}
 }
@@ -4458,7 +4561,7 @@ void CommandThread::run() {
 		}
 		b_busy = false;
 		CALCULATOR->stopControl();
-		
+
 	}
 }
 
@@ -4466,7 +4569,7 @@ void execute_command(int command_type, bool show_result) {
 
 	if(i_maxtime < 0) return;
 
-	b_busy = true;	
+	b_busy = true;
 	command_aborted = false;
 
 	if(!command_thread->running && !command_thread->start()) {b_busy = false; return;}
@@ -4504,7 +4607,7 @@ void execute_command(int command_type, bool show_result) {
 			i++;
 		}
 		i = 0;
-	
+
 		if(b_busy && command_thread->running && !cfile) {
 			if(!result_only) {
 				switch(command_type) {
@@ -4529,7 +4632,7 @@ void execute_command(int command_type, bool show_result) {
 				fflush(stdout);
 			}
 		}
-#ifdef HAVE_LIBREADLINE	
+#ifdef HAVE_LIBREADLINE
 		int c = 0;
 #else
 		char c = 0;
@@ -4547,7 +4650,7 @@ void execute_command(int command_type, bool show_result) {
 					}
 #else
 					if(read(STDIN_FILENO, &c, 1) == -1) c = 0;
-#endif			
+#endif
 					if(c == '\n') {
 						on_abort_command();
 					}
@@ -4560,7 +4663,7 @@ void execute_command(int command_type, bool show_result) {
 				}
 			}
 		}
-	
+
 		if(has_printed) printf("\n");
 
 	}
@@ -4658,6 +4761,14 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 				printops.base = save_base;
 				expression_str = str;
 				return;
+			} else if(equalsIgnoreCase(to_str, "bijective") || equalsIgnoreCase(to_str, _("bijective"))) {
+				int save_base = printops.base;
+				expression_str = from_str;
+				printops.base = BASE_BIJECTIVE_26;
+				execute_expression(goto_input, do_mathoperation, op, f, do_stack, stack_index);
+				printops.base = save_base;
+				expression_str = str;
+				return;
 			} else if(equalsIgnoreCase(to_str, "sexa") || equalsIgnoreCase(to_str, "sexagesimal") || equalsIgnoreCase(to_str, _("sexagesimal"))) {
 				int save_base = printops.base;
 				expression_str = from_str;
@@ -4745,25 +4856,56 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "rectangular", _("rectangular")) || EQUALS_IGNORECASE_AND_LOCAL(to_str, "cartesian", _("cartesian")) || to_str == "rect") {
 				expression_str = from_str;
 				ComplexNumberForm save_complex_number_form = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = false;
 				evalops.complex_number_form = COMPLEX_NUMBER_FORM_RECTANGULAR;
 				execute_expression(goto_input, do_mathoperation, op, f, do_stack, stack_index);
 				evalops.complex_number_form = save_complex_number_form;
+				complex_angle_form = caf_bak;
 				expression_str = str;
 				return;
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "exponential", _("exponential")) || to_str == "exp") {
 				expression_str = from_str;
 				ComplexNumberForm save_complex_number_form = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = false;
 				evalops.complex_number_form = COMPLEX_NUMBER_FORM_EXPONENTIAL;
 				execute_expression(goto_input, do_mathoperation, op, f, do_stack, stack_index);
 				evalops.complex_number_form = save_complex_number_form;
+				complex_angle_form = caf_bak;
 				expression_str = str;
 				return;
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "polar", _("polar"))) {
 				expression_str = from_str;
 				ComplexNumberForm save_complex_number_form = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = false;
 				evalops.complex_number_form = COMPLEX_NUMBER_FORM_POLAR;
 				execute_expression(goto_input, do_mathoperation, op, f, do_stack, stack_index);
 				evalops.complex_number_form = save_complex_number_form;
+				complex_angle_form = caf_bak;
+				expression_str = str;
+				return;
+			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "angle", _("angle")) || EQUALS_IGNORECASE_AND_LOCAL(to_str, "phasor", _("phasor"))) {
+				expression_str = from_str;
+				ComplexNumberForm save_complex_number_form = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = true;
+				evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
+				execute_expression(goto_input, do_mathoperation, op, f, do_stack, stack_index);
+				evalops.complex_number_form = save_complex_number_form;
+				complex_angle_form = caf_bak;
+				expression_str = str;
+				return;
+			} else if(to_str == "cis") {
+				expression_str = from_str;
+				ComplexNumberForm save_complex_number_form = evalops.complex_number_form;
+				bool caf_bak = complex_angle_form;
+				complex_angle_form = false;
+				evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
+				execute_expression(goto_input, do_mathoperation, op, f, do_stack, stack_index);
+				evalops.complex_number_form = save_complex_number_form;
+				complex_angle_form = caf_bak;
 				expression_str = str;
 				return;
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "optimal", _("optimal"))) {
@@ -4792,7 +4934,8 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 				int save_base = printops.base;
 				expression_str = from_str;
 				Number save_nr = CALCULATOR->customOutputBase();
-				if(equalsIgnoreCase(to_str2, "golden") || equalsIgnoreCase(to_str2, "golden ratio") || to_str2 == "φ") printops.base = BASE_GOLDEN_RATIO;
+				if(to_str2 == "b26" || to_str2 == "B26") printops.base = BASE_BIJECTIVE_26;
+				else if(equalsIgnoreCase(to_str2, "golden") || equalsIgnoreCase(to_str2, "golden ratio") || to_str2 == "φ") printops.base = BASE_GOLDEN_RATIO;
 				else if(equalsIgnoreCase(to_str2, "unicode")) printops.base = BASE_UNICODE;
 				else if(equalsIgnoreCase(to_str2, "supergolden") || equalsIgnoreCase(to_str2, "supergolden ratio") || to_str2 == "ψ") printops.base = BASE_SUPER_GOLDEN_RATIO;
 				else if(equalsIgnoreCase(to_str2, "pi") || to_str2 == "π") printops.base = BASE_PI;
@@ -4876,9 +5019,9 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 			}
 		}
 	}
-	
+
 	if(caret_as_xor) gsub("^", "⊻", str);
-	
+
 	expression_executed = true;
 
 	b_busy = true;
@@ -5007,7 +5150,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 	} else {
 		CALCULATOR->calculate(mstruct, CALCULATOR->unlocalizeExpression(str, evalops.parse_options), 0, evalops, parsed_mstruct, NULL);
 	}
-	
+
 	bool has_printed = false;
 
 	if(i_maxtime != 0) {
@@ -5031,14 +5174,14 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 			printf("\n");
 		}
 	} else {
-	
+
 		int i = 0;
 		while(CALCULATOR->busy() && i < 75) {
 			sleep_ms(10);
 			i++;
 		}
 		i = 0;
-		
+
 		if(CALCULATOR->busy() && !cfile) {
 			if(!result_only) {
 				FPUTS_UNICODE(_("Calculating (press Enter to abort)"), stdout);
@@ -5056,7 +5199,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 				sleep_ms(100);
 			} else {
 				if(wait_for_key_press(100)) {
-#ifdef HAVE_LIBREADLINE		
+#ifdef HAVE_LIBREADLINE
 					if(use_readline) {
 						c = rl_read_key();
 					} else {
@@ -5064,7 +5207,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 					}
 #else
 					if(read(STDIN_FILENO, &c, 1) == -1) c = 0;
-#endif			
+#endif
 					if(c == '\n') {
 						CALCULATOR->abort();
 						avoid_recalculation = true;
@@ -5081,7 +5224,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 		}
 		if(has_printed) printf("\n");
 	}
-	
+
 	b_busy = false;
 
 	if(rpn_mode && (!do_stack || stack_index == 0)) {
@@ -5090,12 +5233,12 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 		if(!mstruct) mstruct = new MathStructure();
 		else mstruct->ref();
 	}
-	
+
 	if(!do_mathoperation && check_exrates && check_exchange_rates()) {
 		execute_expression(goto_input, do_mathoperation, op, f, rpn_mode, do_stack ? stack_index : 0, false);
 		return;
 	}
-	
+
 	if(do_factors || do_expand || do_pfe) {
 		if(do_stack && stack_index != 0) {
 			MathStructure *save_mstruct = mstruct;
@@ -5106,7 +5249,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 			execute_command(do_pfe ? COMMAND_EXPAND_PARTIAL_FRACTIONS : (do_expand ? COMMAND_EXPAND : COMMAND_FACTORIZE), false);
 		}
 	}
-	
+
 	//update "ans" variables
 	if(!do_stack || stack_index == 0) {
 		MathStructure m4(vans[3]->get());
@@ -5139,7 +5282,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 			RPNRegisterAdded("");
 		}
 	}
-	
+
 	if(do_calendars && mstruct->isDateTime()) {
 		setResult(NULL, (!do_stack || stack_index == 0), false, do_stack ? stack_index : 0, false, true);
 		if(goto_input) printf("\n");
@@ -5157,7 +5300,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 		base_str += " = ";
 		printops.base = BASE_DECIMAL;
 		setResult(NULL, false, false, do_stack ? stack_index : 0, false, true);
-		base_str += result_text;					
+		base_str += result_text;
 		base_str += " = ";
 		printops.base = BASE_HEXADECIMAL;
 		setResult(NULL, false, false, do_stack ? stack_index : 0, false, true);
@@ -5213,6 +5356,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 		int i = 0;
 		if(!do_stack || stack_index == 0) i = has_information_unit(*mstruct);
 		CALCULATOR->useBinaryPrefixes(i > 0 ? 1 : 2);
+		printops.use_unit_prefixes = true;
 		if(i == 1) {
 			printops.use_denominator_prefix = false;
 		} else if(i > 1) {
@@ -5251,6 +5395,7 @@ void set_saved_mode() {
 	saved_variable_units_enabled = CALCULATOR->variableUnitsEnabled();
 	saved_printops = printops;
 	saved_printops.allow_factorization = (evalops.structuring == STRUCTURING_FACTORIZE);
+	saved_caf = complex_angle_form;
 	saved_evalops = evalops;
 	saved_rpn_mode = rpn_mode;
 	saved_caret_as_xor = caret_as_xor;
@@ -5300,7 +5445,7 @@ void load_preferences() {
 	printops.allow_factorization = false;
 	printops.spell_out_logical_operators = true;
 	printops.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
-	
+
 	evalops.parse_options.parsing_mode = PARSING_MODE_ADAPTIVE;
 	evalops.approximation = APPROXIMATION_TRY_EXACT;
 	evalops.sync_units = true;
@@ -5321,29 +5466,31 @@ void load_preferences() {
 	evalops.local_currency_conversion = true;
 	evalops.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
 	b_decimal_comma = -1;
-	
+
+	complex_angle_form = false;
+
 	ignore_locale = false;
-	
+
 	automatic_fraction = false;
-	
+
 	adaptive_interval_display = true;
-	
+
 	CALCULATOR->useIntervalArithmetic(true);
-	
+
 	CALCULATOR->useBinaryPrefixes(0);
 
 	rpn_mode = false;
-	
+
 	save_mode_on_exit = true;
 	save_defs_on_exit = true;
 	auto_update_exchange_rates = -1;
 	first_time = false;
-	
+
 	FILE *file = NULL;
 #ifdef HAVE_LIBREADLINE
 	string historyfile = buildPath(getLocalDir(), "qalc.history");
 	string oldhistoryfile;
-#endif	
+#endif
 	string oldfilename;
 	string filename = buildPath(getLocalDir(), "qalc.cfg");
 	file = fopen(filename.c_str(), "r");
@@ -5365,7 +5512,7 @@ void load_preferences() {
 #endif
 		makeDir(getLocalDir());
 	}
-	
+
 #ifdef HAVE_LIBREADLINE
 	stifle_history(100);
 	if(!oldhistoryfile.empty()) {
@@ -5376,9 +5523,9 @@ void load_preferences() {
 	}
 #endif
 
-	
-	int version_numbers[] = {3, 4, 0};
-	
+
+	int version_numbers[] = {3, 6, 0};
+
 	if(file) {
 		char line[10000];
 		string stmp, svalue, svar;
@@ -5436,7 +5583,7 @@ void load_preferences() {
 				} else if(svar == "sort_minus_last") {
 					printops.sort_options.minus_last = v;
 				} else if(svar == "spacious") {
-					printops.spacious = v;	
+					printops.spacious = v;
 				} else if(svar == "excessive_parenthesis") {
 					printops.excessive_parenthesis = v;
 				} else if(svar == "short_multiplication") {
@@ -5469,8 +5616,12 @@ void load_preferences() {
 				} else if(svar == "automatic_number_fraction_format") {
 					automatic_fraction = v;
 				} else if(svar == "complex_number_form") {
-					if(v >= COMPLEX_NUMBER_FORM_RECTANGULAR && v <= COMPLEX_NUMBER_FORM_POLAR) {
+					if(v == COMPLEX_NUMBER_FORM_CIS + 1) {
+						evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
+						complex_angle_form = true;
+					} else if(v >= COMPLEX_NUMBER_FORM_RECTANGULAR && v <= COMPLEX_NUMBER_FORM_CIS) {
 						evalops.complex_number_form = (ComplexNumberForm) v;
+						complex_angle_form = false;
 					}
 				} else if(svar == "number_base") {
 					printops.base = v;
@@ -5534,7 +5685,7 @@ void load_preferences() {
 				} else if(svar == "use_short_units") {
 					printops.abbreviate_names = v;
 				} else if(svar == "abbreviate_names") {
-					printops.abbreviate_names = v;	
+					printops.abbreviate_names = v;
 				} else if(svar == "all_prefixes_enabled") {
 				 	printops.use_all_prefixes = v;
 				} else if(svar == "denominator_prefix_enabled") {
@@ -5555,11 +5706,13 @@ void load_preferences() {
 				} else if(svar == "local_currency_conversion") {
 					evalops.local_currency_conversion = v;
 				} else if(svar == "use_unicode_signs") {
-					printops.use_unicode_signs = v;	
+					printops.use_unicode_signs = v;
 				} else if(svar == "lower_case_numbers") {
 					printops.lower_case_numbers = v;
 				} else if(svar == "lower_case_e") {
 					printops.lower_case_e = v;
+				} else if(svar == "imaginary_j") {
+					do_imaginary_j = v;
 				} else if(svar == "base_display") {
 					if(v >= BASE_DISPLAY_NONE && v <= BASE_DISPLAY_ALTERNATIVE) printops.base_display = (BaseDisplay) v;
 				} else if(svar == "twos_complement") {
@@ -5643,9 +5796,9 @@ void load_preferences() {
 bool save_preferences(bool mode) {
 	FILE *file = NULL;
 	makeDir(getLocalDir());
-#ifdef HAVE_LIBREADLINE	
+#ifdef HAVE_LIBREADLINE
 	write_history(buildPath(getLocalDir(), "qalc.history").c_str());
-#endif	
+#endif
 	string filename = buildPath(getLocalDir(), "qalc.cfg");
 	file = fopen(filename.c_str(), "w+");
 	if(file == NULL) {
@@ -5653,7 +5806,7 @@ bool save_preferences(bool mode) {
 		return false;
 	}
 	fprintf(file, "\n[General]\n");
-	fprintf(file, "version=%s\n", VERSION);	
+	fprintf(file, "version=%s\n", VERSION);
 	fprintf(file, "save_mode_on_exit=%i\n", save_mode_on_exit);
 	fprintf(file, "save_definitions_on_exit=%i\n", save_defs_on_exit);
 	fprintf(file, "ignore_locale=%i\n", ignore_locale);
@@ -5664,6 +5817,7 @@ bool save_preferences(bool mode) {
 	fprintf(file, "use_unicode_signs=%i\n", printops.use_unicode_signs);
 	fprintf(file, "lower_case_numbers=%i\n", printops.lower_case_numbers);
 	fprintf(file, "lower_case_e=%i\n", printops.lower_case_e);
+	fprintf(file, "imaginary_j=%i\n", CALCULATOR->v_i->hasName("j") > 0);
 	fprintf(file, "base_display=%i\n", printops.base_display);
 	fprintf(file, "twos_complement=%i\n", printops.twos_complement);
 	fprintf(file, "hexadecimal_twos_complement=%i\n", printops.hexadecimal_twos_complement);
@@ -5691,7 +5845,7 @@ bool save_preferences(bool mode) {
 	fprintf(file, "min_deci=%i\n", saved_printops.min_decimals);
 	fprintf(file, "use_min_deci=%i\n", saved_printops.use_min_decimals);
 	fprintf(file, "max_deci=%i\n", saved_printops.max_decimals);
-	fprintf(file, "use_max_deci=%i\n", saved_printops.use_max_decimals);	
+	fprintf(file, "use_max_deci=%i\n", saved_printops.use_max_decimals);
 	fprintf(file, "precision=%i\n", saved_precision);
 	fprintf(file, "interval_arithmetic=%i\n", saved_interval);
 	if(saved_adaptive_interval_display) fprintf(file, "interval_display=%i\n", 0);
@@ -5701,7 +5855,7 @@ bool save_preferences(bool mode) {
 	fprintf(file, "sort_minus_last=%i\n", saved_printops.sort_options.minus_last);
 	fprintf(file, "number_fraction_format=%i\n", !saved_printops.restrict_fraction_length && saved_printops.number_fraction_format == FRACTION_FRACTIONAL ? FRACTION_COMBINED + 1 : saved_printops.number_fraction_format);
 	if(automatic_fraction) fprintf(file, "automatic_number_fraction_format=%i\n", automatic_fraction);
-	fprintf(file, "complex_number_form=%i\n", saved_evalops.complex_number_form);
+	fprintf(file, "complex_number_form=%i\n", (saved_caf && saved_evalops.complex_number_form == COMPLEX_NUMBER_FORM_CIS) ? saved_evalops.complex_number_form + 1 : saved_evalops.complex_number_form);
 	fprintf(file, "use_prefixes=%i\n", saved_printops.use_unit_prefixes);
 	fprintf(file, "use_prefixes_for_all_units=%i\n", saved_printops.use_prefixes_for_all_units);
 	fprintf(file, "use_prefixes_for_currencies=%i\n", saved_printops.use_prefixes_for_currencies);
@@ -5744,10 +5898,10 @@ bool save_preferences(bool mode) {
 	fprintf(file, "parsing_mode=%i\n", saved_evalops.parse_options.parsing_mode);
 	fprintf(file, "default_assumption_type=%i\n", CALCULATOR->defaultAssumptions()->type());
 	fprintf(file, "default_assumption_sign=%i\n", CALCULATOR->defaultAssumptions()->sign());
-	
+
 	fclose(file);
 	return true;
-	
+
 }
 
 /*

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<QALCULATE version="3.3.0">
+<QALCULATE version="3.6.0">
   <category>
     <_title>Matrices &amp; Vectors</_title>
     <builtin_function name="vector">
@@ -377,10 +377,10 @@
       <_title>Binomial Coefficient</_title>
       <_names>r:binomial</_names>
       <argument index="1">
-        <_title>Exponent</_title>
+        <title>n</title>
       </argument>
       <argument index="2">
-        <_title>Index</_title>
+        <title>k</title>
       </argument>
     </builtin_function>
     <function>
@@ -391,7 +391,7 @@
       <example>$name(3) = (3^3) * (2^2) * (1^1) = 108</example>
       <argument type="integer" index="1">
         <_title>Value</_title>
-	<min>1</min>
+        <min>1</min>
       </argument>
     </function>
     <function>
@@ -402,7 +402,7 @@
       <example>$name(5) = 5! * 4! * 3! * 2! * 1! = 34 560</example>
       <argument type="integer" index="1">
         <_title>Value</_title>
-	<min>0</min>
+        <min>0</min>
       </argument>
     </function>
     <function>
@@ -588,7 +588,7 @@
         <argument index="2">
           <_title>Number</_title>
         </argument>
-	<argument index="3">
+        <argument index="3">
           <_title>Variable</_title>
         </argument>
       </builtin_function>
@@ -598,7 +598,7 @@
         <argument index="1">
           <_title>Polynomial</_title>
         </argument>
-	<argument index="2">
+        <argument index="2">
           <_title>Variable</_title>
         </argument>
       </builtin_function>
@@ -608,7 +608,7 @@
         <argument index="1">
           <_title>Polynomial</_title>
         </argument>
-	<argument index="2">
+        <argument index="2">
           <_title>Variable</_title>
         </argument>
       </builtin_function>
@@ -618,7 +618,7 @@
         <argument index="1">
           <_title>Polynomial</_title>
         </argument>
-	<argument index="2">
+        <argument index="2">
           <_title>Variable</_title>
         </argument>
       </builtin_function>
@@ -628,7 +628,7 @@
         <argument index="1">
           <_title>Polynomial</_title>
         </argument>
-	<argument index="2">
+        <argument index="2">
           <_title>Variable</_title>
         </argument>
       </builtin_function>
@@ -638,7 +638,7 @@
         <argument index="1">
           <_title>Polynomial</_title>
         </argument>
-	<argument index="2">
+        <argument index="2">
           <_title>Variable</_title>
         </argument>
       </builtin_function>
@@ -648,7 +648,7 @@
         <argument index="1">
           <_title>Polynomial</_title>
         </argument>
-	<argument index="2">
+        <argument index="2">
           <_title>Variable</_title>
         </argument>
       </builtin_function>
@@ -658,7 +658,7 @@
         <argument index="1">
           <_title>Polynomial</_title>
         </argument>
-	<argument index="2">
+        <argument index="2">
           <_title>Variable</_title>
         </argument>
       </builtin_function>
@@ -793,6 +793,14 @@
           <_title>Two's complement</_title>
         </argument>
       </builtin_function>
+      <builtin_function name="bijective">
+        <_title>Bijective base-26</_title>
+        <_names>r:bijective</_names>
+        <_description>Returns a value from an expression in bijective base-26. Conversion in the opposite direction is also supported.</_description>
+        <argument index="1">
+          <_title>Bijective base-26 number</_title>
+        </argument>
+      </builtin_function>
     </category>
     <category>
       <_title>Integers</_title>
@@ -833,6 +841,10 @@
     <builtin_function name="erfc">
       <_title>Complementary Error Function</_title>
       <_names>r:erfc</_names>
+    </builtin_function>
+    <builtin_function name="erfi">
+      <_title>Imaginary Error Function</_title>
+      <_names>r:erfi</_names>
     </builtin_function>
     <builtin_function name="Li">
       <_title>Polylogarithm</_title>
@@ -956,14 +968,14 @@
     <_title>Complex Numbers</_title>
     <builtin_function name="re">
       <_title>Real Part</_title>
-      <_names>r:re</_names>
+      <_names>r:re,au:&#x211C;</_names>
       <argument index="1">
         <_title>Complex number</_title>
       </argument>
     </builtin_function>
     <builtin_function name="im">
       <_title>Imaginary Part</_title>
-      <_names>r:im</_names>
+      <_names>r:im,au:&#x2111;</_names>
       <argument index="1">
         <_title>Complex number</_title>
       </argument>
@@ -1056,6 +1068,13 @@
         <_title>Branch</_title>
       </argument>
     </builtin_function>
+    <builtin_function name="cis">
+      <_title>Complex Exponential (Cis)</_title>
+      <_names>r:cis</_names>
+      <argument index="1">
+        <_title>Exponent</_title>
+      </argument>
+    </builtin_function>
     <function>
       <_title>Base-2 Logarithm</_title>
       <_names>rs:log2</_names>
@@ -1076,15 +1095,6 @@
         <_title>Value</_title>
         <test>false</test>
         <min include_equals="true">0</min>
-      </argument>
-    </function>
-    <function>
-      <_title>Complex Exponential (Cis)</_title>
-      <_names>r:cis</_names>
-      <expression>e^(\x*i)</expression>
-      <argument type="free" index="1">
-        <_title>Exponent</_title>
-        <handle_vector>true</handle_vector>
       </argument>
     </function>
     <function>
@@ -1360,6 +1370,44 @@
         <_title>Roman number</_title>
       </argument>
     </builtin_function>
+    <function>
+      <_title>Depth of Field</_title>
+      <_names>r:dof</_names>
+      <_description>Returns the estimated distance between the nearest and the farthest objects that are in acceptably sharp focus in a photo. Enter focal length (e.g. 50 mm) and distance (e.g. 5 m) with units, and f-stop without unit (2.8, 4.0, 5.6, etc.). Specify either a cicle of confusion diameter limit (e.g. 0.05 mm) or the sensor size of the camera - 0="35mm", 1="APS-H", 2="APS-CN" (Nikon, Pentax, Sony), 3="APS-C" (Canon), 4="4/3" (Fourt Thirds System), or 5='1"' (Nikon 1, Sony RX10, Sony RX100) - for a diameter based on d/1500.</_description>
+      <example>$name(50 mm, 2.8, 2 m, "APS-C") ≈ 161 mm</example>
+      <expression approximate="true">2*\z^2*\y*if([\A{0}=0||\a="35mm"||\a="35 mm"||\a=35mm,\a=1||\a="APS-H",\a=2||\a="APC-CN",\a=3||\a="APS-C",\a=4||\a="3/4"||\a=3/4,\a=5||\a='1"'||\a="1"||\a=1in||\a=1],[0.029mm,0.023mm,0.019mm,0.018mm,0.015mm,0.011mm],\a,1))/\x^2</expression>
+      <argument type="free" index="1">
+        <_title>Focal Length</_title>
+      </argument>
+      <argument type="number" index="2">
+        <_title>F-stop (aperture)</_title>
+        <min>0</min>
+      </argument>
+      <argument type="free" index="3">
+        <_title>Distance</_title>
+      </argument>
+      <argument type="free" index="4">
+        <_title>Circle of confusion or sensor size</_title>
+      </argument>
+    </function>
+    <function>
+      <_title>American Wire Gauge Cross-Section Area</_title>
+      <_names>r:awg</_names>
+      <_description>For gauges larger than 0000 (4/0), please use negative values (00=-1, 000=-2, 0000=-3, 00000=-4, etc). For conversion to AWG, use an equation (e.g. awg(x) = 20 mm^2).</_description>
+      <expression>25*8464^((36-if([\x="0000"||\x="4/0",\x="000"||\x="3/0",\x="00"||\x="2/0",\x="1/0"],[-3,-2,-1,0],dec(\x),1))/39)*cmil</expression>
+      <argument type="text" index="1">
+        <title>AWG</title>
+      </argument>
+    </function>
+    <function>
+      <_title>American Wire Gauge Diameter</_title>
+      <_names>r:awgd</_names>
+      <_description>For gauges larger than 0000 (4/0), please use negative values (00=-1, 000=-2, 0000=-3, 00000=-4, etc). For conversion to AWG, use an equation (e.g. awgd(x) = 5 mm).</_description>
+      <expression>1.27E-4*92^((36-if([\x="0000"||\x="4/0",\x="000"||\x="3/0",\x="00"||\x="2/0",\x="1/0"],[-3,-2,-1,0],dec(\x),1))/39)*m</expression>
+      <argument type="text" index="1">
+        <title>AWG</title>
+      </argument>
+    </function>
   </category>
   <category>
     <_title>Statistics</_title>
@@ -1473,8 +1521,8 @@
         <argument type="integer" index="2">
           <_title>Quantile Algorithm (as in R)</_title>
           <min>1</min>
-	  <max>9</max>
-	</argument>
+          <max>9</max>
+        </argument>
       </function>
       <function>
         <_title>Number of Samples</_title>
@@ -1487,27 +1535,104 @@
         </argument>
       </function>
     </category>
-    <builtin_function name="rand">
-      <_title>Random Number</_title>
-      <_names>r:rand</_names>
-      <_description>Generates a pseudo-random number. Returns a real number between 0 and 1, if ceil is zero (default), or an integer between 1 and (including) ceil.</_description>
-      <argument index="1">
-        <_title>Ceil</_title>
-      </argument>
-    </builtin_function>
-    <function>
-      <_title>Random Number Between Limits</_title>
-      <_names>r:randbetween</_names>
-      <_description>Returns an integer between (including) bottom and top.</_description>
-      <expression>rand(\y-\x+1)+\x-1</expression>
-      <condition>\x&lt;=\y</condition>
-      <argument type="integer" index="1">
-        <_title>Bottom</_title>
-      </argument>
-      <argument type="integer" index="2">
-        <_title>Top</_title>
-      </argument>
-    </function>
+    <category>
+      <_title>Random Numbers</_title>
+      <builtin_function name="rand">
+        <_title>Random Number</_title>
+        <_names>r:rand</_names>
+        <_description>Generates a pseudo-random number. Returns a real number between 0 and 1, if ceil is zero (default), or an integer between 1 and (including) ceil.</_description>
+        <argument index="1">
+          <_title>Ceil</_title>
+        </argument>
+        <argument index="2">
+          <_title>Number of values</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="randnorm">
+        <_title>Normally Distributed Random Number</_title>
+        <_names>r:randnorm</_names>
+        <argument index="1">
+          <_title>Mean</_title>
+        </argument>
+        <argument index="2">
+          <_title>Standard deviation</_title>
+        </argument>
+        <argument index="3">
+          <_title>Number of values</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="randpoisson">
+        <_title>Poisson Distributed Random Number</_title>
+        <_names>r:randpoisson</_names>
+        <argument index="1">
+          <_title>Mean</_title>
+        </argument>
+        <argument index="2">
+          <_title>Number of values</_title>
+        </argument>
+      </builtin_function>
+      <function>
+        <_title>Uniformly Distributed Random Number</_title>
+        <_names>r:randuniform</_names>
+        <expression>\x*rand(0,\Z{1})+(\y-\x)</expression>
+        <condition>\x&lt;=\y</condition>
+        <argument type="number" index="1">
+          <_title>Lower limit</_title>
+          <complex_allowed>false</complex_allowed>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Upper limit</_title>
+          <complex_allowed>false</complex_allowed>
+        </argument>
+        <argument type="integer" index="3">
+          <_title>Number of values</_title>
+          <min>1</min>
+        </argument>
+      </function>
+      <function>
+        <_title>Random Number Between Limits</_title>
+        <_names>r:randbetween</_names>
+        <_description>Returns an integer between (including) bottom and top.</_description>
+        <expression>rand(\y-\x+1,\Z{1})+\x-1</expression>
+        <condition>\x&lt;=\y</condition>
+        <argument type="integer" index="1">
+          <_title>Bottom</_title>
+        </argument>
+        <argument type="integer" index="2">
+          <_title>Top</_title>
+        </argument>
+        <argument type="integer" index="3">
+          <_title>Number of values</_title>
+          <min>1</min>
+        </argument>
+      </function>
+      <function>
+        <_title>Exponential Random Number</_title>
+        <_names>r:randexp</_names>
+        <expression>-ln(rand(0,\Y{1}))/\x</expression>
+        <argument type="number" index="1">
+          <_title>Rate parameter</_title>
+          <min>0</min>
+        </argument>
+        <argument type="integer" index="2">
+          <_title>Number of values</_title>
+          <min>1</min>
+        </argument>
+      </function>
+      <function>
+        <_title>Rayleigh Distributed Random Number</_title>
+        <_names>r:randrayleigh</_names>
+        <expression>\x*sqrt(-2*ln(rand(0,\Y{1})))</expression>
+        <argument type="number" index="1">
+          <_title>Sigma</_title>
+          <min include_equals="true">0</min>
+        </argument>
+        <argument type="integer" index="2">
+          <_title>Number of values</_title>
+          <min>1</min>
+        </argument>
+      </function>
+    </category>
     <category>
       <_title>Means</_title>
       <function>
@@ -1549,11 +1674,11 @@
       <function>
         <_title>Winsorized Mean</_title>
         <_names>r:winsormean</_names>
-	<subfunction precalculate="true">sort(\x)</subfunction>
-	<subfunction precalculate="true">dimension(\x)</subfunction>
-	<subfunction precalculate="true">round(dimension(\x)/100*\y)</subfunction>
+        <subfunction precalculate="true">sort(\x)</subfunction>
+        <subfunction precalculate="true">dimension(\x)</subfunction>
+        <subfunction precalculate="true">round(dimension(\x)/100*\y)</subfunction>
         <expression>(element(\1,\2-\3)*\3+element(\1,\3+1)*\3+total(limits(\1,\3+1,\2-\3)))/\2</expression>
-	<argument type="vector" index="1">
+        <argument type="vector" index="1">
           <_title>Data</_title>
         </argument>
         <argument type="free" index="2">
@@ -1564,8 +1689,8 @@
       <function>
         <_title>Weighted Mean</_title>
         <_names>r:weighmean</_names>
-	<subfunction precalculate="true">dimension(\x)</subfunction>
-	<subfunction precalculate="true">min(dimension(\x),dimension(\y))</subfunction>
+        <subfunction precalculate="true">dimension(\x)</subfunction>
+        <subfunction precalculate="true">min(dimension(\x),dimension(\y))</subfunction>
         <expression>csum(1,\2,0,"y"+"x"*element("v","i"+\1),"x","y",mergevectors(\x,\y),"i","v")/total(limits(\y,1,\2))</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
@@ -1638,11 +1763,11 @@
       </function>
       <function>
         <_title>Covariance</_title>
-	<_names>r:cov,r:covar</_names>
+        <_names>r:cov,r:covar</_names>
         <subfunction precalculate="true">mean(\x)</subfunction>
-	<subfunction precalculate="true">mean(\y)</subfunction>
-	<subfunction precalculate="true">dimension(\x)</subfunction>
-	<subfunction precalculate="true">min(dimension(\x),dimension(\y))</subfunction>
+        <subfunction precalculate="true">mean(\y)</subfunction>
+        <subfunction precalculate="true">dimension(\x)</subfunction>
+        <subfunction precalculate="true">min(dimension(\x),dimension(\y))</subfunction>
         <expression>csum(1,\4,0,"y"+("x"-\1)*(element("v","i"+\3)-\2),"x","y",mergevectors(\x,\y),"i","v")/(\4)</expression>
         <argument type="vector" index="1">
           <_title>Data 1</_title>
@@ -1681,12 +1806,12 @@
       <function>
         <_title>Pearson's Correlation Coefficient</_title>
         <_names>r:pearson,r:correl</_names>
-	<condition>dimension(\x)=dimension(\y)</condition>
-	<subfunction precalculate="true">total(\x)</subfunction>
-	<subfunction precalculate="true">total(\y)</subfunction>
-	<subfunction precalculate="true">dimension(\x)</subfunction>
-	<subfunction precalculate="true">dimension(\y)</subfunction>
-	<expression>(\x*\y-\1*\2/\3)/abs(((\x^2-(\1^2)/\3)*(\y^2-(\2^2)/\4))^(1/2))</expression>
+        <condition>dimension(\x)=dimension(\y)</condition>
+        <subfunction precalculate="true">total(\x)</subfunction>
+        <subfunction precalculate="true">total(\y)</subfunction>
+        <subfunction precalculate="true">dimension(\x)</subfunction>
+        <subfunction precalculate="true">dimension(\y)</subfunction>
+        <expression>(\x*\y-\1*\2/\3)/abs(((\x^2-(\1^2)/\3)*(\y^2-(\2^2)/\4))^(1/2))</expression>
         <argument type="vector" index="1">
           <_title>Data 1</_title>
         </argument>
@@ -1697,7 +1822,7 @@
       <function>
         <_title>Spearman's Rho</_title>
         <_names>r:spearman</_names>
-	<condition>dimension(\x)=dimension(\y)</condition>
+        <condition>dimension(\x)=dimension(\y)</condition>
         <expression>pearson(rank(\x),rank(\y))</expression>
         <argument type="vector" index="1">
           <_title>Data 1</_title>
@@ -1736,32 +1861,73 @@
     <category>
       <_title>Distribution</_title>
       <function>
-        <_title>Rayleigh Distribution</_title>
-        <_names>r:rayleigh</_names>
-        <_description>Returns the probability density p(x) at x for a Rayleigh distribution with scale parameter sigma. (from Gnumeric)</_description>
-        <expression>if(\x &lt; 0,0,(\x/\y)/\y*exp(-(\x/\y)*(\x/\y)/2))</expression>
+        <_title>Binomial Distribution</_title>
+        <_names>r:binomdist</_names>
+        <_description>Returns the probability mass or cumulative distribution function of the binomial distribution.</_description>
+        <expression>if(\A{0},sum(binomial(\y,"i")*\z^"i"*(1-\z)^(\y-"i"),0,\x,"i"),binomial(\y,\x)*\z^\x*(1-\z)^(\y-\x))</expression>
+        <argument type="integer" index="1">
+          <_title>Number of successes</_title>
+          <min>0</min>
+        </argument>
+        <argument type="integer" index="2">
+          <_title>Number of trials</_title>
+          <min>0</min>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Probability</_title>
+          <min include_equals="true">0</min>
+          <max include_equals="true">1</max>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Exponential Distribution</_title>
+        <_names>r:expondist</_names>
+        <_description>Returns the probability density or cumulative distribution function of the exponential distribution.</_description>
+        <expression>if(\Z{0},1-e^(-\y*\x),\y*e^(-\y*\x))</expression>
+        <argument type="number" index="1">
+          <_title>Value</_title>
+          <min include_equals="true">0</min>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Rate parameter</_title>
+          <min>0</min>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Logistic Distribution</_title>
+        <_names>r:logistic</_names>
+        <_description>Returns the probability density p(x) at x for a logistic distribution with scale parameter. (from Gnumeric)</_description>
+        <expression>exp(-abs(\x)/\y)/(abs(\y)*(1+exp(-abs(\x)/\y))^2)</expression>
         <argument type="free" index="1">
           <_title>X</_title>
         </argument>
         <argument type="number" index="2">
-          <_title>Sigma</_title>
+          <_title>Scale</_title>
           <min include_equals="true">0</min>
         </argument>
       </function>
       <function>
-        <_title>Rayleigh Tail Distribution</_title>
-        <_names>r:rayleightail</_names>
-        <_description>Returns the probability density p(x) at x for a Rayleigh tail distribution with scale parameter sigma and a lower limit. (from Gnumeric)</_description>
-        <expression>if(\x &lt; \y,0,(\x/\z)/\z*exp(((\y/\z)+(\x/\z))*((\y/\z)-(\x/\z))/2))</expression>
+        <_title>Normal Distribution</_title>
+        <_names>r:normdist</_names>
+        <_description>Returns the probability density or cumulative distribution function of a normal distribution.</_description>
+        <expression>if(\A{0},(1+erf((\x-\Y{0})/(\Z{1}*sqrt(2))))/2,1/\Z*1/(sqrt(2pi))×e^(−1/2×((\x−\Y)/\Z)^2))</expression>
         <argument type="free" index="1">
-          <_title>X</_title>
+          <_title>Value</_title>
         </argument>
         <argument type="free" index="2">
-          <_title>Lower limit</_title>
+          <_title>Mean</_title>
         </argument>
-        <argument type="number" index="3">
-          <_title>Sigma</_title>
-          <min include_equals="true">0</min>
+        <argument type="free" index="3">
+          <_title>Standard deviation</_title>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
         </argument>
       </function>
       <function>
@@ -1782,20 +1948,7 @@
         </argument>
       </function>
       <function>
-        <_title>Logistic Distribution</_title>
-        <_names>r:logistic</_names>
-        <_description>Returns the probability density p(x) at x for a logistic distribution with scale parameter. (from Gnumeric)</_description>
-        <expression>exp(-abs(\x)/\y)/(abs(\y)*(1+exp(-abs(\x)/\y))^2)</expression>
-        <argument type="free" index="1">
-          <_title>X</_title>
-        </argument>
-        <argument type="number" index="2">
-          <_title>Scale</_title>
-          <min include_equals="true">0</min>
-        </argument>
-      </function>
-      <function>
-      <_title>Poisson Distribution</_title>
+        <_title>Poisson Distribution</_title>
         <_names>r:poisson</_names>
         <_description>Returns the probability mass or cumulative distribution of the Poisson distribution.</_description>
         <expression>if(\Z{0},sum((\y^"k"*e^(-\y))/("k"!),0,\x,"k"),(\y^\x*e^(-\y))/(\x!))</expression>
@@ -1807,6 +1960,36 @@
         </argument>
         <argument type="boolean" index="3">
           <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Rayleigh Distribution</_title>
+        <_names>r:rayleigh</_names>
+        <_description>Returns the probability density p(x) at x for a Rayleigh distribution with scale parameter sigma. (from Gnumeric)</_description>
+        <expression>if(\Z{0},1-exp(-\x^2/(2*\y^2)),\x/(\y^2)*exp(-\x^2/(2*\y^2)))</expression>
+        <argument type="number" index="1">
+          <_title>X</_title>
+          <min include_equals="true">0</min>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Sigma</_title>
+          <min include_equals="true">0</min>
+        </argument>
+      </function>
+      <function>
+        <_title>Rayleigh Tail Distribution</_title>
+        <_names>r:rayleightail</_names>
+        <_description>Returns the probability density p(x) at x for a Rayleigh tail distribution with scale parameter sigma and a lower limit. (from Gnumeric)</_description>
+        <expression>if(\x &lt; \y,0,(\x/\z)/\z*exp(((\y/\z)+(\x/\z))*((\y/\z)-(\x/\z))/2))</expression>
+        <argument type="free" index="1">
+          <_title>X</_title>
+        </argument>
+        <argument type="free" index="2">
+          <_title>Lower limit</_title>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Sigma</_title>
+          <min include_equals="true">0</min>
         </argument>
       </function>
     </category>
@@ -2566,7 +2749,7 @@
     <_title>Calculus</_title>
     <builtin_function name="diff">
       <_title>Differentiate</_title>
-      <_names>r:diff</_names>
+      <_names>r:diff,derivative</_names>
       <argument index="1">
         <_title>Function</_title>
       </argument>
@@ -2582,18 +2765,63 @@
     </builtin_function>
     <builtin_function name="integrate">
       <_title>Integrate</_title>
-      <_names>r:integrate</_names>
+      <_names>r:integrate,integral,au:&#x222B;</_names>
       <argument index="1">
         <_title>Function</_title>
       </argument>
       <argument index="2">
-        <_title>Variable of integration</_title>
-      </argument>
-      <argument index="3">
         <_title>Lower limit</_title>
       </argument>
-      <argument index="4">
+      <argument index="3">
         <_title>Upper limit</_title>
+      </argument>
+      <argument index="4">
+        <_title>Variable of integration</_title>
+      </argument>
+      <argument index="5">
+        <_title>Force numerical integration</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="romberg">
+      <_title>Romberg Integration</_title>
+      <_names>r:romberg</_names>
+      <argument index="1">
+        <_title>Function</_title>
+      </argument>
+      <argument index="2">
+        <_title>Lower limit</_title>
+      </argument>
+      <argument index="3">
+        <_title>Upper limit</_title>
+      </argument>
+      <argument index="4">
+        <_title>Min iterations</_title>
+      </argument>
+      <argument index="4">
+        <_title>Max iterations</_title>
+      </argument>
+      <argument index="5">
+        <_title>Variable of integration</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="montecarlo">
+      <hidden>true</hidden>
+      <_title>Monte Carlo Integration</_title>
+      <_names>r:montecarlo</_names>
+      <argument index="1">
+        <_title>Function</_title>
+      </argument>
+      <argument index="2">
+        <_title>Lower limit</_title>
+      </argument>
+      <argument index="3">
+        <_title>Upper limit</_title>
+      </argument>
+      <argument index="4">
+        <_title>Number of samples</_title>
+      </argument>
+      <argument index="5">
+        <_title>Variable of integration</_title>
       </argument>
     </builtin_function>
     <builtin_function name="limit">
@@ -2655,6 +2883,16 @@
         <_title>Hyperbolic Cosine Integral</_title>
         <_names>rc:Chi,coshint</_names>
         <_description>The integral of cosh(x)/x.</_description>
+      </builtin_function>
+      <builtin_function name="fresnels">
+        <_title>Fresnel Integral S</_title>
+        <_names>r:fresnels</_names>
+        <_description>The integral of sin(pi*x^2/2).</_description>
+      </builtin_function>
+      <builtin_function name="fresnelc">
+        <_title>Fresnel Integral C</_title>
+        <_names>r:fresnelc</_names>
+        <_description>The integral of cos(pi*x^2/2).</_description>
       </builtin_function>
       <builtin_function name="igamma">
         <_title>Upper Incomplete Gamma Function</_title>
@@ -3007,7 +3245,7 @@
       <function>
         <_title>Trapezoid Area</_title>
         <_names>r:trapezoid</_names>
-	<_description>Calculates the area of a four-sided figure with two parallel sides.</_description>
+        <_description>Calculates the area of a four-sided figure with two parallel sides.</_description>
         <expression>(\x+\y)/2*\z</expression>
         <argument type="free" index="1">
           <_title>Side A</_title>
@@ -3432,7 +3670,7 @@
       <argument type="integer" index="5">
         <_title>Day counting basis</_title>
         <min>0</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
     </function>
     <function>
@@ -3455,7 +3693,7 @@
       <argument type="integer" index="5">
         <_title>Day counting basis</_title>
         <min>0</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
     </function>
     <function>
@@ -3478,7 +3716,7 @@
       <argument type="integer" index="5">
         <_title>Day counting basis</_title>
         <min>0</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
     </function>
     <function>
@@ -3504,12 +3742,12 @@
       <argument type="integer" index="6">
         <_title>Frequency</_title>
         <min>1</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
       <argument type="integer" index="7">
         <_title>Day counting basis</_title>
         <min>0</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
     </function>
     <function>
@@ -3526,12 +3764,12 @@
       <argument type="integer" index="3">
         <_title>Frequency</_title>
         <min>1</min>
-	  <max>12</max>
+        <max>12</max>
       </argument>
       <argument type="integer" index="4">
         <_title>Day counting basis</_title>
         <min>0</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
     </function>
     <function>
@@ -3554,7 +3792,7 @@
       <argument type="integer" index="5">
         <_title>Day counting basis</_title>
         <min>0</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
     </function>
     <function>
@@ -3580,7 +3818,7 @@
       <argument type="integer" index="6">
         <_title>Day counting basis</_title>
         <min>0</min>
-	  <max>4</max>
+        <max>4</max>
       </argument>
     </function>
     <function>

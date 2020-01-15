@@ -15,6 +15,9 @@
 #include "Calculator.h"
 #include "util.h"
 
+using std::string;
+using std::vector;
+
 ExpressionName::ExpressionName(string sname) : suffix(false), unicode(false), plural(false), reference(false), avoid_input(false), completion_only(false) {
 	name = sname;
 	if(text_length_is_one(sname)) {
@@ -36,7 +39,7 @@ void ExpressionName::operator = (const ExpressionName &ename) {
 	abbreviation = ename.abbreviation;
 	case_sensitive = ename.case_sensitive;
 	suffix = ename.suffix;
-	unicode = ename.unicode; 
+	unicode = ename.unicode;
 	plural = ename.plural;
 	reference = ename.reference;
 	avoid_input = ename.avoid_input;
@@ -428,10 +431,10 @@ bool ExpressionItem::isActive() const {
 }
 void ExpressionItem::setActive(bool is_active) {
 	if(is_active != b_active) {
-		b_active = is_active;			
+		b_active = is_active;
 		if(b_registered) {
 			if(is_active) {
-				CALCULATOR->expressionItemActivated(this);		
+				CALCULATOR->expressionItemActivated(this);
 			} else {
 				CALCULATOR->expressionItemDeactivated(this);
 			}
@@ -444,7 +447,7 @@ bool ExpressionItem::isHidden() const {
 }
 void ExpressionItem::setHidden(bool is_hidden) {
 	if(is_hidden != b_hidden) {
-		b_hidden = is_hidden;			
+		b_hidden = is_hidden;
 		b_changed = true;
 	}
 }
@@ -482,4 +485,7 @@ ExpressionItem *ExpressionItem::getReferencer(size_t index) const {
 }
 bool ExpressionItem::changeReference(ExpressionItem*, ExpressionItem*) {
 	return false;
+}
+int ExpressionItem::id() const {
+	return 0;
 }

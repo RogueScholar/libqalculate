@@ -23,7 +23,17 @@
 						x(const x *function) {set(function);} \
 						ExpressionItem *copy() const {return new x(this);} \
 					};
-					
+
+#define DECLARE_BUILTIN_FUNCTION_ID(x, i) \
+					class x : public MathFunction { \
+					  public: \
+						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
+						x(); \
+						x(const x *function) {set(function);} \
+						ExpressionItem *copy() const {return new x(this);} \
+						int id() const {return i;}\
+					};
+
 #define DECLARE_BUILTIN_FUNCTION_B(x)	class x : public MathFunction { \
 					  public: \
 						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
@@ -32,7 +42,7 @@
 						ExpressionItem *copy() const {return new x(this);} \
 						bool representsBoolean(const MathStructure&) const {return true;}\
 					};
-					
+
 #define DECLARE_BUILTIN_FUNCTION_PI(x)	class x : public MathFunction { \
 					  public: \
 						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
@@ -52,7 +62,7 @@
 						bool representsReal(const MathStructure&, bool) const;\
 						bool representsInteger(const MathStructure&, bool) const;\
 						bool representsNonNegative(const MathStructure&, bool) const;\
-					};															
+					};
 
 #define DECLARE_BUILTIN_FUNCTION_R(x)	class x : public MathFunction { \
 					  public: \
@@ -75,7 +85,31 @@
 						bool representsOdd(const MathStructure &vargs, bool allow_units = false) const;\
 						bool representsUndefined(const MathStructure &vargs) const;\
 					};
-					
+
+#define DECLARE_BUILTIN_FUNCTION_R_ID(x, i) \
+					class x : public MathFunction { \
+					  public: \
+						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
+						x(); \
+						x(const x *function) {set(function);} \
+						ExpressionItem *copy() const {return new x(this);} \
+						bool representsPositive(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNegative(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonNegative(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonPositive(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsInteger(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsRational(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsReal(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsComplex(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonZero(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsEven(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsOdd(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsUndefined(const MathStructure &vargs) const;\
+						int id() const {return i;}\
+					};
+
 #define DECLARE_BUILTIN_FUNCTION_R2(x)	class x : public MathFunction { \
 					  public: \
 						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
@@ -87,6 +121,19 @@
 						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
 					};
 					
+#define DECLARE_BUILTIN_FUNCTION_R2_ID(x, i) \
+					class x : public MathFunction { \
+					  public: \
+						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
+						x(); \
+						x(const x *function) {set(function);} \
+						ExpressionItem *copy() const {return new x(this);} \
+						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsReal(const MathStructure &vargs, bool allow_units = false) const;\
+						bool representsNonComplex(const MathStructure &vargs, bool allow_units = false) const;\
+						int id() const {return i;}\
+					};
+
 
 #define DECLARE_BUILTIN_FUNCTION_R3(x)	class x : public MathFunction { \
 					  public: \
@@ -100,7 +147,7 @@
 						bool representsComplex(const MathStructure &vargs, bool allow_units = false) const;\
 						bool representsNonZero(const MathStructure &vargs, bool allow_units = false) const;\
 					};
-										
+
 #define DECLARE_BUILTIN_FUNCTION_R1(x)	class x : public MathFunction { \
 					  public: \
 						int calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo);  \
@@ -108,8 +155,16 @@
 						x(const x *function) {set(function);} \
 						ExpressionItem *copy() const {return new x(this);} \
 						bool representsNumber(const MathStructure &vargs, bool allow_units = false) const;\
-					};															
+					};
 
+
+enum {
+	FUNCTION_ID_ERF = 1101,
+	FUNCTION_ID_ERFC = 1102,
+	FUNCTION_ID_ERFI = 1103,
+	FUNCTION_ID_FRESNEL_S = 1201,
+	FUNCTION_ID_FRESNEL_C = 1202
+};
 
 DECLARE_BUILTIN_FUNCTION(VectorFunction)
 DECLARE_BUILTIN_FUNCTION(LimitsFunction)
@@ -150,6 +205,7 @@ DECLARE_BUILTIN_FUNCTION(BitCmpFunction)
 DECLARE_BUILTIN_FUNCTION_B(OddFunction)
 DECLARE_BUILTIN_FUNCTION_B(EvenFunction)
 DECLARE_BUILTIN_FUNCTION(ShiftFunction)
+DECLARE_BUILTIN_FUNCTION(CircularShiftFunction)
 
 DECLARE_BUILTIN_FUNCTION_R(AbsFunction)
 DECLARE_BUILTIN_FUNCTION(GcdFunction)
@@ -211,6 +267,7 @@ DECLARE_BUILTIN_FUNCTION(AtanhFunction)
 DECLARE_BUILTIN_FUNCTION_R1(Atan2Function)
 DECLARE_BUILTIN_FUNCTION(RadiansToDefaultAngleUnitFunction)
 DECLARE_BUILTIN_FUNCTION_R2(SincFunction)
+DECLARE_BUILTIN_FUNCTION(CisFunction)
 
 DECLARE_BUILTIN_FUNCTION(ZetaFunction)
 DECLARE_BUILTIN_FUNCTION(GammaFunction)
@@ -219,8 +276,9 @@ DECLARE_BUILTIN_FUNCTION(BetaFunction)
 DECLARE_BUILTIN_FUNCTION(AiryFunction)
 DECLARE_BUILTIN_FUNCTION(BesseljFunction)
 DECLARE_BUILTIN_FUNCTION(BesselyFunction)
-DECLARE_BUILTIN_FUNCTION(ErfFunction)
-DECLARE_BUILTIN_FUNCTION(ErfcFunction)
+DECLARE_BUILTIN_FUNCTION_R_ID(ErfFunction, FUNCTION_ID_ERF)
+DECLARE_BUILTIN_FUNCTION_R_ID(ErfiFunction, FUNCTION_ID_ERFI)
+DECLARE_BUILTIN_FUNCTION_R_ID(ErfcFunction, FUNCTION_ID_ERFC)
 
 DECLARE_BUILTIN_FUNCTION(TotalFunction)
 DECLARE_BUILTIN_FUNCTION(PercentileFunction)
@@ -228,6 +286,8 @@ DECLARE_BUILTIN_FUNCTION(MinFunction)
 DECLARE_BUILTIN_FUNCTION(MaxFunction)
 DECLARE_BUILTIN_FUNCTION(ModeFunction)
 DECLARE_BUILTIN_FUNCTION_RPI(RandFunction)
+DECLARE_BUILTIN_FUNCTION_R2(RandnFunction)
+DECLARE_BUILTIN_FUNCTION_RPI(RandPoissonFunction)
 
 DECLARE_BUILTIN_FUNCTION(DateFunction)
 DECLARE_BUILTIN_FUNCTION(DateTimeFunction)
@@ -256,6 +316,7 @@ DECLARE_BUILTIN_FUNCTION(DecFunction)
 DECLARE_BUILTIN_FUNCTION(HexFunction)
 DECLARE_BUILTIN_FUNCTION(BaseFunction)
 DECLARE_BUILTIN_FUNCTION(RomanFunction)
+DECLARE_BUILTIN_FUNCTION(BijectiveFunction)
 
 DECLARE_BUILTIN_FUNCTION_PI(AsciiFunction)
 DECLARE_BUILTIN_FUNCTION(CharFunction)
@@ -297,6 +358,8 @@ DECLARE_BUILTIN_FUNCTION(StackFunction)
 
 DECLARE_BUILTIN_FUNCTION(DeriveFunction)
 DECLARE_BUILTIN_FUNCTION(IntegrateFunction)
+DECLARE_BUILTIN_FUNCTION(MonteCarloFunction)
+DECLARE_BUILTIN_FUNCTION(RombergFunction)
 DECLARE_BUILTIN_FUNCTION(SolveFunction)
 DECLARE_BUILTIN_FUNCTION(SolveMultipleFunction)
 DECLARE_BUILTIN_FUNCTION(DSolveFunction)
@@ -304,6 +367,8 @@ DECLARE_BUILTIN_FUNCTION(LimitFunction)
 
 DECLARE_BUILTIN_FUNCTION_R2(liFunction)
 DECLARE_BUILTIN_FUNCTION_R2(LiFunction)
+DECLARE_BUILTIN_FUNCTION_R_ID(FresnelSFunction, FUNCTION_ID_FRESNEL_S)
+DECLARE_BUILTIN_FUNCTION_R_ID(FresnelCFunction, FUNCTION_ID_FRESNEL_C)
 DECLARE_BUILTIN_FUNCTION_R2(EiFunction)
 DECLARE_BUILTIN_FUNCTION_R2(SiFunction)
 DECLARE_BUILTIN_FUNCTION_R2(CiFunction)
