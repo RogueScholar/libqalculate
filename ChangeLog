@@ -212,7 +212,7 @@
 	* Complex angle/phasor notation (input and output)
 
 2019-10-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Option to use "j" as default symbol for the imaginary unit in qalc
 
 2019-10-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
@@ -832,14 +832,14 @@
 	* Improve precision of asin(a*i); Fix ln(a*ln(pi))
 	* Fix segfault in polynomial division
 	* Fix polynomial division in some complex cases
-	
+
 2018-10-14 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* sin(i*x)=i*sinh(x), etc.
 	* a^(b*c)!=(a^b)^c if b is complex
 	* Replace with temporary variable in replace() if replacement value is interval
 	* Replace n with single possible value in equation result for unknown variable with interval
-	
+
 2018-10-13 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Fix radian unit with prefix in trigonometric functions
@@ -887,14 +887,14 @@
 	* asin() fixes for complex interval
 
 2018-10-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Fix acosh(x)=a
 	* Add random expression testing
 	* Fix segfault on 0^(-e) and similar
 	* Fix asin() and acos() for complex numbers
 	* Restrict maximum argument value for sin(), cos() and tan() using current precision
 	* Trigonometric simplification improvements
-	
+
 2018-10-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* sqrt(a)/a=1/sqrt(a) for integers
@@ -906,7 +906,7 @@
 2018-09-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* sin(acos(x))=sqrt(1-x^2) and similar
-	
+
 2018-09-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Solve equations with trigonometric functions
@@ -1050,7 +1050,7 @@
 
 2018-04-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
-	* New currency names and titles (contributed by majumeke) 
+	* New currency names and titles (contributed by majumeke)
 
 2018-04-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
@@ -1384,7 +1384,7 @@
 
 2017-08-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
-	* Fix trigonometric functions with angle unit other than radian 
+	* Fix trigonometric functions with angle unit other than radian
 
 2017-08-07 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
@@ -1448,7 +1448,7 @@
 2017-07-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* More efficient factorials
-	* Fix Number::print() not able to terminate with very large numbers (halted at cln::expt_pos with y = 0) 
+	* Fix Number::print() not able to terminate with very large numbers (halted at cln::expt_pos with y = 0)
 	* Fix termination of MathStructure::print() and format() with very large size
 	* Add extra termination points for MathStructure with large size and do not sort numbers when aborted
 	* Fix display of large integers in fractional modes
@@ -1574,7 +1574,7 @@
 
 	* Do not always reparse expression when parse options have changed
 	* Introduce message categories and stages
-	* Hide parsing stage messages when only recalculating or angle unit has changed in qalc	
+	* Hide parsing stage messages when only recalculating or angle unit has changed in qalc
 
 2017-02-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
@@ -1691,7 +1691,7 @@
 2016-06-07 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Do not check if exchange rates is up to date when using currencies with fixed exchange rate (currencies replaced by euro)
-	* Warn about old exchange rates again after one week if the application has not been restarted (Calculator object not recreated) 
+	* Warn about old exchange rates again after one week if the application has not been restarted (Calculator object not recreated)
 	* Make sure precision and if approximate is not lost from units, functions and variables
 	* Update physical constants from CODATA Recommended Values 2014
 	* Fix unit precision from definitions
@@ -1701,7 +1701,7 @@
 	* sqrt(7/4) = sqrt(7)/2, sqrt(2)/2−(1/sqrt(2)) equals exactly zero
 
 2016-05-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Allow special "to" commands directly in expression
 	* New "to" commands: factors and fraction
 	* Fix segmentation fault when aborting non-interactive qalc (do not use readline)
@@ -1732,7 +1732,7 @@
 	* Fix stack editing
 
 2016-05-17 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* New print safer abort/timeout system
 
 2016-05-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
@@ -1766,7 +1766,7 @@
 2016-05-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* An attempt to solve the convert to unit issues:
-	  - Transform Kelvin, Celsius, Farenheit to builtin units. 
+	  - Transform Kelvin, Celsius, Farenheit to builtin units.
 	  - Convert to kelvin when parsing, to make the conversion visible to the user, after implicit multiplication.
 	  - Fix s/g to kg = s*kg/g^2.
 	  - Do not set new prefix when converting to unit expression without prefix.
@@ -1783,7 +1783,7 @@
 	* Allow decimals in sexagesimal numbers (request #26)
 
 2016-04-28 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Catch CLN exceptions (fixes various bugs)
 	* Fix bug #79 and #127
 	* Option to ignore commas
@@ -1798,7 +1798,7 @@
 
 	* Clarify how "Payment for a loan" works
 	* Fix "function" function when argument vector is too small
-	* Fix result for unsuccessful integration with limits 
+	* Fix result for unsuccessful integration with limits
 	* Fix self-referencing in save function
 
 2016-04-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
@@ -1826,7 +1826,7 @@
 	* Fix parsing of (0xff) (bug #102)
 	* Warn when raising zero by imaginary power (bug #141)
 	* Fix incorrect factorization (bug #130)
-	
+
 2009-01-05 Jonathan Stickel <jjstickel@vcn.com>
 
 	* General build updates and bug fixes, including the ability to build against cln >= 1.2.
@@ -2129,7 +2129,7 @@
 
 2005-12-12 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
-	* Assume that simple unit relations do not negate	
+	* Assume that simple unit relations do not negate
 	* Fix ?+(+infinity)
 
 2005-12-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
@@ -2261,7 +2261,7 @@
 
 	* Use quotient rule in differentation to possible get simpler results then if always using the product rule
 	* Fix fetching of exchange rates with gnome-vfs < 2.10
-	* Fix display of fractions in fractional mode "Decimal (Try Exact)" 
+	* Fix display of fractions in fractional mode "Decimal (Try Exact)"
 	* Differentiation fixes
 	* Do unicode stuff correctly (a sequence of unicode characters was sometimes counted as one)
 
@@ -2282,7 +2282,7 @@
 	* Fix suggested multiplication sign before and after power
 
 2005-11-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* More parse polishing
 	* Fix for cln-1.1.10 and remove all "obfuscating" cln operators
 	* Builtin function's represents...() was not used because of missing const in declaration
@@ -2449,7 +2449,7 @@
 	* 5e2 = 5E2 = 500 and 5e = 5*e
 
 2005-02-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Update solve2()
 
 2005-02-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
@@ -2480,18 +2480,18 @@
 	* Use singular instead of abbreviated name for completion
 
 2004-11-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Fix draw unit
 	* Add alternative multiplication dot signs
 	* Enhance preferences safety
 
 2004-11-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Check if unicode characters can be displayed
 
 2004-11-10 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
-	* Revert back somewhat to the old behaviour of not rounding exact numbers not in exponential format 
+	* Revert back somewhat to the old behaviour of not rounding exact numbers not in exponential format
 
 2004-10-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
@@ -2519,7 +2519,7 @@
 	* Try with assumptions set to unknown in solve function if not successful
 
 2004-10-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Fix when size_t not is unsigned int
 
 2004-10-17 Hanna Knutsson <hanna.knutsson@protonmail.com>
@@ -2635,7 +2635,7 @@
 
 	* Gamma for rational numbers with denominator 2
 	* Double and multi factorials
-	* Tweak parsing of !-factorials 
+	* Tweak parsing of !-factorials
 	* Modify CLN error message
 	* hyperfactorial() and superfactorial()
 	* Make factorials more efficient by using CLN numbers directly
@@ -3310,7 +3310,7 @@
 	* Replace Fraction and Integer with new Number class
 
 2004-03-12 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Set selected font in custom font dialog
 	* Save time by first destroying completion then updating list then creating new completion on update
 	* Do not crash when updating completion after new variable
@@ -3329,7 +3329,7 @@
 	* Popup menu for resultview
 
 2004-03-10 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Lower default precision
 	* Make history button a regular button
 	* Reworked GUI -- menubar, expander, history window...
@@ -3344,7 +3344,7 @@
 	* Proofread manual
 	* Allow currencies to be put in front of quantity
 	* Cent, yen, pound and dollar signs
-	* Remove debug output related to Giac 
+	* Remove debug output related to Giac
 	* Fix some troubles printing complex numbers
 
 2004-03-07 Hanna Knutsson <hanna.knutsson@protonmail.com>
@@ -3354,7 +3354,7 @@
 	* Remove compiler warnings
 
 2004-03-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Gnuplot does not like quotation signs
 	* Do not abort when locale not supported by C library
 
@@ -3369,7 +3369,7 @@
 	* Move calculate multiple roots option to result menu
 	* Move unit display options to a unit display submenu
 	* Begin writing the manual
-	* Add help menu item if libgnome is available	
+	* Add help menu item if libgnome is available
 	* Add build structure for gnome style user documentation
 
 2004-03-03 Hanna Knutsson <hanna.knutsson@protonmail.com>
@@ -3477,7 +3477,7 @@
 	* Do not crash when printing a manager with matrix
 
 2003-10-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
-	
+
 	* Release Qalculate-GTK version 0.3.1
 	* Left over missing setPrecise() in builtin functions
 	* Fix printing of function manager
@@ -3528,7 +3528,7 @@
 2003-10-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Release Qalculate-GTK version 0.3
-	* Disable convert in units dialog when no unit selected	
+	* Disable convert in units dialog when no unit selected
 	* Revert fractional button to use combined fractional display, but treat it as normal fractional display for regular text
 	* Draw parenthesis around not alone manager (not power) with childs in denominator
 	* Add a bit more space behind italic text to not cut tall chars off
