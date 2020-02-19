@@ -14,19 +14,19 @@ AM_MAINTAINER_MODE
 
 AC_CONFIG_MACRO_DIRS([m4])
 
-AC_ARG_ENABLE(textport, 
-              [  --disable-textport	  Disable compiling the text port], 
-              enable_textport=$enableval, 
+AC_ARG_ENABLE(textport,
+              [  --disable-textport	  Disable compiling the text port],
+              enable_textport=$enableval,
               enable_textport="yes")
 
-AC_ARG_ENABLE(defs2doc, 
-              [  --enable-defs2doc	  Enable compiling the definitions documentation generator], 
-              enable_defs2doc=$enableval, 
+AC_ARG_ENABLE(defs2doc,
+              [  --enable-defs2doc	  Enable compiling the definitions documentation generator],
+              enable_defs2doc=$enableval,
               enable_defs2doc="no")
 
-AC_ARG_ENABLE(tests, 
-              [  --enable-tests	  Enable compiling test programs], 
-              enable_tests=$enableval, 
+AC_ARG_ENABLE(tests,
+              [  --enable-tests	  Enable compiling test programs],
+              enable_tests=$enableval,
               enable_tests="no")
 
 
@@ -82,12 +82,12 @@ dnl libtool versioning for libqalculate
 dnl increment if the interface has additions, changes, removals.
 QALCULATE_CURRENT=28
 
-dnl increment any time the source changes; set to 
+dnl increment any time the source changes; set to
 dnl  0 if you increment CURRENT
 QALCULATE_REVISION=0
 
 dnl increment if any interfaces have been added; set to 0
-dnl  if any interfaces have been removed. removal has 
+dnl  if any interfaces have been removed. removal has
 dnl  precedence over adding, so set to 0 if both happened.
 QALCULATE_AGE=7
 
@@ -276,7 +276,7 @@ AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, "$PACKAGE_LOCALE_DIR",
 	[The directory in which qalculate's locale data will be stored])
 	 AC_MSG_RESULT("$PACKAGE_LOCALE_DIR")
 
-INTLTOOL_QALCULATE_DEFINITIONS_RULE='%.xml:       %.xml.in       $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po-defs/*.po) ; LC_ALL=C $(INTLTOOL_MERGE) -x -u -c $(top_builddir)/po-defs/.intltool-merge-cache $(top_srcdir)/po-defs $< [$]@' 
+INTLTOOL_QALCULATE_DEFINITIONS_RULE='%.xml:       %.xml.in       $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po-defs/*.po) ; LC_ALL=C $(INTLTOOL_MERGE) -x -u -c $(top_builddir)/po-defs/.intltool-merge-cache $(top_srcdir)/po-defs $< [$]@'
 AC_SUBST(INTLTOOL_QALCULATE_DEFINITIONS_RULE)
 
 dnl  --------
@@ -295,4 +295,3 @@ AC_OUTPUT([
   man/Makefile
   libqalculate.pc
 ])
-
