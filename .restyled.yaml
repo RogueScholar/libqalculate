@@ -1,0 +1,30 @@
+---
+# See https://github.com/restyled-io/restyled.io/wiki/Configuring-Restyled
+
+enabled: true
+
+exclude:
+  - "**/*.patch"
+  - ".github/workflows/**/*"
+
+changed_paths:
+  maximum: 1000
+  outcome: skip
+
+pull_requests: true
+
+comments: true
+
+statuses: true
+
+request_review: {RogueScholar}
+
+labels:
+  - restyled
+
+ignore_labels:
+  - restyled-ignore
+
+restylers:
+  - "*"
+...
