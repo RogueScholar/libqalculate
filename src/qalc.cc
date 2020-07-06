@@ -77,6 +77,8 @@ bool rpn_mode = false, saved_rpn_mode = false;
 bool caret_as_xor = false, saved_caret_as_xor = false;
 bool use_readline = true;
 bool interactive_mode;
+int colorize = 0;
+int force_color = -1;
 bool ask_questions;
 bool canfetch = true;
 bool programmers_mode = false;
@@ -112,7 +114,6 @@ void result_prefix_changed(Prefix *prefix = NULL);
 void expression_format_updated(bool reparse);
 void expression_calculation_updated();
 bool display_errors(bool goto_input = false, int cols = 0);
-void replace_quotation_marks(string &result_text);
 void replace_result_cis(string &resstr);
 
 FILE *cfile;
@@ -126,6 +127,13 @@ enum {
 
 #define EQUALS_IGNORECASE_AND_LOCAL(x, y, z)                                   \
   (equalsIgnoreCase(x, y) || equalsIgnoreCase(x, z))
+
+#ifdef _WIN32
+#	define DO_FORMAT (force_color > 0 || (force_color != 0 && !cfile && colorize && interactive_mode))
+#else
+#	define DO_FORMAT (force_color > 0 || (force_color != 0 && !cfile && interactive_mode))
+#endif
+#define DO_COLOR (force_color >= 0 ? force_color : (!cfile && colorize && interactive_mode ? colorize : 0))
 
 bool contains_unicode_char(const char *str) {
   for (int i = strlen(str) - 1; i >= 0; i--) {

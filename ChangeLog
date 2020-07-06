@@ -1,3 +1,75 @@
+2019-07-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Only apply PrintOptions::negative_exponents to units
+	* Always use negative exponents instead of division when all units have negative exponents
+	* Use middle dot instead of multiplication x in unit expressions
+	* Case insensitive sorting of units, variables and functions
+	* Add more references in qalc to the GUI manual
+
+2019-06-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+	
+	* Normalize numbers with fractional exponents, e.g. sqrt(a)^-b=sqrt(a)^b/a, a^(-2/3)=a^(1/3)/a, a^(2/3)=a^(-1/3)*a, and simplify roots with rational multipliers after evaluation
+	* Improvements for mixed fractions
+	* Avoid excessive parentheses with negated powers
+
+2019-06-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix plus-minus sign in misplaced character/operators error messages
+
+2019-06-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix placement (last) of constant of definite integral
+	* sin(x*pi) and tan(x*pi) equals zero if x represents an integer
+
+2019-06-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault when parsing an expression that contains a prefix with more than one letter and a unit exponent (2 or 3) without exponentiation operator, e.g. dam3
+
+2019-06-01 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix use of equals sign in qalc command line arguments (e.g. "qalc --base=16")
+
+2019-05-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support for +, -, (, ) superscripts
+	* Use × (U+00D7) as default multiplication sign
+
+2019-05-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Syntax highlighting using colors in qalc
+	* Remove space around division in unit expression
+	* Enable Unicode by default
+	* Use Unicode superscript for units (when placed separately and negative exponents are disabled)
+
+2019-05-28 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support N-Ary Summation symbol, in addition to sigma, for sum() function
+
+2019-05-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Allow multiple "to"-conversions in one expression (e.g. "5 m/s to hex to ft to h = 0xE6AF.1E*ft∕h)
+	* Support specification of number of bits for hexadecimal "to" conversion (4 to hex16 = 0004)
+
+2019-05-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Divide value with time units by hours if time format is used
+	* Fix sexagesimal, and time format, output when 3rd section is rounded to 60
+	* Show decimals, in 3rd section, with sexagesimal base and time format
+	* Improved handling of intervals for sexagesimal base and time format
+
+2019-05-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* If argument 2 in replace() is vector and argument 3 is not, evaluate argument 3 and test if vector, e.g. replace(x+y+z,[x,y,z],multisolve([x+y=2,x+z=3,y+z=4],[x,y,z]))
+
+2019-05-10 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Show warning for ambiguous implicit expression (e.g. 6/2(1+2)) in adaptive parsing mode
+	* Fix use of comma as AND in "where" expression
+
+2019-05-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Option to compile definitions into binary (--enable-compiled-definitions, requires GIO)
+
 2019-04-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Tau (2pi) variable

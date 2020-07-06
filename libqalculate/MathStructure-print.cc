@@ -2344,6 +2344,53 @@ bool MathStructure::removeDefaultAngleUnit(const EvaluationOptions &eo) {
     return false;
   return remove_angle_unit(*this, u);
 }
+void separate_units(MathStructure &m, MathStructure *parent = NULL, size_t index = 0) {
+	if(m.isMultiplication() && parent && parent->isMultiplication() && m.containsType(STRUCT_UNIT, false, false, false)) {
+		for(size_t i = 0; i < m.size();) {
+			if(m[i].isUnit_exp()) {
+				m[i].ref();
+				parent->addChild_nocopy(&m[i]);
+				m.delChild(i + 1);
+			} else {
+				i++;
+			}
+		}
+		if(m.size() == 0) parent->delChild(index);
+		else if(m.size() == 1) m.setToChild(1, true);
+	} else if(m.isPower() && m[1].isNumber() && m[1].number().isReal() && m[0].isMultiplication() && m[0].containsType(STRUCT_UNIT, false, false, false)) {
+		MathStructure units;
+		for(size_t i = 0; i < m[0].size();) {
+			if(m[0][i].isUnit() || (m[0][i].isPower() && m[0][i][0].isUnit() && m[0][i][1].isNumber() && m[0][i][1].number().isReal())) {
+				if(!m[0][i].isPower() || !m[0][i][1].number().multiply(m[1].number())) {
+					m[0][i].raise(m[1]);
+				}
+				m[0][i].ref();
+				units.addChild_nocopy(&m[0][i]);
+				m[0].delChild(i + 1);
+			} else {
+				i++;
+			}
+		}
+		if(units.size() > 0) {
+			if((!parent || !parent->isMultiplication()) && m[0].size() == 0) {
+				if(units.size() == 1) units.setToChild(1);
+				else units.setType(STRUCT_MULTIPLICATION);
+				m.set_nocopy(units, true);
+			} else {
+				if(parent && parent->isMultiplication() && m[0].size() == 0) parent->delChild(index);
+				else if(m[0].size() == 1) m[0].setToChild(1, true);
+				for(size_t i = 0; i < units.size(); i++) {
+					units[i].ref();
+					if(parent && parent->isMultiplication()) parent->addChild_nocopy(&units[i]);
+					else m.multiply_nocopy(&units[i], true);
+				}
+			}
+		}
+	}
+	for(size_t i = 0; i < m.size(); i++) {
+		separate_units(m[i], &m, i + 1);
+	}
+}
 void MathStructure::format(const PrintOptions &po) {
   if (!po.preserve_format) {
     if (po.place_units_separately) {
