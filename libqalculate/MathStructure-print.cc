@@ -1,8 +1,8 @@
 /*
     Qalculate (library)
 
-    Copyright (C) 2003-2007, 2008, 2016-2019  Hanna Knutsson
-   (hanna.knutsson@protonmail.com)
+    SPDX-FileCopyrightText: © 2003-2008, 2016-2020 Hanna Knutsson <hanna.knutsson@protonmail.com>
+    SPDX-License-Identifier: GPL-2.0-or-later
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -103,518 +103,348 @@ string format_and_print(const MathStructure &mstruct) {
   }
 }
 
-int sortCompare(const MathStructure &mstruct1, const MathStructure &mstruct2,
-                const MathStructure &parent, const PrintOptions &po);
-int sortCompare(const MathStructure &mstruct1, const MathStructure &mstruct2,
-                const MathStructure &parent, const PrintOptions &po) {
-  // returns -1 if mstruct1 should be placed before mstruct2, 1 if mstruct1
-  // should be placed after mstruct2, and 0 if current order should be preserved
-  if (parent.isMultiplication()) {
-    if (!mstruct1.representsNonMatrix() && !mstruct2.representsNonMatrix()) {
-      // the order of matrices should be preserved
-      return 0;
-    }
-    if (mstruct1.isNumber() && mstruct2.isPower() && mstruct2[0].isInteger() &&
-        mstruct2[1].isInteger() && mstruct2[1].representsPositive()) {
-      return sortCompare(mstruct1, mstruct2[0], parent, po);
-    }
-    if (mstruct2.isNumber() && mstruct1.isPower() && mstruct1[0].isInteger() &&
-        mstruct1[1].isInteger() && mstruct1[1].representsPositive()) {
-      return sortCompare(mstruct1[0], mstruct2, parent, po);
-    }
-    if (mstruct1.isPower() && mstruct2.isPower() && mstruct1[0].isInteger() &&
-        mstruct1[1].isInteger() && mstruct1[1].representsPositive() &&
-        mstruct2[0].isInteger() && mstruct2[1].isInteger() &&
-        mstruct2[1].representsPositive()) {
-      return sortCompare(mstruct1[0], mstruct2[0], parent, po);
-    }
-  }
-  if (parent.isAddition() && po.sort_options.minus_last) {
-    // -a+b=b-a
-    bool m1 = mstruct1.hasNegativeSign(), m2 = mstruct2.hasNegativeSign();
-    if (m1 && !m2) {
-      return 1;
-    } else if (m2 && !m1) {
-      return -1;
-    }
-  }
-  if (parent.isAddition() &&
-      (mstruct1.isUnit() || (mstruct1.isMultiplication() &&
-                             mstruct1.size() == 2 && mstruct1[1].isUnit())) &&
-      (mstruct2.isUnit() || (mstruct2.isMultiplication() &&
-                             mstruct2.size() == 2 && mstruct2[1].isUnit()))) {
-    Unit *u1, *u2;
-    if (mstruct1.isUnit())
-      u1 = mstruct1.unit();
-    else
-      u1 = mstruct1[1].unit();
-    if (mstruct2.isUnit())
-      u2 = mstruct2.unit();
-    else
-      u2 = mstruct2[1].unit();
-    if (u1->isParentOf(u2))
-      return 1;
-    if (u2->isParentOf(u1))
-      return -1;
-  }
-  bool isdiv1 = false, isdiv2 = false;
-  if (!po.negative_exponents) {
-    // determine if mstruct1 and/or mstruct2 is division (a*b^-1)
-    if (mstruct1.isMultiplication()) {
-      for (size_t i = 0; i < mstruct1.size(); i++) {
-        if (mstruct1[i].isPower() && mstruct1[i][1].hasNegativeSign()) {
-          isdiv1 = true;
-          break;
-        }
-      }
-    } else if (mstruct1.isPower() && mstruct1[1].hasNegativeSign()) {
-      isdiv1 = true;
-    }
-    if (mstruct2.isMultiplication()) {
-      for (size_t i = 0; i < mstruct2.size(); i++) {
-        if (mstruct2[i].isPower() && mstruct2[i][1].hasNegativeSign()) {
-          isdiv2 = true;
-          break;
-        }
-      }
-    } else if (mstruct2.isPower() && mstruct2[1].hasNegativeSign()) {
-      isdiv2 = true;
-    }
-  }
-  if (parent.isAddition() && isdiv1 == isdiv2) {
-    // sort using single factors from left to right
-    if (mstruct1.isMultiplication() && mstruct1.size() > 0) {
-      size_t start = 0;
-      while (mstruct1[start].isNumber() && mstruct1.size() > start + 1) {
-        start++;
-      }
-      int i2;
-      if (mstruct2.isMultiplication()) {
-        if (mstruct2.size() < 1)
-          return -1;
-        size_t start2 = 0;
-        while (mstruct2[start2].isNumber() && mstruct2.size() > start2 + 1) {
-          start2++;
-        }
-        for (size_t i = 0; i + start < mstruct1.size(); i++) {
-          if (i + start2 >= mstruct2.size())
-            return 1;
-          i2 = sortCompare(mstruct1[i + start], mstruct2[i + start2], parent,
-                           po);
-          if (i2 != 0)
-            return i2;
-        }
-        if (mstruct1.size() - start == mstruct2.size() - start2)
-          return 0;
-        if (parent.isMultiplication())
-          return -1;
-        else
-          return 1;
-      } else {
-        i2 = sortCompare(mstruct1[start], mstruct2, parent, po);
-        if (i2 != 0)
-          return i2;
-      }
-    } else if (mstruct2.isMultiplication() && mstruct2.size() > 0) {
-      size_t start = 0;
-      while (mstruct2[start].isNumber() && mstruct2.size() > start + 1) {
-        start++;
-      }
-      int i2;
-      if (mstruct1.isMultiplication()) {
-        return 1;
-      } else {
-        i2 = sortCompare(mstruct1, mstruct2[start], parent, po);
-        if (i2 != 0)
-          return i2;
-      }
-    }
-  }
-  // always place constant of definite integral last
-  if (mstruct1.isVariable() &&
-      mstruct1.variable() == CALCULATOR->getVariableById(VARIABLE_ID_C))
-    return 1;
-  if (mstruct2.isVariable() &&
-      mstruct2.variable() == CALCULATOR->getVariableById(VARIABLE_ID_C))
-    return -1;
-  if (mstruct1.type() != mstruct2.type()) {
-    if (mstruct1.isVariable() && mstruct2.isSymbolic()) {
-      if (parent.isMultiplication()) {
-        // place constant (known) factors first (before symbols)
-        if (mstruct1.variable()->isKnown())
-          return -1;
-      }
-      // sort variables and symbols in alphabetical order
-      if (mstruct1.variable()
-              ->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs,
-                                     false, po.use_reference_names,
-                                     po.can_display_unicode_string_function,
-                                     po.can_display_unicode_string_arg)
-              .name < mstruct2.symbol())
-        return -1;
-      else
-        return 1;
-    }
-    if (mstruct2.isVariable() && mstruct1.isSymbolic()) {
-      if (parent.isMultiplication()) {
-        // place constant (known) factors first (before symbols)
-        if (mstruct2.variable()->isKnown())
-          return 1;
-      }
-      // sort variables and symbols in alphabetical order
-      if (mstruct1.symbol() <
-          mstruct2.variable()
-              ->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs,
-                                     false, po.use_reference_names,
-                                     po.can_display_unicode_string_function,
-                                     po.can_display_unicode_string_arg)
-              .name)
-        return -1;
-      else
-        return 1;
-    }
-    if (!parent.isMultiplication() ||
-        (!mstruct1.isNumber() && !mstruct2.isNumber())) {
-      // sort exponentiation with non-exponentiation (has exponent 1), excluding
-      // number factors
-      if (mstruct2.isPower()) {
-        int i = sortCompare(mstruct1, mstruct2[0], parent, po);
-        if (i == 0) {
-          return sortCompare(m_one, mstruct2[1], parent, po);
-        }
-        return i;
-      }
-      if (mstruct1.isPower()) {
-        int i = sortCompare(mstruct1[0], mstruct2, parent, po);
-        if (i == 0) {
-          return sortCompare(mstruct1[1], m_one, parent, po);
-        }
-        return i;
-      }
-    }
-    if (parent.isMultiplication()) {
-      // place unit factors last
-      if (mstruct2.isUnit())
-        return -1;
-      if (mstruct1.isUnit())
-        return 1;
-      if (mstruct1.isAddition() && !mstruct2.isAddition() &&
-          !mstruct1.containsUnknowns() &&
-          (mstruct2.isUnknown_exp() ||
-           (mstruct2.isMultiplication() && mstruct2.containsUnknowns())))
-        return -1;
-      if (mstruct2.isAddition() && !mstruct1.isAddition() &&
-          !mstruct2.containsUnknowns() &&
-          (mstruct1.isUnknown_exp() ||
-           (mstruct1.isMultiplication() && mstruct1.containsUnknowns())))
-        return 1;
-    }
-    // types listed in sort order (aborted is placed last)
-    if (mstruct2.isAborted())
-      return -1;
-    if (mstruct1.isAborted())
-      return 1;
-    if (mstruct2.isInverse())
-      return -1;
-    if (mstruct1.isInverse())
-      return 1;
-    if (mstruct2.isDivision())
-      return -1;
-    if (mstruct1.isDivision())
-      return 1;
-    if (mstruct2.isNegate())
-      return -1;
-    if (mstruct1.isNegate())
-      return 1;
-    if (mstruct2.isLogicalAnd())
-      return -1;
-    if (mstruct1.isLogicalAnd())
-      return 1;
-    if (mstruct2.isLogicalOr())
-      return -1;
-    if (mstruct1.isLogicalOr())
-      return 1;
-    if (mstruct2.isLogicalXor())
-      return -1;
-    if (mstruct1.isLogicalXor())
-      return 1;
-    if (mstruct2.isLogicalNot())
-      return -1;
-    if (mstruct1.isLogicalNot())
-      return 1;
-    if (mstruct2.isComparison())
-      return -1;
-    if (mstruct1.isComparison())
-      return 1;
-    if (mstruct2.isBitwiseOr())
-      return -1;
-    if (mstruct1.isBitwiseOr())
-      return 1;
-    if (mstruct2.isBitwiseXor())
-      return -1;
-    if (mstruct1.isBitwiseXor())
-      return 1;
-    if (mstruct2.isBitwiseAnd())
-      return -1;
-    if (mstruct1.isBitwiseAnd())
-      return 1;
-    if (mstruct2.isBitwiseNot())
-      return -1;
-    if (mstruct1.isBitwiseNot())
-      return 1;
-    if (mstruct2.isUndefined())
-      return -1;
-    if (mstruct1.isUndefined())
-      return 1;
-    if (mstruct2.isFunction())
-      return -1;
-    if (mstruct1.isFunction())
-      return 1;
-    if (mstruct2.isAddition())
-      return -1;
-    if (mstruct1.isAddition())
-      return 1;
-    if (!parent.isMultiplication()) {
-      // place division last
-      if (isdiv2 && mstruct2.isMultiplication())
-        return -1;
-      if (isdiv1 && mstruct1.isMultiplication())
-        return 1;
-      // place number after multiplication, exponentiation, unit, symbol,
-      // variable and date/time
-      if (mstruct2.isNumber())
-        return -1;
-      if (mstruct1.isNumber())
-        return 1;
-    }
-    if (mstruct2.isMultiplication())
-      return -1;
-    if (mstruct1.isMultiplication())
-      return 1;
-    if (mstruct2.isPower())
-      return -1;
-    if (mstruct1.isPower())
-      return 1;
-    if (mstruct2.isUnit())
-      return -1;
-    if (mstruct1.isUnit())
-      return 1;
-    if (mstruct2.isSymbolic())
-      return -1;
-    if (mstruct1.isSymbolic())
-      return 1;
-    if (mstruct2.isVariable())
-      return -1;
-    if (mstruct1.isVariable())
-      return 1;
-    if (mstruct2.isDateTime())
-      return -1;
-    if (mstruct1.isDateTime())
-      return 1;
-    if (parent.isMultiplication()) {
-      // only reached when type of 1 or 2 is a vector (place number factor after
-      // vector)
-      if (mstruct2.isNumber())
-        return -1;
-      if (mstruct1.isNumber())
-        return 1;
-    }
-    return -1;
-  }
-  switch (mstruct1.type()) {
-  case STRUCT_NUMBER: {
-    bool inc_order = parent.isMultiplication();
-    if (!mstruct1.number().hasImaginaryPart() &&
-        !mstruct2.number().hasImaginaryPart()) {
-      // real numbers
-      ComparisonResult cmp;
-      // if the numbers are factors with different signs, place smallest number
-      // first (the one with the negative sign)
-      if (parent.isMultiplication() &&
-          mstruct2.number().isNegative() != mstruct1.number().isNegative())
-        cmp = mstruct2.number().compare(mstruct1.number());
-      // otherwise, place largest number first
-      else
-        cmp = mstruct1.number().compare(mstruct2.number());
-      if (cmp == COMPARISON_RESULT_LESS)
-        return inc_order ? 1 : -1;
-      else if (cmp == COMPARISON_RESULT_GREATER)
-        return inc_order ? -1 : 1;
-      return 0;
-    } else {
-      if (!mstruct1.number().hasRealPart()) {
-        if (mstruct2.number().hasRealPart()) {
-          // place number with real part before number without
-          return 1;
-        } else {
-          // compare imaginary parts
-          ComparisonResult cmp =
-              mstruct1.number().compareImaginaryParts(mstruct2.number());
-          if (cmp == COMPARISON_RESULT_LESS)
-            return inc_order ? 1 : -1;
-          else if (cmp == COMPARISON_RESULT_GREATER)
-            return inc_order ? -1 : 1;
-          return 0;
-        }
-      } else if (mstruct2.number().hasRealPart()) {
-        // compare real parts first
-        ComparisonResult cmp =
-            mstruct1.number().compareRealParts(mstruct2.number());
-        if (cmp == COMPARISON_RESULT_EQUAL) {
-          // if real parts are equal, compare imaginary parts
-          cmp = mstruct1.number().compareImaginaryParts(mstruct2.number());
-        }
-        if (cmp == COMPARISON_RESULT_LESS)
-          return inc_order ? 1 : -1;
-        else if (cmp == COMPARISON_RESULT_GREATER)
-          return inc_order ? -1 : 1;
-        return 0;
-      } else {
-        return -1;
-      }
-    }
-    return -1;
-  }
-  case STRUCT_UNIT: {
-    if (mstruct1.unit() == mstruct2.unit())
-      return 0;
-    // sort units in alphabetical order
-    if (mstruct1.unit()
-            ->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs,
-                                   mstruct1.isPlural(), po.use_reference_names)
-            .name <
-        mstruct2.unit()
-            ->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs,
-                                   mstruct2.isPlural(), po.use_reference_names,
-                                   po.can_display_unicode_string_function,
-                                   po.can_display_unicode_string_arg)
-            .name)
-      return -1;
-    return 1;
-  }
-  case STRUCT_SYMBOLIC: {
-    // sort symbols in alphabetical order
-    if (mstruct1.symbol() < mstruct2.symbol())
-      return -1;
-    else if (mstruct1.symbol() == mstruct2.symbol())
-      return 0;
-    return 1;
-  }
-  case STRUCT_VARIABLE: {
-    if (mstruct1.variable() == mstruct2.variable())
-      return 0;
-    if (parent.isMultiplication()) {
-      // place constant (known) factors first (before unknown variables)
-      if (mstruct1.variable()->isKnown() && !mstruct2.variable()->isKnown())
-        return -1;
-      if (!mstruct1.variable()->isKnown() && mstruct2.variable()->isKnown())
-        return 1;
-    }
-    // sort variables in alphabetical order
-    if (mstruct1.variable()
-            ->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs,
-                                   false, po.use_reference_names)
-            .name <
-        mstruct2.variable()
-            ->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs,
-                                   false, po.use_reference_names,
-                                   po.can_display_unicode_string_function,
-                                   po.can_display_unicode_string_arg)
-            .name)
-      return -1;
-    return 1;
-  }
-  case STRUCT_FUNCTION: {
-    if (mstruct1.function() == mstruct2.function()) {
-      for (size_t i = 0; i < mstruct2.size(); i++) {
-        if (i >= mstruct1.size()) {
-          // place function with less arguments first (if common arguments are
-          // equal)
-          return -1;
-        }
-        // sort same functions using arguments
-        int i2 = sortCompare(mstruct1[i], mstruct2[i], parent, po);
-        if (i2 != 0)
-          return i2;
-      }
-      return 0;
-    }
-    // sort functions in alphabetical order
-    if (mstruct1.function()
-            ->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs,
-                                   false, po.use_reference_names)
-            .name <
-        mstruct2.function()
-            ->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs,
-                                   false, po.use_reference_names,
-                                   po.can_display_unicode_string_function,
-                                   po.can_display_unicode_string_arg)
-            .name)
-      return -1;
-    return 1;
-  }
-  case STRUCT_POWER: {
-    if (!po.negative_exponents) {
-      // place exponentiation with negative exponent first (if not displayed as
-      // division)
-      bool b1 = mstruct1[1].hasNegativeSign();
-      bool b2 = mstruct2[1].hasNegativeSign();
-      if (b1 && !b2)
-        return -1;
-      if (b2 && !b1)
-        return 1;
-    }
-    // compare bases first
-    int i = sortCompare(mstruct1[0], mstruct2[0], parent, po);
-    if (i == 0) {
-      // compare exponents if bases are equal
-      return sortCompare(mstruct1[1], mstruct2[1], parent, po);
-    }
-    return i;
-  }
-  case STRUCT_MULTIPLICATION: {
-    if (isdiv1 != isdiv2) {
-      // place denominator last
-      if (isdiv1)
-        return 1;
-      return -1;
-    }
-  }
-  case STRUCT_COMPARISON: {
-    if (mstruct1.comparisonType() != mstruct2.comparisonType()) {
-      // place equality before inequality, place greater before less
-      if (mstruct2.comparisonType() == COMPARISON_EQUALS ||
-          ((mstruct1.comparisonType() == COMPARISON_LESS ||
-            mstruct1.comparisonType() == COMPARISON_EQUALS_LESS) &&
-           (mstruct2.comparisonType() == COMPARISON_GREATER ||
-            mstruct2.comparisonType() == COMPARISON_EQUALS_GREATER))) {
-        return 1;
-      }
-      if (mstruct1.comparisonType() == COMPARISON_EQUALS ||
-          ((mstruct1.comparisonType() == COMPARISON_GREATER ||
-            mstruct1.comparisonType() == COMPARISON_EQUALS_GREATER) &&
-           (mstruct2.comparisonType() == COMPARISON_LESS ||
-            mstruct2.comparisonType() == COMPARISON_EQUALS_LESS))) {
-        return -1;
-      }
-    }
-  }
-  default: {
-    int ie;
-    for (size_t i = 0; i < mstruct1.size(); i++) {
-      // place MathStructure with less children first (if common children are
-      // equal)
-      if (i >= mstruct2.size())
-        return 1;
-      // sort by comparing children
-      ie = sortCompare(mstruct1[i], mstruct2[i], parent, po);
-      if (ie != 0) {
-        return ie;
-      }
-    }
-  }
-  }
-  return 0;
+int sortCompare(const MathStructure &mstruct1, const MathStructure &mstruct2, const MathStructure &parent, const PrintOptions &po);
+int sortCompare(const MathStructure &mstruct1, const MathStructure &mstruct2, const MathStructure &parent, const PrintOptions &po) {
+	// returns -1 if mstruct1 should be placed before mstruct2, 1 if mstruct1 should be placed after mstruct2, and 0 if current order should be preserved
+	if(parent.isMultiplication()) {
+		if(!mstruct1.representsNonMatrix() && !mstruct2.representsNonMatrix()) {
+			// the order of matrices should be preserved
+			return 0;
+		}
+		if(mstruct1.isNumber() && mstruct2.isPower() && mstruct2[0].isInteger() && mstruct2[1].isInteger() && mstruct2[1].representsPositive()) {
+			return sortCompare(mstruct1, mstruct2[0], parent, po);
+		}
+		if(mstruct2.isNumber() && mstruct1.isPower() && mstruct1[0].isInteger() && mstruct1[1].isInteger() && mstruct1[1].representsPositive()) {
+			return sortCompare(mstruct1[0], mstruct2, parent, po);
+		}
+		if(mstruct1.isPower() && mstruct2.isPower() && mstruct1[0].isInteger() && mstruct1[1].isInteger() && mstruct1[1].representsPositive() && mstruct2[0].isInteger() && mstruct2[1].isInteger() && mstruct2[1].representsPositive()) {
+			return sortCompare(mstruct1[0], mstruct2[0], parent, po);
+		}
+	}
+	if(parent.isAddition()) {
+
+		// always place constant of definite integral last
+		if(mstruct1.isVariable() && mstruct1.variable() == CALCULATOR->getVariableById(VARIABLE_ID_C)) return 1;
+		if(mstruct2.isVariable() && mstruct2.variable() == CALCULATOR->getVariableById(VARIABLE_ID_C)) return -1;
+
+		if(po.sort_options.minus_last) {
+			// -a+b=b-a
+			bool m1 = mstruct1.hasNegativeSign(), m2 = mstruct2.hasNegativeSign();
+			if(m1 && !m2) {
+				return 1;
+			} else if(m2 && !m1) {
+				return -1;
+			}
+		}
+
+		if((mstruct1.isUnit() || (mstruct1.isMultiplication() && mstruct1.size() == 2 && mstruct1[1].isUnit())) && (mstruct2.isUnit() || (mstruct2.isMultiplication() && mstruct2.size() == 2 && mstruct2[1].isUnit()))) {
+			Unit *u1, *u2;
+			if(mstruct1.isUnit()) u1 = mstruct1.unit();
+			else u1 = mstruct1[1].unit();
+			if(mstruct2.isUnit()) u2 = mstruct2.unit();
+			else u2 = mstruct2[1].unit();
+			if(u1->isParentOf(u2)) return 1;
+			if(u2->isParentOf(u1)) return -1;
+		}
+	}
+	bool isdiv1 = false, isdiv2 = false;
+	if(!po.negative_exponents || !mstruct1.isUnit_exp() || !mstruct2.isUnit_exp()) {
+		// determine if mstruct1 and/or mstruct2 is division (a*b^-1)
+		if(mstruct1.isMultiplication()) {
+			for(size_t i = 0; i < mstruct1.size(); i++) {
+				if(mstruct1[i].isPower() && mstruct1[i][1].hasNegativeSign()) {
+					isdiv1 = true;
+					break;
+				}
+			}
+		} else if(mstruct1.isPower() && mstruct1[1].hasNegativeSign()) {
+			isdiv1 = true;
+		}
+		if(mstruct2.isMultiplication()) {
+			for(size_t i = 0; i < mstruct2.size(); i++) {
+				if(mstruct2[i].isPower() && mstruct2[i][1].hasNegativeSign()) {
+					isdiv2 = true;
+					break;
+				}
+			}
+		} else if(mstruct2.isPower() && mstruct2[1].hasNegativeSign()) {
+			isdiv2 = true;
+		}
+	}
+	if(parent.isAddition() && isdiv1 == isdiv2) {
+		// sort using single factors from left to right
+		if(mstruct1.isMultiplication() && mstruct1.size() > 0) {
+			size_t start = 0;
+			while(mstruct1[start].isNumber() && mstruct1.size() > start + 1) {
+				start++;
+			}
+			int i2;
+			if(mstruct2.isMultiplication()) {
+				if(mstruct2.size() < 1) return -1;
+				size_t start2 = 0;
+				while(mstruct2[start2].isNumber() && mstruct2.size() > start2 + 1) {
+					start2++;
+				}
+				for(size_t i = 0; i + start < mstruct1.size(); i++) {
+					if(i + start2 >= mstruct2.size()) return 1;
+					i2 = sortCompare(mstruct1[i + start], mstruct2[i + start2], parent, po);
+					if(i2 != 0) return i2;
+				}
+				if(mstruct1.size() - start == mstruct2.size() - start2) return 0;
+				if(parent.isMultiplication()) return -1;
+				else return 1;
+			} else {
+				i2 = sortCompare(mstruct1[start], mstruct2, parent, po);
+				if(i2 != 0) return i2;
+			}
+		} else if(mstruct2.isMultiplication() && mstruct2.size() > 0) {
+			size_t start = 0;
+			while(mstruct2[start].isNumber() && mstruct2.size() > start + 1) {
+				start++;
+			}
+			int i2;
+			if(mstruct1.isMultiplication()) {
+				return 1;
+			} else {
+				i2 = sortCompare(mstruct1, mstruct2[start], parent, po);
+				if(i2 != 0) return i2;
+			}
+		}
+	}
+	if(mstruct1.type() != mstruct2.type()) {
+		if(mstruct1.isVariable() && mstruct2.isSymbolic()) {
+			if(parent.isMultiplication()) {
+				// place constant (known) factors first (before symbols)
+				if(mstruct1.variable()->isKnown()) return -1;
+			}
+			// sort variables and symbols in alphabetical order
+			if(name_is_less(mstruct1.variable()->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name, mstruct2.symbol())) return -1;
+			else return 1;
+		}
+		if(mstruct2.isVariable() && mstruct1.isSymbolic()) {
+			if(parent.isMultiplication()) {
+				// place constant (known) factors first (before symbols)
+				if(mstruct2.variable()->isKnown()) return 1;
+			}
+			// sort variables and symbols in alphabetical order
+			if(name_is_less(mstruct1.symbol(), mstruct2.variable()->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name)) return -1;
+			else return 1;
+		}
+		if(!parent.isMultiplication() || (!mstruct1.isNumber() && !mstruct2.isNumber())) {
+			// sort exponentiation with non-exponentiation (has exponent 1), excluding number factors
+			if(mstruct2.isPower()) {
+				if(mstruct2[0].isUnit() && mstruct1.isUnit()) return -1;
+				int i = sortCompare(mstruct1, mstruct2[0], parent, po);
+				if(i == 0) {
+					return sortCompare(m_one, mstruct2[1], parent, po);
+				}
+				return i;
+			}
+			if(mstruct1.isPower()) {
+				if(mstruct1[0].isUnit() && mstruct2.isUnit()) return 1;
+				int i = sortCompare(mstruct1[0], mstruct2, parent, po);
+				if(i == 0) {
+					return sortCompare(mstruct1[1], m_one, parent, po);
+				}
+				return i;
+			}
+		}
+		if(parent.isMultiplication()) {
+			// place unit factors last
+			if(mstruct2.isUnit()) return -1;
+			if(mstruct1.isUnit()) return 1;
+			if(mstruct1.isAddition() && !mstruct2.isAddition() && !mstruct1.containsUnknowns() && (mstruct2.isUnknown_exp() || (mstruct2.isMultiplication() && mstruct2.containsUnknowns()))) return -1;
+			if(mstruct2.isAddition() && !mstruct1.isAddition() && !mstruct2.containsUnknowns() && (mstruct1.isUnknown_exp() || (mstruct1.isMultiplication() && mstruct1.containsUnknowns()))) return 1;
+		}
+		// types listed in sort order (aborted is placed last)
+		if(mstruct2.isAborted()) return -1;
+		if(mstruct1.isAborted()) return 1;
+		if(mstruct2.isInverse()) return -1;
+		if(mstruct1.isInverse()) return 1;
+		if(mstruct2.isDivision()) return -1;
+		if(mstruct1.isDivision()) return 1;
+		if(mstruct2.isNegate()) return -1;
+		if(mstruct1.isNegate()) return 1;
+		if(mstruct2.isLogicalAnd()) return -1;
+		if(mstruct1.isLogicalAnd()) return 1;
+		if(mstruct2.isLogicalOr()) return -1;
+		if(mstruct1.isLogicalOr()) return 1;
+		if(mstruct2.isLogicalXor()) return -1;
+		if(mstruct1.isLogicalXor()) return 1;
+		if(mstruct2.isLogicalNot()) return -1;
+		if(mstruct1.isLogicalNot()) return 1;
+		if(mstruct2.isComparison()) return -1;
+		if(mstruct1.isComparison()) return 1;
+		if(mstruct2.isBitwiseOr()) return -1;
+		if(mstruct1.isBitwiseOr()) return 1;
+		if(mstruct2.isBitwiseXor()) return -1;
+		if(mstruct1.isBitwiseXor()) return 1;
+		if(mstruct2.isBitwiseAnd()) return -1;
+		if(mstruct1.isBitwiseAnd()) return 1;
+		if(mstruct2.isBitwiseNot()) return -1;
+		if(mstruct1.isBitwiseNot()) return 1;
+		if(mstruct2.isUndefined()) return -1;
+		if(mstruct1.isUndefined()) return 1;
+		if(mstruct2.isFunction()) return -1;
+		if(mstruct1.isFunction()) return 1;
+		if(mstruct2.isAddition()) return -1;
+		if(mstruct1.isAddition()) return 1;
+		if(!parent.isMultiplication()) {
+			// place division last
+			if(isdiv2 && mstruct2.isMultiplication()) return -1;
+			if(isdiv1 && mstruct1.isMultiplication()) return 1;
+			// place number after multiplication, exponentiation, unit, symbol, variable and date/time
+			if(mstruct2.isNumber()) return -1;
+			if(mstruct1.isNumber()) return 1;
+		}
+		if(mstruct2.isMultiplication()) return -1;
+		if(mstruct1.isMultiplication()) return 1;
+		if(mstruct2.isPower()) return -1;
+		if(mstruct1.isPower()) return 1;
+		if(mstruct2.isUnit()) return -1;
+		if(mstruct1.isUnit()) return 1;
+		if(mstruct2.isSymbolic()) return -1;
+		if(mstruct1.isSymbolic()) return 1;
+		if(mstruct2.isVariable()) return -1;
+		if(mstruct1.isVariable()) return 1;
+		if(mstruct2.isDateTime()) return -1;
+		if(mstruct1.isDateTime()) return 1;
+		if(parent.isMultiplication()) {
+			// only reached when type of 1 or 2 is a vector (place number factor after vector)
+			if(mstruct2.isNumber()) return -1;
+			if(mstruct1.isNumber()) return 1;
+		}
+		return -1;
+	}
+	switch(mstruct1.type()) {
+		case STRUCT_NUMBER: {
+			bool inc_order = parent.isMultiplication();
+			if(!mstruct1.number().hasImaginaryPart() && !mstruct2.number().hasImaginaryPart()) {
+				// real numbers
+				ComparisonResult cmp;
+				// if the numbers are factors with different signs, place smallest number first (the one with the negative sign)
+				if(parent.isMultiplication() && mstruct2.number().isNegative() != mstruct1.number().isNegative()) cmp = mstruct2.number().compare(mstruct1.number());
+				// otherwise, place largest number first
+				else cmp = mstruct1.number().compare(mstruct2.number());
+				if(cmp == COMPARISON_RESULT_LESS) return inc_order ? 1 : -1;
+				else if(cmp == COMPARISON_RESULT_GREATER) return inc_order ? -1 : 1;
+				return 0;
+			} else {
+				if(!mstruct1.number().hasRealPart()) {
+					if(mstruct2.number().hasRealPart()) {
+						// place number with real part before number without
+						return 1;
+					} else {
+						// compare imaginary parts
+						ComparisonResult cmp = mstruct1.number().compareImaginaryParts(mstruct2.number());
+						if(cmp == COMPARISON_RESULT_LESS) return inc_order ? 1 : -1;
+						else if(cmp == COMPARISON_RESULT_GREATER) return inc_order ? -1 : 1;
+						return 0;
+					}
+				} else if(mstruct2.number().hasRealPart()) {
+					// compare real parts first
+					ComparisonResult cmp = mstruct1.number().compareRealParts(mstruct2.number());
+					if(cmp == COMPARISON_RESULT_EQUAL) {
+						// if real parts are equal, compare imaginary parts
+						cmp = mstruct1.number().compareImaginaryParts(mstruct2.number());
+					}
+					if(cmp == COMPARISON_RESULT_LESS) return inc_order ? 1 : -1;
+					else if(cmp == COMPARISON_RESULT_GREATER) return inc_order ? -1 : 1;
+					return 0;
+				} else {
+					return -1;
+				}
+			}
+			return -1;
+		}
+		case STRUCT_UNIT: {
+			if(mstruct1.unit() == mstruct2.unit()) return 0;
+			// sort units in alphabetical order
+			if(name_is_less(mstruct1.unit()->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, mstruct1.isPlural(), po.use_reference_names).name, mstruct2.unit()->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, mstruct2.isPlural(), po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name)) return -1;
+			return 1;
+		}
+		case STRUCT_SYMBOLIC: {
+			// sort symbols in alphabetical order
+			if(mstruct1.symbol() < mstruct2.symbol()) return -1;
+			else if(mstruct1.symbol() == mstruct2.symbol()) return 0;
+			return 1;
+		}
+		case STRUCT_VARIABLE: {
+			if(mstruct1.variable() == mstruct2.variable()) return 0;
+			if(parent.isMultiplication()) {
+				// place constant (known) factors first (before unknown variables)
+				if(mstruct1.variable()->isKnown() && !mstruct2.variable()->isKnown()) return -1;
+				if(!mstruct1.variable()->isKnown() && mstruct2.variable()->isKnown()) return 1;
+			}
+			// sort variables in alphabetical order
+			if(name_is_less(mstruct1.variable()->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names).name, mstruct2.variable()->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name)) return -1;
+			return 1;
+		}
+		case STRUCT_FUNCTION: {
+			if(mstruct1.function() == mstruct2.function()) {
+				for(size_t i = 0; i < mstruct2.size(); i++) {
+					if(i >= mstruct1.size()) {
+						// place function with less arguments first (if common arguments are equal)
+						return -1;
+					}
+					// sort same functions using arguments
+					int i2 = sortCompare(mstruct1[i], mstruct2[i], parent, po);
+					if(i2 != 0) return i2;
+				}
+				return 0;
+			}
+			// sort functions in alphabetical order
+			if(name_is_less(mstruct1.function()->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names).name, mstruct2.function()->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name)) return -1;
+			return 1;
+		}
+		case STRUCT_POWER: {
+			if(parent.isMultiplication() && mstruct1[0].isUnit() && mstruct2[0].isUnit()) {
+				int i = sortCompare(mstruct1[1], mstruct2[1], parent, po);
+				if(i == 0) {
+					return sortCompare(mstruct1[0], mstruct2[0], parent, po);
+				}
+				return i;
+			}
+			// compare bases first
+			int i = sortCompare(mstruct1[0], mstruct2[0], parent, po);
+			if(i == 0) {
+				// compare exponents if bases are equal
+				return sortCompare(mstruct1[1], mstruct2[1], parent, po);
+			}
+			return i;
+		}
+		case STRUCT_MULTIPLICATION: {
+			if(isdiv1 != isdiv2) {
+				// place denominator last
+				if(isdiv1) return 1;
+				return -1;
+			}
+		}
+		case STRUCT_COMPARISON: {
+			if(mstruct1.comparisonType() != mstruct2.comparisonType()) {
+				// place equality before inequality, place greater before less
+				if(mstruct2.comparisonType() == COMPARISON_EQUALS || ((mstruct1.comparisonType() == COMPARISON_LESS || mstruct1.comparisonType() == COMPARISON_EQUALS_LESS) && (mstruct2.comparisonType() == COMPARISON_GREATER || mstruct2.comparisonType() == COMPARISON_EQUALS_GREATER))) {
+					return 1;
+				}
+				if(mstruct1.comparisonType() == COMPARISON_EQUALS || ((mstruct1.comparisonType() == COMPARISON_GREATER || mstruct1.comparisonType() == COMPARISON_EQUALS_GREATER) && (mstruct2.comparisonType() == COMPARISON_LESS || mstruct2.comparisonType() == COMPARISON_EQUALS_LESS))) {
+					return -1;
+				}
+			}
+		}
+		default: {
+			int ie;
+			for(size_t i = 0; i < mstruct1.size(); i++) {
+				// place MathStructure with less children first (if common children are equal)
+				if(i >= mstruct2.size()) return 1;
+				// sort by comparing children
+				ie = sortCompare(mstruct1[i], mstruct2[i], parent, po);
+				if(ie != 0) {
+					return ie;
+				}
+			}
+		}
+	}
+	return 0;
 }
 
 void MathStructure::sort(const PrintOptions &po, bool recursive) {
@@ -1143,7 +973,7 @@ bool MathStructure::improve_division_multipliers(const PrintOptions &po,
     size_t inum = 0, iden = 0;
     bool bfrac = false, bint = true, bdiv = false, bnonunitdiv = false;
     size_t index1 = 0, index2 = 0;
-    bool dofrac = !po.negative_exponents;
+    bool dofrac = true;
     for (size_t i2 = 0; i2 < SIZE; i2++) {
       if (CHILD(i2).isPower() && CHILD(i2)[1].isMinusOne()) {
         if (!po.place_units_separately || !is_unit_multiexp(CHILD(i2)[0])) {
@@ -3152,994 +2982,426 @@ int namelen(const MathStructure &mstruct, const PrintOptions &po,
   return str->length();
 }
 
-bool MathStructure::needsParenthesis(const PrintOptions &po,
-                                     const InternalPrintStruct &ips,
-                                     const MathStructure &parent, size_t index,
-                                     bool flat_division, bool) const {
-  // determines, using the type of the parent, the type of the child, the index
-  // of the child, and if division is displayed on one line or not (only
-  // relevant in the GUI), if this child should be displayed surrounded by
-  // parentheses
-  switch (parent.type()) {
-  case STRUCT_MULTIPLICATION: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return true;
-    }
-    case STRUCT_DIVISION: {
-      return flat_division &&
-             (index < parent.size() || po.excessive_parenthesis);
-    }
-    case STRUCT_INVERSE: {
-      return flat_division;
-    }
-    case STRUCT_ADDITION: {
-      return true;
-    }
-    case STRUCT_POWER: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_NEGATE: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_AND: {
-      return true;
-    }
-    case STRUCT_BITWISE_OR: {
-      return true;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return true;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return true;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_COMPARISON: {
-      return true;
-    }
-    case STRUCT_FUNCTION: {
-      return o_function->id() == FUNCTION_ID_UNCERTAINTY;
-    }
-    case STRUCT_VECTOR: {
-      return false;
-    }
-    case STRUCT_NUMBER: {
-      return o_number.isInfinite() ||
-             (o_number.hasImaginaryPart() && o_number.hasRealPart());
-    }
-    case STRUCT_VARIABLE: {
-      return false;
-    }
-    case STRUCT_ABORTED: {
-      return false;
-    }
-    case STRUCT_SYMBOLIC: {
-      return false;
-    }
-    case STRUCT_UNIT: {
-      return false;
-    }
-    case STRUCT_UNDEFINED: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_DATETIME: {
-      return false;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_INVERSE: {
-  }
-  case STRUCT_DIVISION: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_DIVISION: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_INVERSE: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_ADDITION: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_POWER: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_NEGATE: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_AND: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_OR: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_COMPARISON: {
-      return flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_FUNCTION: {
-      return o_function->id() == FUNCTION_ID_UNCERTAINTY;
-    }
-    case STRUCT_VECTOR: {
-      return false;
-    }
-    case STRUCT_NUMBER: {
-      return (flat_division || po.excessive_parenthesis) &&
-             (o_number.isInfinite() || o_number.hasImaginaryPart());
-    }
-    case STRUCT_VARIABLE: {
-      return false;
-    }
-    case STRUCT_ABORTED: {
-      return false;
-    }
-    case STRUCT_SYMBOLIC: {
-      return false;
-    }
-    case STRUCT_UNIT: {
-      return false;
-    }
-    case STRUCT_UNDEFINED: {
-      return false;
-    }
-    case STRUCT_DATETIME: {
-      return false;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_ADDITION: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_DIVISION: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_INVERSE: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_ADDITION: {
-      return true;
-    }
-    case STRUCT_POWER: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_NEGATE: {
-      return index > 1 || po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_AND: {
-      return true;
-    }
-    case STRUCT_BITWISE_OR: {
-      return true;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return true;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return false;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return true;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return false;
-    }
-    case STRUCT_COMPARISON: {
-      return true;
-    }
-    case STRUCT_FUNCTION: {
-      return false;
-    }
-    case STRUCT_VECTOR: {
-      return false;
-    }
-    case STRUCT_NUMBER: {
-      return o_number.isInfinite();
-    }
-    case STRUCT_VARIABLE: {
-      return false;
-    }
-    case STRUCT_ABORTED: {
-      return false;
-    }
-    case STRUCT_SYMBOLIC: {
-      return false;
-    }
-    case STRUCT_UNIT: {
-      return false;
-    }
-    case STRUCT_UNDEFINED: {
-      return false;
-    }
-    case STRUCT_DATETIME: {
-      return false;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_POWER: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return true;
-    }
-    case STRUCT_DIVISION: {
-      return index == 1 || flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_INVERSE: {
-      return index == 1 || flat_division || po.excessive_parenthesis;
-    }
-    case STRUCT_ADDITION: {
-      return true;
-    }
-    case STRUCT_POWER: {
-      return true;
-    }
-    case STRUCT_NEGATE: {
-      return index == 1 ||
-             CHILD(0).needsParenthesis(po, ips, parent, index, flat_division);
-    }
-    case STRUCT_BITWISE_AND: {
-      return true;
-    }
-    case STRUCT_BITWISE_OR: {
-      return true;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return true;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return index == 1 || po.excessive_parenthesis;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return true;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return index == 1 || po.excessive_parenthesis;
-    }
-    case STRUCT_COMPARISON: {
-      return true;
-    }
-    case STRUCT_FUNCTION: {
-      return o_function->id() == FUNCTION_ID_UNCERTAINTY;
-    }
-    case STRUCT_VECTOR: {
-      return false;
-    }
-    case STRUCT_NUMBER: {
-      return o_number.isInfinite() || o_number.hasImaginaryPart();
-    }
-    case STRUCT_VARIABLE: {
-      return false;
-    }
-    case STRUCT_ABORTED: {
-      return false;
-    }
-    case STRUCT_SYMBOLIC: {
-      return false;
-    }
-    case STRUCT_UNIT: {
-      return false;
-    }
-    case STRUCT_UNDEFINED: {
-      return false;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_NEGATE: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_DIVISION: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_INVERSE: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_ADDITION: {
-      return true;
-    }
-    case STRUCT_POWER: {
-      return true;
-    }
-    case STRUCT_NEGATE: {
-      return true;
-    }
-    case STRUCT_BITWISE_AND: {
-      return true;
-    }
-    case STRUCT_BITWISE_OR: {
-      return true;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return true;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return true;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_COMPARISON: {
-      return true;
-    }
-    case STRUCT_FUNCTION: {
-      return false;
-    }
-    case STRUCT_VECTOR: {
-      return false;
-    }
-    case STRUCT_NUMBER: {
-      return o_number.isInfinite() ||
-             (o_number.hasImaginaryPart() && o_number.hasRealPart());
-    }
-    case STRUCT_VARIABLE: {
-      return false;
-    }
-    case STRUCT_ABORTED: {
-      return false;
-    }
-    case STRUCT_SYMBOLIC: {
-      return false;
-    }
-    case STRUCT_UNIT: {
-      return false;
-    }
-    case STRUCT_UNDEFINED: {
-      return false;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_LOGICAL_OR: {
-  }
-  case STRUCT_LOGICAL_AND: {
-  }
-  case STRUCT_LOGICAL_XOR: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return true;
-    }
-    case STRUCT_DIVISION: {
-      return flat_division;
-    }
-    case STRUCT_INVERSE: {
-      return flat_division;
-    }
-    case STRUCT_ADDITION: {
-      return true;
-    }
-    case STRUCT_POWER: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_NEGATE: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_AND: {
-      return true;
-    }
-    case STRUCT_BITWISE_OR: {
-      return true;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return true;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return false;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return true;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return false;
-    }
-    case STRUCT_COMPARISON: {
-      return false;
-    }
-    case STRUCT_FUNCTION: {
-      return false;
-    }
-    case STRUCT_VECTOR: {
-      return false;
-    }
-    case STRUCT_NUMBER: {
-      return po.excessive_parenthesis && o_number.isInfinite();
-    }
-    case STRUCT_VARIABLE: {
-      return false;
-    }
-    case STRUCT_ABORTED: {
-      return false;
-    }
-    case STRUCT_SYMBOLIC: {
-      return false;
-    }
-    case STRUCT_UNIT: {
-      return false;
-    }
-    case STRUCT_UNDEFINED: {
-      return false;
-    }
-    case STRUCT_DATETIME: {
-      return false;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_BITWISE_AND: {
-  }
-  case STRUCT_BITWISE_OR: {
-  }
-  case STRUCT_BITWISE_XOR: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return true;
-    }
-    case STRUCT_DIVISION: {
-      return flat_division;
-    }
-    case STRUCT_INVERSE: {
-      return flat_division;
-    }
-    case STRUCT_ADDITION: {
-      return true;
-    }
-    case STRUCT_POWER: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_NEGATE: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_AND: {
-      return true;
-    }
-    case STRUCT_BITWISE_OR: {
-      return true;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return true;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return false;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return true;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return false;
-    }
-    case STRUCT_COMPARISON: {
-      return true;
-    }
-    case STRUCT_FUNCTION: {
-      return false;
-    }
-    case STRUCT_VECTOR: {
-      return false;
-    }
-    case STRUCT_NUMBER: {
-      return po.excessive_parenthesis && o_number.isInfinite();
-    }
-    case STRUCT_VARIABLE: {
-      return false;
-    }
-    case STRUCT_ABORTED: {
-      return false;
-    }
-    case STRUCT_SYMBOLIC: {
-      return false;
-    }
-    case STRUCT_UNIT: {
-      return false;
-    }
-    case STRUCT_UNDEFINED: {
-      return false;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_COMPARISON: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_DIVISION: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_INVERSE: {
-      return flat_division && po.excessive_parenthesis;
-    }
-    case STRUCT_ADDITION: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_POWER: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_NEGATE: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_AND: {
-      return true;
-    }
-    case STRUCT_BITWISE_OR: {
-      return true;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return true;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return false;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return true;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return false;
-    }
-    case STRUCT_COMPARISON: {
-      return true;
-    }
-    case STRUCT_FUNCTION: {
-      return false;
-    }
-    case STRUCT_VECTOR: {
-      return false;
-    }
-    case STRUCT_NUMBER: {
-      return po.excessive_parenthesis && o_number.isInfinite();
-    }
-    case STRUCT_VARIABLE: {
-      return false;
-    }
-    case STRUCT_ABORTED: {
-      return false;
-    }
-    case STRUCT_SYMBOLIC: {
-      return false;
-    }
-    case STRUCT_UNIT: {
-      return false;
-    }
-    case STRUCT_UNDEFINED: {
-      return false;
-    }
-    case STRUCT_DATETIME: {
-      return false;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_LOGICAL_NOT: {
-  }
-  case STRUCT_BITWISE_NOT: {
-    switch (m_type) {
-    case STRUCT_MULTIPLICATION: {
-      return true;
-    }
-    case STRUCT_DIVISION: {
-      return true;
-    }
-    case STRUCT_INVERSE: {
-      return true;
-    }
-    case STRUCT_ADDITION: {
-      return true;
-    }
-    case STRUCT_POWER: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_NEGATE: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_BITWISE_AND: {
-      return true;
-    }
-    case STRUCT_BITWISE_OR: {
-      return true;
-    }
-    case STRUCT_BITWISE_XOR: {
-      return true;
-    }
-    case STRUCT_BITWISE_NOT: {
-      return true;
-    }
-    case STRUCT_LOGICAL_AND: {
-      return true;
-    }
-    case STRUCT_LOGICAL_OR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_XOR: {
-      return true;
-    }
-    case STRUCT_LOGICAL_NOT: {
-      return true;
-    }
-    case STRUCT_COMPARISON: {
-      return true;
-    }
-    case STRUCT_FUNCTION: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_VECTOR: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_NUMBER: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_VARIABLE: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_ABORTED: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_SYMBOLIC: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_UNIT: {
-      return po.excessive_parenthesis;
-    }
-    case STRUCT_UNDEFINED: {
-      return po.excessive_parenthesis;
-    }
-    default: {
-      return true;
-    }
-    }
-  }
-  case STRUCT_FUNCTION: {
-    return false;
-  }
-  case STRUCT_VECTOR: {
-    return false;
-  }
-  default: {
-    return true;
-  }
-  }
+bool MathStructure::needsParenthesis(const PrintOptions &po, const InternalPrintStruct &ips, const MathStructure &parent, size_t index, bool flat_division, bool) const {
+	// determines, using the type of the parent, the type of the child, the index of the child, and if division is displayed on one line or not (only relevant in the GUI), if this child should be displayed surrounded by parentheses
+	switch(parent.type()) {
+		case STRUCT_MULTIPLICATION: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return po.excessive_parenthesis || (index > 1 && SIZE > 0 && !is_unit_multiexp(*this));}
+				case STRUCT_DIVISION: {return flat_division && (index < parent.size() || po.excessive_parenthesis);}
+				case STRUCT_INVERSE: {return flat_division;}
+				case STRUCT_ADDITION: {return true;}
+				case STRUCT_POWER: {return po.excessive_parenthesis;}
+				case STRUCT_NEGATE: {return po.excessive_parenthesis || index > 1 || CHILD(0).needsParenthesis(po, ips, parent, index, flat_division);}
+				case STRUCT_BITWISE_AND: {return true;}
+				case STRUCT_BITWISE_OR: {return true;}
+				case STRUCT_BITWISE_XOR: {return true;}
+				case STRUCT_BITWISE_NOT: {return po.excessive_parenthesis;}
+				case STRUCT_LOGICAL_AND: {return true;}
+				case STRUCT_LOGICAL_OR: {return true;}
+				case STRUCT_LOGICAL_XOR: {return true;}
+				case STRUCT_LOGICAL_NOT: {return po.excessive_parenthesis;}
+				case STRUCT_COMPARISON: {return true;}
+				case STRUCT_FUNCTION: {return o_function->id() == FUNCTION_ID_UNCERTAINTY;}
+				case STRUCT_VECTOR: {return false;}
+				case STRUCT_NUMBER: {return o_number.isInfinite() || (o_number.hasImaginaryPart() && o_number.hasRealPart());}
+				case STRUCT_VARIABLE: {return false;}
+				case STRUCT_ABORTED: {return false;}
+				case STRUCT_SYMBOLIC: {return false;}
+				case STRUCT_UNIT: {return false;}
+				case STRUCT_UNDEFINED: {return po.excessive_parenthesis;}
+				case STRUCT_DATETIME: {return false;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_INVERSE: {}
+		case STRUCT_DIVISION: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_DIVISION: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_INVERSE: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_ADDITION: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_POWER: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_NEGATE: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_BITWISE_AND: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_BITWISE_OR: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_BITWISE_XOR: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_BITWISE_NOT: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_LOGICAL_AND: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_LOGICAL_OR: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_LOGICAL_XOR: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_LOGICAL_NOT: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_COMPARISON: {return flat_division || po.excessive_parenthesis;}
+				case STRUCT_FUNCTION: {return o_function->id() == FUNCTION_ID_UNCERTAINTY;}
+				case STRUCT_VECTOR: {return false;}
+				case STRUCT_NUMBER: {return (flat_division || po.excessive_parenthesis) && (o_number.isInfinite() || o_number.hasImaginaryPart());}
+				case STRUCT_VARIABLE: {return false;}
+				case STRUCT_ABORTED: {return false;}
+				case STRUCT_SYMBOLIC: {return false;}
+				case STRUCT_UNIT: {return false;}
+				case STRUCT_UNDEFINED: {return false;}
+				case STRUCT_DATETIME: {return false;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_ADDITION: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return po.excessive_parenthesis;}
+				case STRUCT_DIVISION: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_INVERSE: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_ADDITION: {return true;}
+				case STRUCT_POWER: {return po.excessive_parenthesis;}
+				case STRUCT_NEGATE: {return index > 1 || po.excessive_parenthesis;}
+				case STRUCT_BITWISE_AND: {return true;}
+				case STRUCT_BITWISE_OR: {return true;}
+				case STRUCT_BITWISE_XOR: {return true;}
+				case STRUCT_BITWISE_NOT: {return false;}
+				case STRUCT_LOGICAL_AND: {return true;}
+				case STRUCT_LOGICAL_OR: {return true;}
+				case STRUCT_LOGICAL_XOR: {return true;}
+				case STRUCT_LOGICAL_NOT: {return false;}
+				case STRUCT_COMPARISON: {return true;}
+				case STRUCT_FUNCTION: {return false;}
+				case STRUCT_VECTOR: {return false;}
+				case STRUCT_NUMBER: {return o_number.isInfinite();}
+				case STRUCT_VARIABLE: {return false;}
+				case STRUCT_ABORTED: {return false;}
+				case STRUCT_SYMBOLIC: {return false;}
+				case STRUCT_UNIT: {return false;}
+				case STRUCT_UNDEFINED: {return false;}
+				case STRUCT_DATETIME: {return false;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_POWER: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return true;}
+				case STRUCT_DIVISION: {return index == 1 || flat_division || po.excessive_parenthesis;}
+				case STRUCT_INVERSE: {return index == 1 || flat_division || po.excessive_parenthesis;}
+				case STRUCT_ADDITION: {return true;}
+				case STRUCT_POWER: {return true;}
+				case STRUCT_NEGATE: {return index == 1 || CHILD(0).needsParenthesis(po, ips, parent, index, flat_division);}
+				case STRUCT_BITWISE_AND: {return true;}
+				case STRUCT_BITWISE_OR: {return true;}
+				case STRUCT_BITWISE_XOR: {return true;}
+				case STRUCT_BITWISE_NOT: {return index == 1 || po.excessive_parenthesis;}
+				case STRUCT_LOGICAL_AND: {return true;}
+				case STRUCT_LOGICAL_OR: {return true;}
+				case STRUCT_LOGICAL_XOR: {return true;}
+				case STRUCT_LOGICAL_NOT: {return index == 1 || po.excessive_parenthesis;}
+				case STRUCT_COMPARISON: {return true;}
+				case STRUCT_FUNCTION: {return o_function->id() == FUNCTION_ID_UNCERTAINTY;}
+				case STRUCT_VECTOR: {return false;}
+				case STRUCT_NUMBER: {return o_number.isInfinite() || o_number.hasImaginaryPart();}
+				case STRUCT_VARIABLE: {return false;}
+				case STRUCT_ABORTED: {return false;}
+				case STRUCT_SYMBOLIC: {return false;}
+				case STRUCT_UNIT: {return false;}
+				case STRUCT_UNDEFINED: {return false;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_NEGATE: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return po.excessive_parenthesis;}
+				case STRUCT_DIVISION: {return po.excessive_parenthesis;}
+				case STRUCT_INVERSE: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_ADDITION: {return true;}
+				case STRUCT_POWER: {return po.excessive_parenthesis;}
+				case STRUCT_NEGATE: {return true;}
+				case STRUCT_BITWISE_AND: {return true;}
+				case STRUCT_BITWISE_OR: {return true;}
+				case STRUCT_BITWISE_XOR: {return true;}
+				case STRUCT_BITWISE_NOT: {return po.excessive_parenthesis;}
+				case STRUCT_LOGICAL_AND: {return true;}
+				case STRUCT_LOGICAL_OR: {return true;}
+				case STRUCT_LOGICAL_XOR: {return true;}
+				case STRUCT_LOGICAL_NOT: {return po.excessive_parenthesis;}
+				case STRUCT_COMPARISON: {return true;}
+				case STRUCT_FUNCTION: {return false;}
+				case STRUCT_VECTOR: {return false;}
+				case STRUCT_NUMBER: {return o_number.isInfinite() || (o_number.hasImaginaryPart() && o_number.hasRealPart());}
+				case STRUCT_VARIABLE: {return false;}
+				case STRUCT_ABORTED: {return false;}
+				case STRUCT_SYMBOLIC: {return false;}
+				case STRUCT_UNIT: {return false;}
+				case STRUCT_UNDEFINED: {return false;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_LOGICAL_OR: {}
+		case STRUCT_LOGICAL_AND: {}
+		case STRUCT_LOGICAL_XOR: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return true;}
+				case STRUCT_DIVISION: {return flat_division;}
+				case STRUCT_INVERSE: {return flat_division;}
+				case STRUCT_ADDITION: {return true;}
+				case STRUCT_POWER: {return po.excessive_parenthesis;}
+				case STRUCT_NEGATE: {return po.excessive_parenthesis;}
+				case STRUCT_BITWISE_AND: {return true;}
+				case STRUCT_BITWISE_OR: {return true;}
+				case STRUCT_BITWISE_XOR: {return true;}
+				case STRUCT_BITWISE_NOT: {return false;}
+				case STRUCT_LOGICAL_AND: {return true;}
+				case STRUCT_LOGICAL_OR: {return true;}
+				case STRUCT_LOGICAL_XOR: {return true;}
+				case STRUCT_LOGICAL_NOT: {return false;}
+				case STRUCT_COMPARISON: {return false;}
+				case STRUCT_FUNCTION: {return false;}
+				case STRUCT_VECTOR: {return false;}
+				case STRUCT_NUMBER: {return po.excessive_parenthesis && o_number.isInfinite();}
+				case STRUCT_VARIABLE: {return false;}
+				case STRUCT_ABORTED: {return false;}
+				case STRUCT_SYMBOLIC: {return false;}
+				case STRUCT_UNIT: {return false;}
+				case STRUCT_UNDEFINED: {return false;}
+				case STRUCT_DATETIME: {return false;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_BITWISE_AND: {}
+		case STRUCT_BITWISE_OR: {}
+		case STRUCT_BITWISE_XOR: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return true;}
+				case STRUCT_DIVISION: {return flat_division;}
+				case STRUCT_INVERSE: {return flat_division;}
+				case STRUCT_ADDITION: {return true;}
+				case STRUCT_POWER: {return po.excessive_parenthesis;}
+				case STRUCT_NEGATE: {return po.excessive_parenthesis;}
+				case STRUCT_BITWISE_AND: {return true;}
+				case STRUCT_BITWISE_OR: {return true;}
+				case STRUCT_BITWISE_XOR: {return true;}
+				case STRUCT_BITWISE_NOT: {return false;}
+				case STRUCT_LOGICAL_AND: {return true;}
+				case STRUCT_LOGICAL_OR: {return true;}
+				case STRUCT_LOGICAL_XOR: {return true;}
+				case STRUCT_LOGICAL_NOT: {return false;}
+				case STRUCT_COMPARISON: {return true;}
+				case STRUCT_FUNCTION: {return false;}
+				case STRUCT_VECTOR: {return false;}
+				case STRUCT_NUMBER: {return po.excessive_parenthesis && o_number.isInfinite();}
+				case STRUCT_VARIABLE: {return false;}
+				case STRUCT_ABORTED: {return false;}
+				case STRUCT_SYMBOLIC: {return false;}
+				case STRUCT_UNIT: {return false;}
+				case STRUCT_UNDEFINED: {return false;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_COMPARISON: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return po.excessive_parenthesis;}
+				case STRUCT_DIVISION: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_INVERSE: {return flat_division && po.excessive_parenthesis;}
+				case STRUCT_ADDITION: {return po.excessive_parenthesis;}
+				case STRUCT_POWER: {return po.excessive_parenthesis;}
+				case STRUCT_NEGATE: {return po.excessive_parenthesis;}
+				case STRUCT_BITWISE_AND: {return true;}
+				case STRUCT_BITWISE_OR: {return true;}
+				case STRUCT_BITWISE_XOR: {return true;}
+				case STRUCT_BITWISE_NOT: {return false;}
+				case STRUCT_LOGICAL_AND: {return true;}
+				case STRUCT_LOGICAL_OR: {return true;}
+				case STRUCT_LOGICAL_XOR: {return true;}
+				case STRUCT_LOGICAL_NOT: {return false;}
+				case STRUCT_COMPARISON: {return true;}
+				case STRUCT_FUNCTION: {return false;}
+				case STRUCT_VECTOR: {return false;}
+				case STRUCT_NUMBER: {return po.excessive_parenthesis && o_number.isInfinite();}
+				case STRUCT_VARIABLE: {return false;}
+				case STRUCT_ABORTED: {return false;}
+				case STRUCT_SYMBOLIC: {return false;}
+				case STRUCT_UNIT: {return false;}
+				case STRUCT_UNDEFINED: {return false;}
+				case STRUCT_DATETIME: {return false;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_LOGICAL_NOT: {}
+		case STRUCT_BITWISE_NOT: {
+			switch(m_type) {
+				case STRUCT_MULTIPLICATION: {return true;}
+				case STRUCT_DIVISION: {return true;}
+				case STRUCT_INVERSE: {return true;}
+				case STRUCT_ADDITION: {return true;}
+				case STRUCT_POWER: {return po.excessive_parenthesis;}
+				case STRUCT_NEGATE: {return po.excessive_parenthesis;}
+				case STRUCT_BITWISE_AND: {return true;}
+				case STRUCT_BITWISE_OR: {return true;}
+				case STRUCT_BITWISE_XOR: {return true;}
+				case STRUCT_BITWISE_NOT: {return true;}
+				case STRUCT_LOGICAL_AND: {return true;}
+				case STRUCT_LOGICAL_OR: {return true;}
+				case STRUCT_LOGICAL_XOR: {return true;}
+				case STRUCT_LOGICAL_NOT: {return true;}
+				case STRUCT_COMPARISON: {return true;}
+				case STRUCT_FUNCTION: {return po.excessive_parenthesis;}
+				case STRUCT_VECTOR: {return po.excessive_parenthesis;}
+				case STRUCT_NUMBER: {return po.excessive_parenthesis;}
+				case STRUCT_VARIABLE: {return po.excessive_parenthesis;}
+				case STRUCT_ABORTED: {return po.excessive_parenthesis;}
+				case STRUCT_SYMBOLIC: {return po.excessive_parenthesis;}
+				case STRUCT_UNIT: {return po.excessive_parenthesis;}
+				case STRUCT_UNDEFINED: {return po.excessive_parenthesis;}
+				default: {return true;}
+			}
+		}
+		case STRUCT_FUNCTION: {
+			return false;
+		}
+		case STRUCT_VECTOR: {
+			return false;
+		}
+		default: {
+			return true;
+		}
+	}
 }
 
-int MathStructure::neededMultiplicationSign(const PrintOptions &po,
-                                            const InternalPrintStruct &ips,
-                                            const MathStructure &parent,
-                                            size_t index, bool par,
-                                            bool par_prev, bool flat_division,
-                                            bool flat_power) const {
-  // returns the suggested multiplication sign in front of this MathStrcture
+int MathStructure::neededMultiplicationSign(const PrintOptions &po, const InternalPrintStruct &ips, const MathStructure &parent, size_t index, bool par, bool par_prev, bool flat_division, bool flat_power) const {
+	// returns the suggested multiplication sign in front of this MathStrcture
 
-  // do not display anything on front of the first factor (this function is
-  // normally not called in this case)
-  if (index <= 1)
-    return MULTIPLICATION_SIGN_NONE;
-  // short multiplication is disabled or number base might use digits other than
-  // 0-9, alawys show multiplication symbol
-  if (!po.short_multiplication || po.base > 10 || po.base < 2)
-    return MULTIPLICATION_SIGN_OPERATOR;
-  // no multiplication sign between factors in parentheses
-  if (par_prev && par)
-    return MULTIPLICATION_SIGN_NONE;
-  if (par_prev) {
-    // (a)*u=(a) u
-    if (isUnit_exp())
-      return MULTIPLICATION_SIGN_SPACE;
-    if (isUnknown_exp()) {
-      // (a)*"xy"=(a) "xy", (a)*"xy"^b=(a) "xy"^b, (a)*x=(a)x, (a)*x^b=ax^b
-      return (namelen(isPower() ? CHILD(0) : *this, po, ips, NULL) > 1
-                  ? MULTIPLICATION_SIGN_SPACE
-                  : MULTIPLICATION_SIGN_NONE);
-    }
-    if (isMultiplication() && SIZE > 0) {
-      // (a)*uv=(a) uv
-      if (CHILD(0).isUnit_exp())
-        return MULTIPLICATION_SIGN_SPACE;
-      if (CHILD(0).isUnknown_exp()) {
-        // (a)*"xy"z=(a) "xy"z, (a)*xy=(a)xy
-        return (namelen(CHILD(0).isPower() ? CHILD(0)[0] : CHILD(0), po, ips,
-                        NULL) > 1
-                    ? MULTIPLICATION_SIGN_SPACE
-                    : MULTIPLICATION_SIGN_NONE);
-      }
-    } else if (isDivision()) {
-      // (a)*(u1/u2)=(a) u1/u2
-      for (size_t i = 0; i < SIZE; i++) {
-        if (!CHILD(i).isUnit_exp()) {
-          return MULTIPLICATION_SIGN_OPERATOR;
-        }
-      }
-      return MULTIPLICATION_SIGN_SPACE;
-    }
-    // (a)*bc
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  // type of factor in front in this factor
-  int t = parent[index - 2].type();
-  // a^b*c (if b is not shown using superscript or similar)
-  if (flat_power && t == STRUCT_POWER)
-    return MULTIPLICATION_SIGN_OPERATOR;
-  // a^b*(c)=a^b (c)
-  if (par && t == STRUCT_POWER)
-    return MULTIPLICATION_SIGN_SPACE;
-  // a*(b)=a(b)
-  if (par)
-    return MULTIPLICATION_SIGN_NONE;
-  // check if involved names have only one character
-  bool abbr_prev = false, abbr_this = false;
-  int namelen_this = namelen(*this, po, ips, &abbr_this);
-  int namelen_prev = namelen(parent[index - 2], po, ips, &abbr_prev);
-  switch (t) {
-  case STRUCT_MULTIPLICATION: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_INVERSE: {
-  }
-  case STRUCT_DIVISION: {
-    if (flat_division)
-      return MULTIPLICATION_SIGN_OPERATOR;
-    return MULTIPLICATION_SIGN_SPACE;
-  }
-  case STRUCT_ADDITION: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_POWER: {
-    if (flat_power)
-      return MULTIPLICATION_SIGN_OPERATOR;
-    break;
-  }
-  case STRUCT_NEGATE: {
-    break;
-  }
-  case STRUCT_BITWISE_AND: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_BITWISE_OR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_BITWISE_XOR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_BITWISE_NOT: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_LOGICAL_AND: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_LOGICAL_OR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_LOGICAL_XOR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_LOGICAL_NOT: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_COMPARISON: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_FUNCTION: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_VECTOR: {
-    break;
-  }
-  case STRUCT_NUMBER: {
-    break;
-  }
-  case STRUCT_VARIABLE: {
-    break;
-  }
-  case STRUCT_ABORTED: {
-    break;
-  }
-  case STRUCT_SYMBOLIC: {
-    break;
-  }
-  case STRUCT_UNIT: {
-    if (m_type == STRUCT_UNIT) {
-      if (!po.limit_implicit_multiplication && !abbr_prev && !abbr_this) {
-        return MULTIPLICATION_SIGN_SPACE;
-      }
-      if (po.place_units_separately) {
-        return MULTIPLICATION_SIGN_OPERATOR_SHORT;
-      } else {
-        return MULTIPLICATION_SIGN_OPERATOR;
-      }
-    } else if (m_type == STRUCT_NUMBER) {
-      if (namelen_prev > 1) {
-        return MULTIPLICATION_SIGN_SPACE;
-      } else {
-        return MULTIPLICATION_SIGN_NONE;
-      }
-    }
-    // return MULTIPLICATION_SIGN_SPACE;
-  }
-  case STRUCT_UNDEFINED: {
-    break;
-  }
-  default: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  }
-  switch (m_type) {
-  case STRUCT_MULTIPLICATION: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_INVERSE: {
-  }
-  case STRUCT_DIVISION: {
-    return MULTIPLICATION_SIGN_SPACE;
-  }
-  case STRUCT_ADDITION: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_POWER: {
-    return CHILD(0).neededMultiplicationSign(
-        po, ips, parent, index, par, par_prev, flat_division, flat_power);
-  }
-  case STRUCT_NEGATE: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_BITWISE_AND: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_BITWISE_OR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_BITWISE_XOR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_BITWISE_NOT: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_LOGICAL_AND: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_LOGICAL_OR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_LOGICAL_XOR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_LOGICAL_NOT: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_COMPARISON: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_FUNCTION: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_VECTOR: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_NUMBER: {
-    if (t == STRUCT_VARIABLE && parent[index - 2].variable() ==
-                                    CALCULATOR->getVariableById(VARIABLE_ID_I))
-      return MULTIPLICATION_SIGN_NONE;
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_VARIABLE: {
-    if (!o_variable->isRegistered() &&
-        o_variable->getName(1).name.length() > 0 &&
-        o_variable->getName(1).name[0] >= '0' &&
-        o_variable->getName(1).name[0] <= '9')
-      return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  case STRUCT_ABORTED: {
-  }
-  case STRUCT_SYMBOLIC: {
-    if (po.limit_implicit_multiplication && t != STRUCT_NUMBER)
-      return MULTIPLICATION_SIGN_OPERATOR;
-    if (t != STRUCT_NUMBER &&
-        ((namelen_prev > 1 || namelen_this > 1) || equals(parent[index - 2])))
-      return MULTIPLICATION_SIGN_OPERATOR;
-    if (namelen_this > 1 || (m_type == STRUCT_SYMBOLIC && !po.allow_non_usable))
-      return MULTIPLICATION_SIGN_SPACE;
-    return MULTIPLICATION_SIGN_NONE;
-  }
-  case STRUCT_UNIT: {
-    if ((t == STRUCT_POWER && parent[index - 2][0].isUnit_exp()) ||
-        (o_unit == CALCULATOR->getDegUnit() && print(po) == SIGN_DEGREE)) {
-      return MULTIPLICATION_SIGN_NONE;
-    }
-    return MULTIPLICATION_SIGN_SPACE;
-  }
-  case STRUCT_UNDEFINED: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  default: {
-    return MULTIPLICATION_SIGN_OPERATOR;
-  }
-  }
+	// do not display anything on front of the first factor (this function is normally not called in this case)
+	if(index <= 1) return MULTIPLICATION_SIGN_NONE;
+	// short multiplication is disabled or number base might use digits other than 0-9, alawys show multiplication symbol
+	if(!po.short_multiplication || po.base > 10 || po.base < 2) return MULTIPLICATION_SIGN_OPERATOR;
+	// no multiplication sign between factors in parentheses
+	if(par_prev && par) return MULTIPLICATION_SIGN_NONE;
+	if(par_prev) {
+		// (a)*u=(a) u
+		if(is_unit_multiexp(*this)) return MULTIPLICATION_SIGN_SPACE;
+		if(isUnknown_exp()) {
+			// (a)*"xy"=(a) "xy", (a)*"xy"^b=(a) "xy"^b, (a)*x=(a)x, (a)*x^b=ax^b
+			return (namelen(isPower() ? CHILD(0) : *this, po, ips, NULL) > 1 ? MULTIPLICATION_SIGN_SPACE : MULTIPLICATION_SIGN_NONE);
+		}
+		if(isMultiplication() && SIZE > 0) {
+			// (a)*uv=(a) uv
+			if(CHILD(0).isUnit_exp()) return MULTIPLICATION_SIGN_SPACE;
+			if(CHILD(0).isUnknown_exp()) {
+				// (a)*"xy"z=(a) "xy"z, (a)*xy=(a)xy
+				return (namelen(CHILD(0).isPower() ? CHILD(0)[0] : CHILD(0), po, ips, NULL) > 1 ? MULTIPLICATION_SIGN_SPACE : MULTIPLICATION_SIGN_NONE);
+			}
+		} else if(isDivision()) {
+			// (a)*(u1/u2)=(a) u1/u2
+			for(size_t i = 0; i < SIZE; i++) {
+				if(!CHILD(i).isUnit_exp()) {
+					return MULTIPLICATION_SIGN_OPERATOR;
+				}
+			}
+			return MULTIPLICATION_SIGN_SPACE;
+		}
+		// (a)*bc
+		return MULTIPLICATION_SIGN_OPERATOR;
+	}
+	// type of factor in front in this factor
+	int t = parent[index - 2].type();
+	// a^b*c (if b is not shown using superscript or similar)
+	if(flat_power && t == STRUCT_POWER) {
+		if(!po.place_units_separately || !parent[index - 2].isUnit_exp()) return MULTIPLICATION_SIGN_OPERATOR;
+	}
+	// a^b*(c)=a^b (c)
+	if(par && t == STRUCT_POWER) return MULTIPLICATION_SIGN_SPACE;
+	// a*(b)=a(b)
+	if(par) return MULTIPLICATION_SIGN_NONE;
+	// check if involved names have only one character
+	bool abbr_prev = false, abbr_this = false;
+	int namelen_this = namelen(*this, po, ips, &abbr_this);
+	int namelen_prev = namelen(parent[index - 2], po, ips, &abbr_prev);
+	switch(t) {
+		case STRUCT_MULTIPLICATION: {break;}
+		case STRUCT_INVERSE: {}
+		case STRUCT_DIVISION: {if(flat_division) return MULTIPLICATION_SIGN_OPERATOR; return MULTIPLICATION_SIGN_SPACE;}
+		case STRUCT_ADDITION: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_POWER: {
+			if(m_type == STRUCT_UNIT && parent[index - 2][0].isUnit()) {
+				namelen(parent[index - 2], po, ips, &abbr_prev);
+				if(!flat_power && !po.limit_implicit_multiplication && !abbr_prev && !abbr_this) return MULTIPLICATION_SIGN_SPACE;
+				if(po.place_units_separately) return MULTIPLICATION_SIGN_OPERATOR_SHORT;
+				else return MULTIPLICATION_SIGN_OPERATOR;
+			}
+			break;
+		}
+		case STRUCT_NEGATE: {break;}
+		case STRUCT_BITWISE_AND: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_BITWISE_OR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_BITWISE_XOR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_BITWISE_NOT: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_LOGICAL_AND: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_LOGICAL_OR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_LOGICAL_XOR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_LOGICAL_NOT: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_COMPARISON: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_FUNCTION: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_VECTOR: {break;}
+		case STRUCT_NUMBER: {break;}
+		case STRUCT_VARIABLE: {break;}
+		case STRUCT_ABORTED: {break;}
+		case STRUCT_SYMBOLIC: {break;}
+		case STRUCT_UNIT: {
+			if(m_type == STRUCT_UNIT) {
+				if(!po.limit_implicit_multiplication && !abbr_prev && !abbr_this) {
+					return MULTIPLICATION_SIGN_SPACE;
+				}
+				if(po.place_units_separately) {
+					return MULTIPLICATION_SIGN_OPERATOR_SHORT;
+				} else {
+					return MULTIPLICATION_SIGN_OPERATOR;
+				}
+			} else if(m_type == STRUCT_NUMBER) {
+				if(namelen_prev > 1) {
+					return MULTIPLICATION_SIGN_SPACE;
+				} else {
+					return MULTIPLICATION_SIGN_NONE;
+				}
+			}
+			//return MULTIPLICATION_SIGN_SPACE;
+		}
+		case STRUCT_UNDEFINED: {break;}
+		default: {return MULTIPLICATION_SIGN_OPERATOR;}
+	}
+	switch(m_type) {
+		case STRUCT_MULTIPLICATION: {if(SIZE > 0) {return CHILD(0).neededMultiplicationSign(po, ips, parent, index, par, par_prev, flat_division, flat_power);} return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_INVERSE: {if(flat_division) {return m_one.neededMultiplicationSign(po, ips, parent, index, par, par_prev, flat_division, flat_power);} return MULTIPLICATION_SIGN_SPACE;}
+		case STRUCT_DIVISION: {if(flat_division) {return CHILD(0).neededMultiplicationSign(po, ips, parent, index, par, par_prev, flat_division, flat_power);} return MULTIPLICATION_SIGN_SPACE;}
+		case STRUCT_ADDITION: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_POWER: {return CHILD(0).neededMultiplicationSign(po, ips, parent, index, par, par_prev, flat_division, flat_power);}
+		case STRUCT_NEGATE: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_BITWISE_AND: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_BITWISE_OR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_BITWISE_XOR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_BITWISE_NOT: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_LOGICAL_AND: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_LOGICAL_OR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_LOGICAL_XOR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_LOGICAL_NOT: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_COMPARISON: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_FUNCTION: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_VECTOR: {return MULTIPLICATION_SIGN_OPERATOR;}
+		case STRUCT_NUMBER: {
+			if(t == STRUCT_VARIABLE && parent[index - 2].variable() == CALCULATOR->getVariableById(VARIABLE_ID_I)) return MULTIPLICATION_SIGN_NONE;
+			return MULTIPLICATION_SIGN_OPERATOR;
+		}
+		case STRUCT_VARIABLE: {
+			if(!o_variable->isRegistered() && o_variable->getName(1).name.length() > 0 && o_variable->getName(1).name[0] >= '0' && o_variable->getName(1).name[0] <= '9') return MULTIPLICATION_SIGN_OPERATOR;
+		}
+		case STRUCT_ABORTED: {}
+		case STRUCT_SYMBOLIC: {
+			if(po.limit_implicit_multiplication && t != STRUCT_NUMBER) return MULTIPLICATION_SIGN_OPERATOR;
+			if(t != STRUCT_NUMBER && ((namelen_prev > 1 || namelen_this > 1) || equals(parent[index - 2]))) return MULTIPLICATION_SIGN_OPERATOR;
+			if(namelen_this > 1) return MULTIPLICATION_SIGN_SPACE;
+			return MULTIPLICATION_SIGN_NONE;
+		}
+		case STRUCT_UNIT: {
+			if(o_unit == CALCULATOR->getDegUnit() && print(po) == SIGN_DEGREE) {
+				return MULTIPLICATION_SIGN_NONE;
+			}
+			return MULTIPLICATION_SIGN_SPACE;
+		}
+		case STRUCT_UNDEFINED: {return MULTIPLICATION_SIGN_OPERATOR;}
+		default: {return MULTIPLICATION_SIGN_OPERATOR;}
+	}
 }
 
 ostream &operator<<(ostream &os, const MathStructure &mstruct) {

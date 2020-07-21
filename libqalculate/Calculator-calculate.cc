@@ -1,8 +1,8 @@
 /*
     Qalculate
 
-    Copyright (C) 2003-2007, 2008, 2016-2019  Hanna Knutsson
-   (hanna.knutsson@protonmail.com)
+    SPDX-FileCopyrightText: © 2003-2008, 2016-2020 Hanna Knutsson <hanna.knutsson@protonmail.com>
+    SPDX-License-Identifier: GPL-2.0-or-later
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1838,169 +1838,167 @@ bool handle_where_expression(MathStructure &m, MathStructure &mstruct,
                     format_and_print(m).c_str(), NULL);
   return false;
 }
-MathStructure Calculator::calculate(string str, const EvaluationOptions &eo,
-                                    MathStructure *parsed_struct,
-                                    MathStructure *to_struct,
-                                    bool make_to_division) {
+MathStructure Calculator::calculate(string str, const EvaluationOptions &eo, MathStructure *parsed_struct, MathStructure *to_struct, bool make_to_division) {
 
-  string str2, str_where;
+	string str2, str_where;
+	
+	bool provided_to = false;
 
-  // retrieve expression after " to " and remove "to ..." from expression
-  if (make_to_division)
-    separateToExpression(str, str2, eo, true);
+	// retrieve expression after " to " and remove "to ..." from expression
+	if(make_to_division) separateToExpression(str, str2, eo, true);
 
-  // retrieve expression after " where " (or "/.") and remove "to ..." from
-  // expression
-  separateWhereExpression(str, str_where, eo);
+	// retrieve expression after " where " (or "/.") and remove "to ..." from expression
+	separateWhereExpression(str, str_where, eo);
 
-  // handle to expression provided as argument
-  Unit *u = NULL;
-  if (to_struct) {
-    // ignore if expression contains "to" expression
-    if (str2.empty()) {
-      if (to_struct->isSymbolic() && !to_struct->symbol().empty()) {
-        // if to_struct is symbol, treat as "to" string
-        str2 = to_struct->symbol();
-        remove_blank_ends(str2);
-      } else if (to_struct->isUnit()) {
-        // if to_struct is unit, convert to this unit (later)
-        u = to_struct->unit();
-      }
-    }
-    to_struct->setUndefined();
-  }
+	// handle to expression provided as argument
+	Unit *u = NULL;
+	if(to_struct) {
+		// ignore if expression contains "to" expression
+		if(str2.empty()) {
+			if(to_struct->isSymbolic() && !to_struct->symbol().empty()) {
+				// if to_struct is symbol, treat as "to" string
+				str2 = to_struct->symbol();
+				remove_blank_ends(str2);
+			} else if(to_struct->isUnit()) {
+				// if to_struct is unit, convert to this unit (later)
+				u = to_struct->unit();
+			}
+			provided_to = true;
+		}
+		to_struct->setUndefined();
+	}
 
-  MathStructure mstruct;
-  current_stage = MESSAGE_STAGE_PARSING;
-  size_t n_messages = messages.size();
+	MathStructure mstruct;
+	current_stage = MESSAGE_STAGE_PARSING;
+	size_t n_messages = messages.size();
 
-  // perform expression parsing
-  parse(&mstruct, str, eo.parse_options);
-  if (parsed_struct) {
-    // set parsed_struct to parsed expression with preserved formatting
-    beginTemporaryStopMessages();
-    ParseOptions po = eo.parse_options;
-    po.preserve_format = true;
-    parse(parsed_struct, str, po);
-    endTemporaryStopMessages();
-  }
+	// perform expression parsing
+	parse(&mstruct, str, eo.parse_options);
+	if(parsed_struct) {
+		// set parsed_struct to parsed expression with preserved formatting
+		beginTemporaryStopMessages();
+		ParseOptions po = eo.parse_options;
+		po.preserve_format = true;
+		parse(parsed_struct, str, po);
+		endTemporaryStopMessages();
+	}
 
-  // handle "where" expression
-  vector<UnknownVariable *> vars;
-  vector<MathStructure> varms;
-  if (!str_where.empty()) {
+	// handle "where" expression
+	vector<UnknownVariable*> vars;
+	vector<MathStructure> varms;
+	if(!str_where.empty()) {
 
-    // parse "where" expression
-    MathStructure where_struct;
-    parse(&where_struct, str_where, eo.parse_options);
+		// parse "where" expression
+		MathStructure where_struct;
+		parse(&where_struct, str_where, eo.parse_options);
 
-    current_stage = MESSAGE_STAGE_CALCULATION;
+		current_stage = MESSAGE_STAGE_CALCULATION;
 
-    // replace answer variables and functions in expression before performing
-    // any replacements from "where" epxression
-    calculate_ans(mstruct, eo);
+		// replace answer variables and functions in expression before performing any replacements from "where" epxression
+		calculate_ans(mstruct, eo);
 
-    string str_test = str_where;
-    remove_blanks(str_test);
+		string str_test = str_where;
+		remove_blanks(str_test);
 
-    // check if "where" expression includes function replacements
-    bool empty_func = str_test.find("()=") != string::npos;
+		// check if "where" expression includes function replacements
+		bool empty_func = str_test.find("()=") != string::npos;
 
-    if (mstruct.isComparison() ||
-        (mstruct.isFunction() &&
-         mstruct.function()->id() == FUNCTION_ID_SOLVE && mstruct.size() >= 1 &&
-         mstruct[0].isComparison())) {
-      beginTemporaryStopMessages();
-      MathStructure mbak(mstruct);
-      if (handle_where_expression(where_struct, mstruct, eo, vars, varms,
-                                  empty_func)) {
-        endTemporaryStopMessages(true);
-      } else {
-        endTemporaryStopMessages();
-        mstruct = mbak;
-        // if where expression handling fails we can add the parsed "where"
-        // expression using logical and, if the original expression is an
-        // equation
-        if (mstruct.isComparison())
-          mstruct.transform(STRUCT_LOGICAL_AND, where_struct);
-        else {
-          mstruct[0].transform(STRUCT_LOGICAL_AND, where_struct);
-          mstruct.childUpdated(1);
-        }
-      }
-    } else {
-      if (eo.approximation == APPROXIMATION_EXACT) {
-        EvaluationOptions eo2 = eo;
-        eo2.approximation = APPROXIMATION_TRY_EXACT;
-        handle_where_expression(where_struct, mstruct, eo2, vars, varms,
-                                empty_func);
-      } else {
-        handle_where_expression(where_struct, mstruct, eo, vars, varms,
-                                empty_func);
-      }
-    }
-  }
+		if(mstruct.isComparison() || (mstruct.isFunction() && mstruct.function()->id() == FUNCTION_ID_SOLVE && mstruct.size() >= 1 && mstruct[0].isComparison())) {
+			beginTemporaryStopMessages();
+			MathStructure mbak(mstruct);
+			if(handle_where_expression(where_struct, mstruct, eo, vars, varms, empty_func)) {
+				endTemporaryStopMessages(true);
+			} else {
+				endTemporaryStopMessages();
+				mstruct = mbak;
+				// if where expression handling fails we can add the parsed "where" expression using logical and,
+				// if the original expression is an equation
+				if(mstruct.isComparison()) mstruct.transform(STRUCT_LOGICAL_AND, where_struct);
+				else {mstruct[0].transform(STRUCT_LOGICAL_AND, where_struct); mstruct.childUpdated(1);}
+			}
+		} else {
+			if(eo.approximation == APPROXIMATION_EXACT) {
+				EvaluationOptions eo2 = eo;
+				eo2.approximation = APPROXIMATION_TRY_EXACT;
+				handle_where_expression(where_struct, mstruct, eo2, vars, varms, empty_func);
+			} else {
+				handle_where_expression(where_struct, mstruct, eo, vars, varms, empty_func);
+			}
+		}
+	}
 
-  current_stage = MESSAGE_STAGE_CALCULATION;
+	current_stage = MESSAGE_STAGE_CALCULATION;
 
-  // perform calculation
-  mstruct.eval(eo);
+	// perform calculation
+	mstruct.eval(eo);
 
-  current_stage = MESSAGE_STAGE_UNSET;
+	current_stage = MESSAGE_STAGE_UNSET;
 
-  if (!aborted()) {
-    // do unit conversion
-    bool b_units = mstruct.containsType(STRUCT_UNIT, true);
-    if (u) {
-      // convert to unit provided in to_struct
-      if (to_struct)
-        to_struct->set(u);
-      if (b_units) {
-        current_stage = MESSAGE_STAGE_CONVERSION;
-        mstruct.set(convert(mstruct, u, eo, false, false));
-        if (eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE)
-          mstruct.set(convertToMixedUnits(mstruct, eo));
-      }
-    } else if (!str2.empty()) {
-      // conversion using "to" expression
-      mstruct.set(convert(mstruct, str2, eo, to_struct));
-    } else if (b_units) {
-      // do automatic conversion
-      current_stage = MESSAGE_STAGE_CONVERSION;
-      switch (eo.auto_post_conversion) {
-      case POST_CONVERSION_OPTIMAL: {
-        mstruct.set(convertToOptimalUnit(mstruct, eo, false));
-        break;
-      }
-      case POST_CONVERSION_BASE: {
-        mstruct.set(convertToBaseUnits(mstruct, eo));
-        break;
-      }
-      case POST_CONVERSION_OPTIMAL_SI: {
-        mstruct.set(convertToOptimalUnit(mstruct, eo, true));
-        break;
-      }
-      default: {
-      }
-      }
-      if (eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE)
-        mstruct.set(convertToMixedUnits(mstruct, eo));
-    }
-  }
+	if(!aborted()) {
+		// do unit conversion
+		bool b_units = mstruct.containsType(STRUCT_UNIT, true);
+		if(u) {
+			// convert to unit provided in to_struct
+			if(to_struct) to_struct->set(u);
+			if(b_units) {
+				current_stage = MESSAGE_STAGE_CONVERSION;
+				mstruct.set(convert(mstruct, u, eo, false, false));
+				if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
+			}
+		} else if(!str2.empty()) {
+			// conversion using "to" expression
+			if(provided_to) {
+				mstruct.set(convert(mstruct, str2, eo, to_struct));
+			} else {
+				string str2b;
+				while(true) {
+					separateToExpression(str2, str2b, eo, true);
+					if(to_struct && !to_struct->isUndefined()) {
+						MathStructure mto;
+						mto.setUndefined();
+						mstruct.set(convert(mstruct, str2, eo, &mto));
+						if(!mto.isUndefined()) to_struct->multiply(mto, true);
+					} else {
+						mstruct.set(convert(mstruct, str2, eo, to_struct));
+					}
+					if(str2b.empty()) break;
+					str2 = str2b;
+				}
+			}
+		} else if(b_units) {
+			// do automatic conversion
+			current_stage = MESSAGE_STAGE_CONVERSION;
+			switch(eo.auto_post_conversion) {
+				case POST_CONVERSION_OPTIMAL: {
+					mstruct.set(convertToOptimalUnit(mstruct, eo, false));
+					break;
+				}
+				case POST_CONVERSION_BASE: {
+					mstruct.set(convertToBaseUnits(mstruct, eo));
+					break;
+				}
+				case POST_CONVERSION_OPTIMAL_SI: {
+					mstruct.set(convertToOptimalUnit(mstruct, eo, true));
+					break;
+				}
+				default: {}
+			}
+			if(eo.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) mstruct.set(convertToMixedUnits(mstruct, eo));
+		}
+	}
 
-  // clean up all new messages (removes "wide interval" warning if final value
-  // does not contains any wide interval)
-  cleanMessages(mstruct, n_messages + 1);
+	// clean up all new messages (removes "wide interval" warning if final value does not contains any wide interval)
+	cleanMessages(mstruct, n_messages + 1);
 
-  current_stage = MESSAGE_STAGE_UNSET;
+	current_stage = MESSAGE_STAGE_UNSET;
 
-  // replace variables generated from "where" expression
-  for (size_t i = 0; i < vars.size(); i++) {
-    mstruct.replace(vars[i], varms[i]);
-    vars[i]->destroy();
-  }
+	// replace variables generated from "where" expression
+	for(size_t i = 0; i < vars.size(); i++) {
+		mstruct.replace(vars[i], varms[i]);
+		vars[i]->destroy();
+	}
 
-  return mstruct;
+	return mstruct;
 }
 MathStructure Calculator::calculate(const MathStructure &mstruct_to_calculate,
                                     const EvaluationOptions &eo,

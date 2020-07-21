@@ -1158,6 +1158,15 @@ bool addablePower(const MathStructure &mstruct, const EvaluationOptions &eo) {
 	return eo.allow_complex && mstruct[1].isNumber() && mstruct[1].number().isRational() && mstruct[1].number().denominatorIsEven();
 }
 
+int cmp_num_abs_2_to_den(const Number &nr) {
+	mpz_t z_num;
+	mpz_init(z_num);
+	mpz_mul_ui(z_num, mpq_numref(nr.internalRational()), 2);
+	int i = mpz_cmpabs(z_num, mpq_denref(nr.internalRational()));
+	mpz_clear(z_num);
+	return i;
+}
+
 int MathStructure::merge_multiplication(MathStructure &mstruct, const EvaluationOptions &eo, MathStructure *mparent, size_t index_this, size_t index_mstruct, bool reversed, bool do_append) {
 	// test if two factors can be merged
 	if(mstruct.type() == STRUCT_NUMBER && m_type == STRUCT_NUMBER) {
@@ -2076,6 +2085,46 @@ int MathStructure::merge_multiplication(MathStructure &mstruct, const Evaluation
 								}
 								return 1;
 							} else {
+								if(CHILD(0).isNumber() && CHILD(0).number().isRational() && !CHILD(0).number().isZero()) {
+									// avoid endless loop (e.g. a^(2/3*x)/a^x)
+									bool b1n = false, b1m = false;
+									bool b2n = false, b2m = false;
+									if(CHILD(1).isMultiplication() && CHILD(1).size() > 0) {
+										if(mstruct[1].isMultiplication() && mstruct[1].size() > 0) {
+											size_t i1 = 0, i2 = 0;
+											if(CHILD(1)[0].isNumber()) i1 = 1;
+											if(mstruct[1][0].isNumber()) i2 = 1;
+											if((i1 || i2) && SIZE - i1 == mstruct[1].size() - i2) {
+												b1n = true;
+												for(size_t i = i1; i < SIZE; i++) {
+													if(CHILD(1)[i] != mstruct[1][i + i2 - i1]) {
+														b1n = false;
+														break;
+													}
+												}
+											}
+											if(b1n) {
+												b1m = (i1 == 1 && CHILD(1)[0].number().isMinusOne());
+												b1n = (!b1m && i1 == 1 && CHILD(1)[0].number().isRational() && CHILD(1)[0].number().isFraction());
+												b2m = (i2 == 1 && mstruct[1][0].number().isMinusOne());
+												b2n = (!b2m && i2 == 1 && mstruct[1][0].number().isRational() && mstruct[1][0].number().isFraction());
+											}
+										} else if(CHILD(1).size() == 2 && CHILD(1)[0].isNumber() && CHILD(1)[0].number().isFraction() && CHILD(1)[0].number().isRational() && CHILD(1)[0].number().isNegative() && CHILD(1)[1] == mstruct[1]) {
+											b1n = true;
+										}
+									} else if(mstruct[1].isMultiplication() && mstruct[1].size() == 2 && mstruct[1][0].isNumber() && mstruct[1][0].number().isRational() && mstruct[1][0].number().isFraction() && mstruct[1][0].number().isNegative() && mstruct[1][1] == CHILD(1)) {
+										b2n = true;
+									}
+									if(b1n && !b2m && !b2n) {
+										if(cmp_num_abs_2_to_den(CHILD(1)[0].number()) < 0) return -1;
+									} else if(b2n && !b1m && !b1n) {
+										if(cmp_num_abs_2_to_den(mstruct[1][0].number()) < 0) return -1;
+									} else if(b1n && b2m && CHILD(1)[0].number().isPositive()) {
+										if(cmp_num_abs_2_to_den(CHILD(1)[0].number()) <= 0) return -1;
+									} else if(b2n && b1m && mstruct[1][0].number().isPositive()) {
+										if(cmp_num_abs_2_to_den(mstruct[1][0].number()) <= 0) return -1;
+									}
+								}
 								MathStructure mstruct2(CHILD(1));
 								if(mstruct2.calculateAdd(mstruct[1], eo)) {
 									// test and warn for possible division by zero (test both base and exponents)
@@ -2896,6 +2945,24 @@ int MathStructure::merge_power(MathStructure &mstruct, const EvaluationOptions &
 			return 1;
 		}
 		if(!o_number.isMinusOne() && !o_number.isOne() && mstruct.number().isRational() && !mstruct.isInteger()) {
+			if(o_number.isRational() && !o_number.isZero() && mstruct.number().isFraction()) {
+				if(mstruct.number().isNegative() && cmp_num_abs_2_to_den(mstruct.number()) >= 0) {
+					// a^(-b)=a^(-b+1)/a
+					Number nmul(o_number);
+					nmul.recip();
+					mstruct.number()++;
+					calculateRaise(mstruct, eo);
+					calculateMultiply(nmul, eo);
+					return 1;
+				} else if(mstruct.number().isPositive() && cmp_num_abs_2_to_den(mstruct.number()) > 0) {
+					// a^b=a^(b-1)*a
+					Number nmul(o_number);
+					mstruct.number()--;
+					calculateRaise(mstruct, eo);
+					calculateMultiply(nmul, eo);
+					return 1;
+				}
+			}
 			if(o_number.isNegative()) {
 				// (-a)^b=(-1)^b*a^b
 				MathStructure mtest(*this);
@@ -2908,23 +2975,6 @@ int MathStructure::merge_power(MathStructure &mstruct, const EvaluationOptions &
 					return 1;
 				}
 			} else {
-				if(o_number.isRational() && mstruct.number().isNegative() && mstruct.number().isFraction() && mstruct.number().numerator() * -2 >= mstruct.number().denominator()) {
-					// a^(-b)=a^(-b+1)/a
-					Number nmul(o_number);
-					nmul.recip();
-					mstruct.number()++;
-					calculateRaise(mstruct, eo);
-					calculateMultiply(nmul, eo);
-					return 1;
-				}
-				if(o_number.isRational() && mstruct.number().isPositive() && mstruct.number().isFraction() && mstruct.number().numerator() * 2 > mstruct.number().denominator()) {
-					// a^b=a^(b-1)*a
-					Number nmul(o_number);
-					mstruct.number()--;
-					calculateRaise(mstruct, eo);
-					calculateMultiply(nmul, eo);
-					return 1;
-				}
 				Number exp_num(mstruct.number().numerator());
 				if(!exp_num.isOne() && !exp_num.isMinusOne() && o_number.isPositive() && test_if_numerator_not_too_large(o_number, exp_num)) {
 					// a^(n/d)=(a^n)^(1/d)
