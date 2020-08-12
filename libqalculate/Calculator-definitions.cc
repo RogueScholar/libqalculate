@@ -853,19 +853,40 @@ bool Calculator::loadLocalDefinitions() {
       xmlFree(lang);                                                           \
   }
 
-#define ITEM_INIT_DTH                                                          \
-  hidden = false;                                                              \
-  title = "";                                                                  \
-  best_title = false;                                                          \
-  next_best_title = false;                                                     \
-  description = "";                                                            \
-  best_description = false;                                                    \
-  next_best_description = false;                                               \
-  if (fulfilled_translation > 0)                                               \
-    require_translation = false;                                               \
-  else {                                                                       \
-    XML_GET_TRUE_FROM_PROP(cur, "require_translation", require_translation)    \
-  }
+						XML_GET_LOCALE_STRING_FROM_TEXT(child, description, best_description, next_best_description)\
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "title")) {\
+						XML_GET_LOCALE_STRING_FROM_TEXT_REQ(child, title, best_title, next_best_title)\
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "hidden")) {\
+						XML_GET_TRUE_FROM_TEXT(child, hidden);\
+					}
+
+#define ITEM_READ_NAMES \
+					if(new_names && ((best_names.empty() && fulfilled_translation != 2) || default_names.empty()) && !xmlStrcmp(child->name, (const xmlChar*) "names")) {\
+						value = xmlNodeListGetString(doc, child->xmlChildrenNode, 1);\
+ 						lang = xmlNodeGetLang(child);\
+						if(!lang) {\
+							if(default_names.empty()) {\
+								if(value) {\
+									default_names = (char*) value;\
+									remove_blank_ends(default_names);\
+								} else {\
+									default_names = "";\
+								}\
+							}\
+						} else if(best_names.empty()) {\
+							if(locale == (char*) lang) {\
+								if(value) {\
+									best_names = (char*) value;\
+									remove_blank_ends(best_names);\
+								} else {\
+									best_names = " ";\
+								}\
+							} else if(nextbest_names.empty() && strlen((char*) lang) >= 2 && fulfilled_translation == 0 && lang[0] == localebase[0] && lang[1] == localebase[1]) {\
+								if(value) {\
+									nextbest_names = (char*) value;\
+									remove_blank_ends(nextbest_names);\
+								} else {\
+									nextbest_names = " ";\
 
 #define ITEM_INIT_NAME                                                         \
   if (new_names) {                                                             \
@@ -911,6 +932,69 @@ bool Calculator::loadLocalDefinitions() {
       ref_names[i].name = "";                                                  \
     }                                                                          \
   }
+
+								}\
+							} else if(nextbest_names.empty() && default_names.empty() && value && !require_translation) {\
+								nextbest_names = (char*) value;\
+								remove_blank_ends(nextbest_names);\
+							}\
+						}\
+						if(value) xmlFree(value);\
+						if(lang) xmlFree(lang);\
+					}
+
+#define ITEM_INIT_DTH \
+					hidden = -1;\
+					title = ""; best_title = false; next_best_title = false;\
+					description = ""; best_description = false; next_best_description = false;\
+					if(fulfilled_translation > 0) require_translation = false; \
+					else {XML_GET_TRUE_FROM_PROP(cur, "require_translation", require_translation)}
+
+#define ITEM_INIT_NAME \
+					if(new_names) {\
+						best_names = "";\
+						nextbest_names = "";\
+						default_names = "";\
+					} else {\
+						for(size_t i = 0; i < 10; i++) {\
+							best_name[i] = false;\
+							nextbest_name[i] = false;\
+						}\
+					}
+
+
+#define ITEM_SET_NAME_1(validation)\
+					if(!name.empty() && validation(name, version_numbers, is_user_defs)) {\
+						ename.name = name;\
+						ename.unicode = false;\
+						ename.abbreviation = false;\
+						ename.case_sensitive = text_length_is_one(ename.name);\
+						ename.suffix = false;\
+						ename.avoid_input = false;\
+						ename.completion_only = false;\
+						ename.reference = true;\
+						ename.plural = false;\
+						item->addName(ename);\
+					}
+
+#define ITEM_SET_NAME_2\
+					for(size_t i = 0; i < 10; i++) {\
+						if(!names[i].name.empty()) {\
+							item->addName(names[i], i + 1);\
+							names[i].name = "";\
+						} else if(!ref_names[i].name.empty()) {\
+							item->addName(ref_names[i], i + 1);\
+							ref_names[i].name = "";\
+						}\
+					}
+
+#define ITEM_SET_NAME_3\
+					for(size_t i = 0; i < 10; i++) {\
+						if(!ref_names[i].name.empty()) {\
+							item->addName(ref_names[i]);\
+							ref_names[i].name = "";\
+						}\
+					}
 
 #define ITEM_SET_DTH                                                           \
   item->setDescription(description);                                           \
@@ -996,6 +1080,82 @@ bool Calculator::loadLocalDefinitions() {
   }                                                                            \
   item->clearNames();
 
+#define BUILTIN_NAMES_2\
+				if(!is_user_defs) {\
+					item->setRegistered(true);\
+					nameChanged(item);\
+				}
+
+#define ITEM_CLEAR_NAMES\
+					for(size_t i = 0; i < 10; i++) {\
+						if(!names[i].name.empty()) {\
+							names[i].name = "";\
+						}\
+						if(!ref_names[i].name.empty()) {\
+							ref_names[i].name = "";\
+						}\
+					}
+
+int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool check_duplicates) {
+
+	xmlDocPtr doc;
+	xmlNodePtr cur, child, child2, child3;
+	string version, stmp, name, uname, type, svalue, sexp, plural, countries, singular, category_title, category, description, title, inverse, suncertainty, base, argname, usystem;
+	bool unc_rel;
+	bool best_title, next_best_title, best_category_title, next_best_category_title, best_description, next_best_description;
+	bool best_plural, next_best_plural, best_singular, next_best_singular, best_argname, next_best_argname, best_countries, next_best_countries;
+	bool best_proptitle, next_best_proptitle, best_propdescr, next_best_propdescr;
+	string proptitle, propdescr;
+	ExpressionName names[10];
+	ExpressionName ref_names[10];
+	string prop_names[10];
+	string ref_prop_names[10];
+	bool best_name[10];
+	bool nextbest_name[10];
+	string best_names, nextbest_names, default_names;
+	string best_prop_names, nextbest_prop_names, default_prop_names;
+	int name_index, prec;
+	ExpressionName ename;
+
+	string locale;
+#ifdef _WIN32
+	WCHAR wlocale[LOCALE_NAME_MAX_LENGTH];
+	if(LCIDToLocaleName(LOCALE_USER_DEFAULT, wlocale, LOCALE_NAME_MAX_LENGTH, 0) != 0) locale = utf8_encode(wlocale);
+	gsub("-", "_", locale);
+#else
+	char *clocale = setlocale(LC_MESSAGES, NULL);
+	if(clocale) locale = clocale;
+#endif
+
+	if(b_ignore_locale || locale == "POSIX" || locale == "C") {
+		locale = "";
+	} else {
+		size_t i = locale.find('.');
+		if(i != string::npos) locale = locale.substr(0, i);
+	}
+
+	int fulfilled_translation = 0;
+	string localebase;
+	if(locale.length() > 2) {
+		localebase = locale.substr(0, 2);
+		if(locale == "en_US") {
+			fulfilled_translation = 2;
+		} else if(localebase == "en") {
+			fulfilled_translation = 1;
+		}
+	} else {
+		localebase = locale;
+		if(locale == "en") {
+			fulfilled_translation = 2;
+		}
+	}
+	while(localebase.length() < 2) {
+		localebase += " ";
+		fulfilled_translation = 2;
+	}
+
+	int exponent = 1, litmp = 0, mix_priority = 0, mix_min = 0;
+
 #define BUILTIN_UNIT_NAMES_1                                                   \
   if (!is_user_defs)                                                           \
     item->setRegistered(false);                                                \
@@ -1065,1713 +1225,1437 @@ int Calculator::loadDefinitions(const char *file_name, bool is_user_defs,
   int name_index, prec;
   ExpressionName ename;
 
-  string locale;
-#ifdef _WIN32
-  WCHAR wlocale[LOCALE_NAME_MAX_LENGTH];
-  if (LCIDToLocaleName(LOCALE_USER_DEFAULT, wlocale, LOCALE_NAME_MAX_LENGTH,
-                       0) != 0)
-    locale = utf8_encode(wlocale);
-  gsub("-", "_", locale);
+	bool active = false, b = false, require_translation = false, use_with_prefixes = false, use_with_prefixes_set = false;
+	int hidden = -1;
+	Number nr;
+	ExpressionItem *item;
+	MathFunction *f;
+	Variable *v;
+	Unit *u;
+	AliasUnit *au;
+	CompositeUnit *cu;
+	Prefix *p;
+	Argument *arg;
+	DataSet *dc;
+	DataProperty *dp;
+	int itmp;
+	IntegerArgument *iarg;
+	NumberArgument *farg;
+	xmlChar *value, *lang, *value2;
+	int in_unfinished = 0;
+	bool done_something = false;
+#ifdef COMPILED_DEFINITIONS
+	if(strstr(file_name, "resource:") == file_name) {
+		doc = NULL;
+		GFile *f = g_file_new_for_uri(file_name);
+		if(f) {
+			GFileInputStream *s = g_file_read(f, NULL, NULL);
+			if(s) {
+				int res, size = 1024;
+				char chars[1024];
+				xmlParserCtxtPtr ctxt;
+				res = g_input_stream_read(G_INPUT_STREAM(s), chars, 4, NULL, NULL);
+				if(res > 0) {
+					ctxt = xmlCreatePushParserCtxt(NULL, NULL, chars, res, file_name);
+					while((res = g_input_stream_read(G_INPUT_STREAM(s), chars, size, NULL, NULL)) > 0) {
+						xmlParseChunk(ctxt, chars, res, 0);
+					}
+					xmlParseChunk(ctxt, chars, 0, 1);
+					doc = ctxt->myDoc;
+					xmlFreeParserCtxt(ctxt);
+				}
+			}
+		}
+	} else {
+		doc = xmlParseFile(file_name);
+	}
 #else
-  char *clocale = setlocale(LC_MESSAGES, NULL);
-  if (clocale)
-    locale = clocale;
+	doc = xmlParseFile(file_name);
 #endif
+	if(doc == NULL) {
+		return false;
+	}
+	cur = xmlDocGetRootElement(doc);
+	if(cur == NULL) {
+		xmlFreeDoc(doc);
+		return false;
+	}
+	while(cur != NULL) {
+		if(!xmlStrcmp(cur->name, (const xmlChar*) "QALCULATE")) {
+			XML_GET_STRING_FROM_PROP(cur, "version", version)
+			break;
+		}
+		cur = cur->next;
+	}
+	if(cur == NULL) {
+		error(true, _("File not identified as Qalculate! definitions file: %s."), file_name, NULL);
+		xmlFreeDoc(doc);
+		return false;
+	}
+	int version_numbers[] = {3, 12, 1};
+	parse_qalculate_version(version, version_numbers);
 
-  if (b_ignore_locale || locale == "POSIX" || locale == "C") {
-    locale = "";
-  } else {
-    size_t i = locale.find('.');
-    if (i != string::npos)
-      locale = locale.substr(0, i);
-  }
+	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);
 
-  int fulfilled_translation = 0;
-  string localebase;
-  if (locale.length() > 2) {
-    localebase = locale.substr(0, 2);
-    if (locale == "en_US") {
-      fulfilled_translation = 2;
-    } else if (localebase == "en") {
-      fulfilled_translation = 1;
-    }
-  } else {
-    localebase = locale;
-    if (locale == "en") {
-      fulfilled_translation = 2;
-    }
-  }
-  while (localebase.length() < 2) {
-    localebase += " ";
-    fulfilled_translation = 2;
-  }
+	ParseOptions po;
 
-  int exponent = 1, litmp = 0, mix_priority = 0, mix_min = 0;
-  bool active = false, hidden = false, b = false, require_translation = false,
-       use_with_prefixes = false, use_with_prefixes_set = false;
-  Number nr;
-  ExpressionItem *item;
-  MathFunction *f;
-  Variable *v;
-  Unit *u;
-  AliasUnit *au;
-  CompositeUnit *cu;
-  Prefix *p;
-  Argument *arg;
-  DataSet *dc;
-  DataProperty *dp;
-  int itmp;
-  IntegerArgument *iarg;
-  NumberArgument *farg;
-  xmlChar *value, *lang, *value2;
-  int in_unfinished = 0;
-  bool done_something = false;
-  doc = xmlParseFile(file_name);
-  if (doc == NULL) {
-    return false;
-  }
-  cur = xmlDocGetRootElement(doc);
-  if (cur == NULL) {
-    xmlFreeDoc(doc);
-    return false;
-  }
-  while (cur != NULL) {
-    if (!xmlStrcmp(cur->name, (const xmlChar *)"QALCULATE")) {
-      XML_GET_STRING_FROM_PROP(cur, "version", version)
-      break;
-    }
-    cur = cur->next;
-  }
-  if (cur == NULL) {
-    error(true, _("File not identified as Qalculate! definitions file: %s."),
-          file_name, NULL);
-    xmlFreeDoc(doc);
-    return false;
-  }
-  int version_numbers[] = {3, 9, 0};
-  parse_qalculate_version(version, version_numbers);
+	vector<xmlNodePtr> unfinished_nodes;
+	vector<string> unfinished_cats;
+	queue<xmlNodePtr> sub_items;
+	vector<queue<xmlNodePtr> > nodes;
 
-  bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 ||
-                   (version_numbers[1] == 9 && version_numbers[2] >= 4);
+	category = "";
+	nodes.resize(1);
 
-  ParseOptions po;
+	Unit *u_usd = getUnit("USD");
 
-  vector<xmlNodePtr> unfinished_nodes;
-  vector<string> unfinished_cats;
-  queue<xmlNodePtr> sub_items;
-  vector<queue<xmlNodePtr>> nodes;
-
-  category = "";
-  nodes.resize(1);
-
-  Unit *u_usd = getUnit("USD");
-
-  while (true) {
-    if (!in_unfinished) {
-      category_title = "";
-      best_category_title = false;
-      next_best_category_title = false;
-      child = cur->xmlChildrenNode;
-      while (child != NULL) {
-        if (!xmlStrcmp(child->name, (const xmlChar *)"title")) {
-          XML_GET_LOCALE_STRING_FROM_TEXT(child, category_title,
-                                          best_category_title,
-                                          next_best_category_title)
-        } else if (!xmlStrcmp(child->name, (const xmlChar *)"category")) {
-          nodes.back().push(child);
-        } else {
-          sub_items.push(child);
-        }
-        child = child->next;
-      }
-      if (!category.empty()) {
-        category += "/";
-      }
-      if (!category_title.empty() && category_title[0] == '!') {
-
-        size_t i = category_title.find('!', 1);
-        if (i == string::npos) {
-          category += category_title;
-        } else if (i + 1 < category_title.length()) {
-          category +=
-              category_title.substr(i + 1, category_title.length() - (i + 1));
-        }
-      } else {
-        category += category_title;
-      }
-    }
-    while (!sub_items.empty() || (in_unfinished && cur)) {
-      if (!in_unfinished) {
-        cur = sub_items.front();
-        sub_items.pop();
-      }
-      if (!xmlStrcmp(cur->name, (const xmlChar *)"activate")) {
-        XML_GET_STRING_FROM_TEXT(cur, name)
-        ExpressionItem *item = getInactiveExpressionItem(name);
-        if (item && !item->isLocal()) {
-          item->setActive(true);
-          done_something = true;
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"deactivate")) {
-        XML_GET_STRING_FROM_TEXT(cur, name)
-        ExpressionItem *item = getActiveExpressionItem(name);
-        if (item && !item->isLocal()) {
-          item->setActive(false);
-          done_something = true;
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"function")) {
-        if (VERSION_BEFORE(0, 6, 3)) {
-          XML_GET_STRING_FROM_PROP(cur, "name", name)
-        } else {
-          name = "";
-        }
-        XML_GET_FALSE_FROM_PROP(cur, "active", active)
-        f = new UserFunction(category, "", "", is_user_defs, 0, "", "", 0,
-                             active);
-        item = f;
-        done_something = true;
-        child = cur->xmlChildrenNode;
-        ITEM_INIT_DTH
-        ITEM_INIT_NAME
-        while (child != NULL) {
-          if (!xmlStrcmp(child->name, (const xmlChar *)"expression")) {
-            XML_DO_FROM_TEXT(child, ((UserFunction *)f)->setFormula);
-            XML_GET_PREC_FROM_PROP(child, prec)
-            f->setPrecision(prec);
-            XML_GET_APPROX_FROM_PROP(child, b)
-            f->setApproximate(b);
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"condition")) {
-            XML_DO_FROM_TEXT(child, f->setCondition);
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"subfunction")) {
-            XML_GET_FALSE_FROM_PROP(child, "precalculate", b);
-            value = xmlNodeListGetString(doc, child->xmlChildrenNode, 1);
-            if (value)
-              ((UserFunction *)f)->addSubfunction((char *)value, b);
-            else
-              ((UserFunction *)f)->addSubfunction("", true);
-            if (value)
-              xmlFree(value);
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"argument")) {
-            farg = NULL;
-            iarg = NULL;
-            XML_GET_STRING_FROM_PROP(child, "type", type);
-            if (type == "text") {
-              arg = new TextArgument();
-            } else if (type == "symbol") {
-              arg = new SymbolicArgument();
-            } else if (type == "date") {
-              arg = new DateArgument();
-            } else if (type == "integer") {
-              iarg = new IntegerArgument();
-              arg = iarg;
-            } else if (type == "number") {
-              farg = new NumberArgument();
-              arg = farg;
-            } else if (type == "vector") {
-              arg = new VectorArgument();
-            } else if (type == "matrix") {
-              arg = new MatrixArgument();
-            } else if (type == "boolean") {
-              arg = new BooleanArgument();
-            } else if (type == "function") {
-              arg = new FunctionArgument();
-            } else if (type == "unit") {
-              arg = new UnitArgument();
-            } else if (type == "variable") {
-              arg = new VariableArgument();
-            } else if (type == "object") {
-              arg = new ExpressionItemArgument();
-            } else if (type == "angle") {
-              arg = new AngleArgument();
-            } else if (type == "data-object") {
-              arg = new DataObjectArgument(NULL, "");
-            } else if (type == "data-property") {
-              arg = new DataPropertyArgument(NULL, "");
-            } else {
-              arg = new Argument();
-            }
-            child2 = child->xmlChildrenNode;
-            argname = "";
-            best_argname = false;
-            next_best_argname = false;
-            while (child2 != NULL) {
-              if (!xmlStrcmp(child2->name, (const xmlChar *)"title")) {
-                XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname,
-                                                next_best_argname)
-              } else if (!xmlStrcmp(child2->name, (const xmlChar *)"min")) {
-                if (farg) {
-                  XML_DO_FROM_TEXT(child2, nr.set);
-                  farg->setMin(&nr);
-                  XML_GET_FALSE_FROM_PROP(child, "include_equals", b)
-                  farg->setIncludeEqualsMin(b);
-                } else if (iarg) {
-                  XML_GET_STRING_FROM_TEXT(child2, stmp);
-                  Number integ(stmp);
-                  iarg->setMin(&integ);
-                }
-              } else if (!xmlStrcmp(child2->name, (const xmlChar *)"max")) {
-                if (farg) {
-                  XML_DO_FROM_TEXT(child2, nr.set);
-                  farg->setMax(&nr);
-                  XML_GET_FALSE_FROM_PROP(child, "include_equals", b)
-                  farg->setIncludeEqualsMax(b);
-                } else if (iarg) {
-                  XML_GET_STRING_FROM_TEXT(child2, stmp);
-                  Number integ(stmp);
-                  iarg->setMax(&integ);
-                }
-              } else if (farg &&
-                         !xmlStrcmp(child2->name,
-                                    (const xmlChar *)"complex_allowed")) {
-                XML_GET_FALSE_FROM_TEXT(child2, b);
-                farg->setComplexAllowed(b);
-              } else if (!xmlStrcmp(child2->name,
-                                    (const xmlChar *)"condition")) {
-                XML_DO_FROM_TEXT(child2, arg->setCustomCondition);
-              } else if (!xmlStrcmp(child2->name,
-                                    (const xmlChar *)"matrix_allowed")) {
-                XML_GET_TRUE_FROM_TEXT(child2, b);
-                arg->setMatrixAllowed(b);
-              } else if (!xmlStrcmp(child2->name,
-                                    (const xmlChar *)"zero_forbidden")) {
-                XML_GET_TRUE_FROM_TEXT(child2, b);
-                arg->setZeroForbidden(b);
-              } else if (!xmlStrcmp(child2->name, (const xmlChar *)"test")) {
-                XML_GET_FALSE_FROM_TEXT(child2, b);
-                arg->setTests(b);
-              } else if (!xmlStrcmp(child2->name,
-                                    (const xmlChar *)"handle_vector")) {
-                XML_GET_FALSE_FROM_TEXT(child2, b);
-                arg->setHandleVector(b);
-              } else if (!xmlStrcmp(child2->name, (const xmlChar *)"alert")) {
-                XML_GET_FALSE_FROM_TEXT(child2, b);
-                arg->setAlerts(b);
-              }
-              child2 = child2->next;
-            }
-            if (!argname.empty() && argname[0] == '!') {
-              size_t i = argname.find('!', 1);
-              if (i == string::npos) {
-                arg->setName(argname);
-              } else if (i + 1 < argname.length()) {
-                arg->setName(argname.substr(i + 1, argname.length() - (i + 1)));
-              }
-            } else {
-              arg->setName(argname);
-            }
-            itmp = 1;
-            XML_GET_INT_FROM_PROP(child, "index", itmp);
-            f->setArgumentDefinition(itmp, arg);
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"example")) {
-            XML_DO_FROM_TEXT(child, f->setExample);
-          } else
-            ITEM_READ_NAME(functionNameIsValid)
-          else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-        }
-        if (new_names) {
-          ITEM_SET_BEST_NAMES(functionNameIsValid)
-          ITEM_SET_REFERENCE_NAMES(functionNameIsValid)
-        } else {
-          ITEM_SET_NAME_1(functionNameIsValid)
-          ITEM_SET_NAME_2
-          ITEM_SET_NAME_3
-        }
-        ITEM_SET_DTH
-        if (check_duplicates && !is_user_defs) {
-          for (size_t i = 1; i <= f->countNames();) {
-            if (getActiveFunction(f->getName(i).name))
-              f->removeName(i);
-            else
-              i++;
-          }
-        }
-        if (f->countNames() == 0) {
-          f->destroy();
-          f = NULL;
-        } else {
-          f->setChanged(false);
-          addFunction(f, true, is_user_defs);
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"dataset") ||
-                 !xmlStrcmp(cur->name, (const xmlChar *)"builtin_dataset")) {
-        bool builtin =
-            !xmlStrcmp(cur->name, (const xmlChar *)"builtin_dataset");
-        XML_GET_FALSE_FROM_PROP(cur, "active", active)
-        if (builtin) {
-          XML_GET_STRING_FROM_PROP(cur, "name", name)
-          dc = getDataSet(name);
-          if (!dc) {
-            goto after_load_object;
-          }
-          dc->setCategory(category);
-        } else {
-          dc = new DataSet(category, "", "", "", "", is_user_defs);
-        }
-        item = dc;
-        done_something = true;
-        child = cur->xmlChildrenNode;
-        ITEM_INIT_DTH
-        ITEM_INIT_NAME
-        while (child != NULL) {
-          if (!xmlStrcmp(child->name, (const xmlChar *)"property")) {
-            dp = new DataProperty(dc);
-            child2 = child->xmlChildrenNode;
-            if (new_names) {
-              default_prop_names = "";
-              best_prop_names = "";
-              nextbest_prop_names = "";
-            } else {
-              for (size_t i = 0; i < 10; i++) {
-                best_name[i] = false;
-                nextbest_name[i] = false;
-              }
-            }
-            proptitle = "";
-            best_proptitle = false;
-            next_best_proptitle = false;
-            propdescr = "";
-            best_propdescr = false;
-            next_best_propdescr = false;
-            while (child2 != NULL) {
-              if (!xmlStrcmp(child2->name, (const xmlChar *)"title")) {
-                XML_GET_LOCALE_STRING_FROM_TEXT(
-                    child2, proptitle, best_proptitle, next_best_proptitle)
-              } else if (!new_names &&
-                         !xmlStrcmp(child2->name, (const xmlChar *)"name")) {
-                name_index = 1;
-                XML_GET_INT_FROM_PROP(child2, "index", name_index)
-                if (name_index > 0 && name_index <= 10) {
-                  name_index--;
-                  prop_names[name_index] = "";
-                  ref_prop_names[name_index] = "";
-                  value2 = NULL;
-                  child3 = child2->xmlChildrenNode;
-                  while (child3 != NULL) {
-                    if ((!best_name[name_index] ||
-                         (ref_prop_names[name_index].empty() &&
-                          !locale.empty())) &&
-                        !xmlStrcmp(child3->name, (const xmlChar *)"name")) {
-                      lang = xmlNodeGetLang(child3);
-                      if (!lang) {
-                        value2 = xmlNodeListGetString(
-                            doc, child3->xmlChildrenNode, 1);
-                        if (locale.empty()) {
-                          best_name[name_index] = true;
-                          if (value2)
-                            prop_names[name_index] = (char *)value2;
-                          else
-                            prop_names[name_index] = "";
-                        } else {
-                          if (!best_name[name_index] &&
-                              !nextbest_name[name_index]) {
-                            if (value2)
-                              prop_names[name_index] = (char *)value2;
-                            else
-                              prop_names[name_index] = "";
-                          }
-                          if (value2)
-                            ref_prop_names[name_index] = (char *)value2;
-                          else
-                            ref_prop_names[name_index] = "";
-                        }
-                      } else if (!best_name[name_index] && !locale.empty()) {
-                        if (locale == (char *)lang) {
-                          value2 = xmlNodeListGetString(
-                              doc, child3->xmlChildrenNode, 1);
-                          best_name[name_index] = true;
-                          if (value2)
-                            prop_names[name_index] = (char *)value2;
-                          else
-                            prop_names[name_index] = "";
-                        } else if (!nextbest_name[name_index] &&
-                                   strlen((char *)lang) >= 2 &&
-                                   fulfilled_translation == 0 &&
-                                   lang[0] == localebase[0] &&
-                                   lang[1] == localebase[1]) {
-                          value2 = xmlNodeListGetString(
-                              doc, child3->xmlChildrenNode, 1);
-                          nextbest_name[name_index] = true;
-                          if (value2)
-                            prop_names[name_index] = (char *)value2;
-                          else
-                            prop_names[name_index] = "";
-                        }
-                      }
-                      if (value2)
-                        xmlFree(value2);
-                      if (lang)
-                        xmlFree(lang);
-                      value2 = NULL;
-                      lang = NULL;
-                    }
-                    child3 = child3->next;
-                  }
-                  if (!ref_prop_names[name_index].empty() &&
-                      ref_prop_names[name_index] == prop_names[name_index]) {
-                    ref_prop_names[name_index] = "";
-                  }
-                }
-              } else if (new_names &&
-                         !xmlStrcmp(child2->name, (const xmlChar *)"names") &&
-                         ((best_prop_names.empty() &&
-                           fulfilled_translation != 2) ||
-                          default_prop_names.empty())) {
-                value2 = xmlNodeListGetString(doc, child2->xmlChildrenNode, 1);
-                lang = xmlNodeGetLang(child2);
-                if (!lang) {
-                  if (default_prop_names.empty()) {
-                    if (value2) {
-                      default_prop_names = (char *)value2;
-                      remove_blank_ends(default_prop_names);
-                    } else {
-                      default_prop_names = "";
-                    }
-                  }
-                } else {
-                  if (locale == (char *)lang) {
-                    if (value2) {
-                      best_prop_names = (char *)value2;
-                      remove_blank_ends(best_prop_names);
-                    } else {
-                      best_prop_names = " ";
-                    }
-                  } else if (nextbest_prop_names.empty() &&
-                             strlen((char *)lang) >= 2 &&
-                             fulfilled_translation == 0 &&
-                             lang[0] == localebase[0] &&
-                             lang[1] == localebase[1]) {
-                    if (value2) {
-                      nextbest_prop_names = (char *)value2;
-                      remove_blank_ends(nextbest_prop_names);
-                    } else {
-                      nextbest_prop_names = " ";
-                    }
-                  } else if (nextbest_prop_names.empty() &&
-                             default_prop_names.empty() && value2 &&
-                             !require_translation) {
-                    nextbest_prop_names = (char *)value2;
-                    remove_blank_ends(nextbest_prop_names);
-                  }
-                }
-                if (value2)
-                  xmlFree(value2);
-                if (lang)
-                  xmlFree(lang);
-              } else if (!xmlStrcmp(child2->name,
-                                    (const xmlChar *)"description")) {
-                XML_GET_LOCALE_STRING_FROM_TEXT(
-                    child2, propdescr, best_propdescr, next_best_propdescr)
-              } else if (!xmlStrcmp(child2->name, (const xmlChar *)"unit")) {
-                XML_DO_FROM_TEXT(child2, dp->setUnit)
-              } else if (!xmlStrcmp(child2->name, (const xmlChar *)"key")) {
-                XML_GET_TRUE_FROM_TEXT(child2, b)
-                dp->setKey(b);
-              } else if (!xmlStrcmp(child2->name, (const xmlChar *)"hidden")) {
-                XML_GET_TRUE_FROM_TEXT(child2, b)
-                dp->setHidden(b);
-              } else if (!xmlStrcmp(child2->name,
-                                    (const xmlChar *)"brackets")) {
-                XML_GET_TRUE_FROM_TEXT(child2, b)
-                dp->setUsesBrackets(b);
-              } else if (!xmlStrcmp(child2->name,
-                                    (const xmlChar *)"approximate")) {
-                XML_GET_TRUE_FROM_TEXT(child2, b)
-                dp->setApproximate(b);
-              } else if (!xmlStrcmp(child2->name,
-                                    (const xmlChar *)"case_sensitive")) {
-                XML_GET_TRUE_FROM_TEXT(child2, b)
-                dp->setCaseSensitive(b);
-              } else if (!xmlStrcmp(child2->name, (const xmlChar *)"type")) {
-                XML_GET_STRING_FROM_TEXT(child2, stmp)
-                if (stmp == "text") {
-                  dp->setPropertyType(PROPERTY_STRING);
-                } else if (stmp == "number") {
-                  dp->setPropertyType(PROPERTY_NUMBER);
-                } else if (stmp == "expression") {
-                  dp->setPropertyType(PROPERTY_EXPRESSION);
-                }
-              }
-              child2 = child2->next;
-            }
-            if (!proptitle.empty() && proptitle[0] == '!') {
-
-              size_t i = proptitle.find('!', 1);
-              if (i == string::npos) {
-                dp->setTitle(proptitle);
-              } else if (i + 1 < proptitle.length()) {
-                dp->setTitle(
-                    proptitle.substr(i + 1, proptitle.length() - (i + 1)));
-              }
-            } else {
-              dp->setTitle(proptitle);
-            }
-            dp->setDescription(propdescr);
-            if (new_names) {
-              size_t names_i = 0, i2 = 0;
-              string *str_names;
-              bool had_ref = false;
-              if (best_prop_names == "-") {
-                best_prop_names = "";
-                nextbest_prop_names = "";
-              }
-              if (!best_prop_names.empty()) {
-                str_names = &best_prop_names;
-              } else if (!nextbest_prop_names.empty()) {
-                str_names = &nextbest_prop_names;
-              } else {
-                str_names = &default_prop_names;
-              }
-              if (!str_names->empty() && (*str_names)[0] == '!') {
-                names_i = str_names->find('!', 1) + 1;
-              }
-              while (true) {
-                size_t i3 = names_i;
-                names_i = str_names->find(",", i3);
-                if (i2 == 0) {
-                  i2 = str_names->find(":", i3);
-                }
-                bool b_prop_ref = false;
-                if (i2 < names_i) {
-                  bool b = true;
-                  for (; i3 < i2; i3++) {
-                    switch ((*str_names)[i3]) {
-                    case '-': {
-                      b = false;
-                      break;
-                    }
-                    case 'r': {
-                      b_prop_ref = b;
-                      b = true;
-                      break;
-                    }
-                    }
-                  }
-                  i3++;
-                  i2 = 0;
-                }
-                if (names_i == string::npos) {
-                  stmp = str_names->substr(i3, str_names->length() - i3);
-                } else {
-                  stmp = str_names->substr(i3, names_i - i3);
-                }
-                remove_blank_ends(stmp);
-                if (!stmp.empty()) {
-                  if (b_prop_ref)
-                    had_ref = true;
-                  dp->addName(stmp, b_prop_ref);
-                }
-                if (names_i == string::npos) {
-                  break;
-                }
-                names_i++;
-              }
-              if (str_names != &default_prop_names &&
-                  !default_prop_names.empty()) {
-                if (default_prop_names[0] == '!') {
-                  names_i = default_prop_names.find('!', 1) + 1;
-                } else {
-                  names_i = 0;
-                }
-                i2 = 0;
-                while (true) {
-                  size_t i3 = names_i;
-                  names_i = default_prop_names.find(",", i3);
-                  if (i2 == 0) {
-                    i2 = default_prop_names.find(":", i3);
-                  }
-                  bool b_prop_ref = false;
-                  if (i2 < names_i) {
-                    bool b = true;
-                    for (; i3 < i2; i3++) {
-                      switch (default_prop_names[i3]) {
-                      case '-': {
-                        b = false;
-                        break;
-                      }
-                      case 'r': {
-                        b_prop_ref = b;
-                        b = true;
-                        break;
-                      }
-                      }
-                    }
-                    i3++;
-                    i2 = 0;
-                  }
-                  if (b_prop_ref || (!had_ref && names_i == string::npos)) {
-                    had_ref = true;
-                    if (names_i == string::npos) {
-                      stmp = default_prop_names.substr(
-                          i3, default_prop_names.length() - i3);
-                    } else {
-                      stmp = default_prop_names.substr(i3, names_i - i3);
-                    }
-                    remove_blank_ends(stmp);
-                    size_t i4 = dp->hasName(stmp);
-                    if (i4 > 0) {
-                      dp->setNameIsReference(i4, true);
-                    } else if (!stmp.empty()) {
-                      dp->addName(stmp, true);
-                    }
-                  }
-                  if (names_i == string::npos) {
-                    break;
-                  }
-                  names_i++;
-                }
-              }
-              if (!had_ref && dp->countNames() > 0)
-                dp->setNameIsReference(1, true);
-            } else {
-              bool b = false;
-              for (size_t i = 0; i < 10; i++) {
-                if (!prop_names[i].empty()) {
-                  if (!b && ref_prop_names[i].empty()) {
-                    dp->addName(prop_names[i], true, i + 1);
-                    b = true;
-                  } else {
-                    dp->addName(prop_names[i], false, i + 1);
-                  }
-                  prop_names[i] = "";
-                }
-              }
-              for (size_t i = 0; i < 10; i++) {
-                if (!ref_prop_names[i].empty()) {
-                  if (!b) {
-                    dp->addName(ref_prop_names[i], true);
-                    b = true;
-                  } else {
-                    dp->addName(ref_prop_names[i], false);
-                  }
-                  ref_prop_names[i] = "";
-                }
-              }
-            }
-            dp->setUserModified(is_user_defs);
-            dc->addProperty(dp);
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"argument")) {
-            child2 = child->xmlChildrenNode;
-            argname = "";
-            best_argname = false;
-            next_best_argname = false;
-            while (child2 != NULL) {
-              if (!xmlStrcmp(child2->name, (const xmlChar *)"title")) {
-                XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname,
-                                                next_best_argname)
-              }
-              child2 = child2->next;
-            }
-            itmp = 1;
-            XML_GET_INT_FROM_PROP(child, "index", itmp);
-            if (dc->getArgumentDefinition(itmp)) {
-              dc->getArgumentDefinition(itmp)->setName(argname);
-            }
-          } else if (!xmlStrcmp(child->name,
-                                (const xmlChar *)"object_argument")) {
-            child2 = child->xmlChildrenNode;
-            argname = "";
-            best_argname = false;
-            next_best_argname = false;
-            while (child2 != NULL) {
-              if (!xmlStrcmp(child2->name, (const xmlChar *)"title")) {
-                XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname,
-                                                next_best_argname)
-              }
-              child2 = child2->next;
-            }
-            itmp = 1;
-            if (dc->getArgumentDefinition(itmp)) {
-              if (!argname.empty() && argname[0] == '!') {
-                size_t i = argname.find('!', 1);
-                if (i == string::npos) {
-                  dc->getArgumentDefinition(itmp)->setName(argname);
-                } else if (i + 1 < argname.length()) {
-                  dc->getArgumentDefinition(itmp)->setName(
-                      argname.substr(i + 1, argname.length() - (i + 1)));
-                }
-              } else {
-                dc->getArgumentDefinition(itmp)->setName(argname);
-              }
-            }
-          } else if (!xmlStrcmp(child->name,
-                                (const xmlChar *)"property_argument")) {
-            child2 = child->xmlChildrenNode;
-            argname = "";
-            best_argname = false;
-            next_best_argname = false;
-            while (child2 != NULL) {
-              if (!xmlStrcmp(child2->name, (const xmlChar *)"title")) {
-                XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname,
-                                                next_best_argname)
-              }
-              child2 = child2->next;
-            }
-            itmp = 2;
-            if (dc->getArgumentDefinition(itmp)) {
-              if (!argname.empty() && argname[0] == '!') {
-                size_t i = argname.find('!', 1);
-                if (i == string::npos) {
-                  dc->getArgumentDefinition(itmp)->setName(argname);
-                } else if (i + 1 < argname.length()) {
-                  dc->getArgumentDefinition(itmp)->setName(
-                      argname.substr(i + 1, argname.length() - (i + 1)));
-                }
-              } else {
-                dc->getArgumentDefinition(itmp)->setName(argname);
-              }
-            }
-          } else if (!xmlStrcmp(child->name,
-                                (const xmlChar *)"default_property")) {
-            XML_DO_FROM_TEXT(child, dc->setDefaultProperty)
-          } else if (!builtin &&
-                     !xmlStrcmp(child->name, (const xmlChar *)"copyright")) {
-            XML_DO_FROM_TEXT(child, dc->setCopyright)
-          } else if (!builtin &&
-                     !xmlStrcmp(child->name, (const xmlChar *)"datafile")) {
-            XML_DO_FROM_TEXT(child, dc->setDefaultDataFile)
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"example")) {
-            XML_DO_FROM_TEXT(child, dc->setExample);
-          } else
-            ITEM_READ_NAME(functionNameIsValid)
-          else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-        }
-        if (new_names) {
-          if (builtin) {
-            ITEM_SAVE_BUILTIN_NAMES
-          }
-          ITEM_SET_BEST_NAMES(functionNameIsValid)
-          ITEM_SET_REFERENCE_NAMES(functionNameIsValid)
-          if (builtin) {
-            ITEM_SET_BUILTIN_NAMES
-          }
-        } else {
-          if (builtin) {
-            BUILTIN_NAMES_1
-          }
-          ITEM_SET_NAME_2
-          ITEM_SET_NAME_3
-          if (builtin) {
-            BUILTIN_NAMES_2
-          }
-        }
-        ITEM_SET_DTH
-        if (check_duplicates && !is_user_defs) {
-          for (size_t i = 1; i <= dc->countNames();) {
-            if (getActiveFunction(dc->getName(i).name))
-              dc->removeName(i);
-            else
-              i++;
-          }
-        }
-        if (!builtin && dc->countNames() == 0) {
-          dc->destroy();
-          dc = NULL;
-        } else {
-          dc->setChanged(builtin && is_user_defs);
-          if (!builtin)
-            addDataSet(dc, true, is_user_defs);
-        }
-        done_something = true;
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"builtin_function")) {
-        XML_GET_STRING_FROM_PROP(cur, "name", name)
-        f = getFunction(name);
-        if (f) {
-          XML_GET_FALSE_FROM_PROP(cur, "active", active)
-          f->setLocal(is_user_defs, active);
-          f->setCategory(category);
-          item = f;
-          child = cur->xmlChildrenNode;
-          ITEM_INIT_DTH
-          ITEM_INIT_NAME
-          while (child != NULL) {
-            if (!xmlStrcmp(child->name, (const xmlChar *)"argument")) {
-              child2 = child->xmlChildrenNode;
-              argname = "";
-              best_argname = false;
-              next_best_argname = false;
-              while (child2 != NULL) {
-                if (!xmlStrcmp(child2->name, (const xmlChar *)"title")) {
-                  XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname,
-                                                  next_best_argname)
-                }
-                child2 = child2->next;
-              }
-              itmp = 1;
-              XML_GET_INT_FROM_PROP(child, "index", itmp);
-              if (f->getArgumentDefinition(itmp)) {
-                if (!argname.empty() && argname[0] == '!') {
-                  size_t i = argname.find('!', 1);
-                  if (i == string::npos) {
-                    f->getArgumentDefinition(itmp)->setName(argname);
-                  } else if (i + 1 < argname.length()) {
-                    f->getArgumentDefinition(itmp)->setName(
-                        argname.substr(i + 1, argname.length() - (i + 1)));
-                  }
-                } else {
-                  f->getArgumentDefinition(itmp)->setName(argname);
-                }
-              } else if (itmp <= f->maxargs() || itmp <= f->minargs()) {
-                if (!argname.empty() && argname[0] == '!') {
-                  size_t i = argname.find('!', 1);
-                  if (i == string::npos) {
-                    f->setArgumentDefinition(itmp,
-                                             new Argument(argname, false));
-                  } else if (i + 1 < argname.length()) {
-                    f->setArgumentDefinition(
-                        itmp,
-                        new Argument(
-                            argname.substr(i + 1, argname.length() - (i + 1)),
-                            false));
-                  }
-                } else {
-                  f->setArgumentDefinition(itmp, new Argument(argname, false));
-                }
-              }
-            } else if (!xmlStrcmp(child->name, (const xmlChar *)"example")) {
-              XML_DO_FROM_TEXT(child, f->setExample);
-            } else
-              ITEM_READ_NAME(functionNameIsValid)
-            else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-          }
-          if (new_names) {
-            ITEM_SAVE_BUILTIN_NAMES
-            ITEM_SET_BEST_NAMES(functionNameIsValid)
-            ITEM_SET_REFERENCE_NAMES(functionNameIsValid)
-            ITEM_SET_BUILTIN_NAMES
-          } else {
-            BUILTIN_NAMES_1
-            ITEM_SET_NAME_2
-            ITEM_SET_NAME_3
-            BUILTIN_NAMES_2
-          }
-          ITEM_SET_DTH
-          f->setChanged(false);
-          done_something = true;
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"unknown")) {
-        if (VERSION_BEFORE(0, 6, 3)) {
-          XML_GET_STRING_FROM_PROP(cur, "name", name)
-        } else {
-          name = "";
-        }
-        XML_GET_FALSE_FROM_PROP(cur, "active", active)
-        svalue = "";
-        v = new UnknownVariable(category, "", "", is_user_defs, false, active);
-        item = v;
-        done_something = true;
-        child = cur->xmlChildrenNode;
-        b = true;
-        ITEM_INIT_DTH
-        ITEM_INIT_NAME
-        while (child != NULL) {
-          if (!xmlStrcmp(child->name, (const xmlChar *)"type")) {
-            XML_GET_STRING_FROM_TEXT(child, stmp);
-            if (!((UnknownVariable *)v)->assumptions())
-              ((UnknownVariable *)v)->setAssumptions(new Assumptions());
-            if (stmp == "integer")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setType(ASSUMPTION_TYPE_INTEGER);
-            else if (stmp == "rational")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setType(ASSUMPTION_TYPE_RATIONAL);
-            else if (stmp == "real")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setType(ASSUMPTION_TYPE_REAL);
-            else if (stmp == "complex")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setType(ASSUMPTION_TYPE_COMPLEX);
-            else if (stmp == "number")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setType(ASSUMPTION_TYPE_NUMBER);
-            else if (stmp == "non-matrix") {
-              if (VERSION_BEFORE(0, 9, 13)) {
-                ((UnknownVariable *)v)
-                    ->assumptions()
-                    ->setType(ASSUMPTION_TYPE_NUMBER);
-              } else {
-                ((UnknownVariable *)v)
-                    ->assumptions()
-                    ->setType(ASSUMPTION_TYPE_NONMATRIX);
-              }
-            } else if (stmp == "none") {
-              if (VERSION_BEFORE(0, 9, 13)) {
-                ((UnknownVariable *)v)
-                    ->assumptions()
-                    ->setType(ASSUMPTION_TYPE_NUMBER);
-              } else {
-                ((UnknownVariable *)v)
-                    ->assumptions()
-                    ->setType(ASSUMPTION_TYPE_NONE);
-              }
-            }
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"sign")) {
-            XML_GET_STRING_FROM_TEXT(child, stmp);
-            if (!((UnknownVariable *)v)->assumptions())
-              ((UnknownVariable *)v)->setAssumptions(new Assumptions());
-            if (stmp == "non-zero")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setSign(ASSUMPTION_SIGN_NONZERO);
-            else if (stmp == "non-positive")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setSign(ASSUMPTION_SIGN_NONPOSITIVE);
-            else if (stmp == "negative")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setSign(ASSUMPTION_SIGN_NEGATIVE);
-            else if (stmp == "non-negative")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setSign(ASSUMPTION_SIGN_NONNEGATIVE);
-            else if (stmp == "positive")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setSign(ASSUMPTION_SIGN_POSITIVE);
-            else if (stmp == "unknown")
-              ((UnknownVariable *)v)
-                  ->assumptions()
-                  ->setSign(ASSUMPTION_SIGN_UNKNOWN);
-          } else
-            ITEM_READ_NAME(variableNameIsValid)
-          else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-        }
-        if (new_names) {
-          ITEM_SET_BEST_NAMES(variableNameIsValid)
-          ITEM_SET_REFERENCE_NAMES(variableNameIsValid)
-        } else {
-          ITEM_SET_NAME_1(variableNameIsValid)
-          ITEM_SET_NAME_2
-          ITEM_SET_NAME_3
-        }
-        ITEM_SET_DTH
-        if (check_duplicates && !is_user_defs) {
-          for (size_t i = 1; i <= v->countNames();) {
-            if (getActiveVariable(v->getName(i).name) ||
-                getActiveUnit(v->getName(i).name) ||
-                getCompositeUnit(v->getName(i).name))
-              v->removeName(i);
-            else
-              i++;
-          }
-        }
-        for (size_t i = 1; i <= v->countNames(); i++) {
-          if (v->getName(i).name == "x") {
-            v_x->destroy();
-            v_x = (UnknownVariable *)v;
-            break;
-          }
-          if (v->getName(i).name == "y") {
-            v_y->destroy();
-            v_y = (UnknownVariable *)v;
-            break;
-          }
-          if (v->getName(i).name == "z") {
-            v_z->destroy();
-            v_z = (UnknownVariable *)v;
-            break;
-          }
-        }
-        if (v->countNames() == 0) {
-          v->destroy();
-          v = NULL;
-        } else {
-          addVariable(v, true, is_user_defs);
-          v->setChanged(false);
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"variable")) {
-        if (VERSION_BEFORE(0, 6, 3)) {
-          XML_GET_STRING_FROM_PROP(cur, "name", name)
-        } else {
-          name = "";
-        }
-        XML_GET_FALSE_FROM_PROP(cur, "active", active)
-        svalue = "";
-        v = new KnownVariable(category, "", "", "", is_user_defs, false,
-                              active);
-        item = v;
-        done_something = true;
-        child = cur->xmlChildrenNode;
-        b = true;
-        ITEM_INIT_DTH
-        ITEM_INIT_NAME
-        while (child != NULL) {
-          if (!xmlStrcmp(child->name, (const xmlChar *)"value")) {
-            XML_DO_FROM_TEXT(child, ((KnownVariable *)v)->set);
-            XML_GET_STRING_FROM_PROP(child, "relative_uncertainty",
-                                     suncertainty)
-            unc_rel = false;
-            if (suncertainty.empty()) {
-              XML_GET_STRING_FROM_PROP(child, "uncertainty", suncertainty)
-            } else
-              unc_rel = true;
-            ((KnownVariable *)v)->setUncertainty(suncertainty, unc_rel);
-            XML_DO_FROM_PROP(child, "unit", ((KnownVariable *)v)->setUnit)
-            XML_GET_PREC_FROM_PROP(child, prec)
-            v->setPrecision(prec);
-            XML_GET_APPROX_FROM_PROP(child, b);
-            if (b)
-              v->setApproximate(true);
-          } else
-            ITEM_READ_NAME(variableNameIsValid)
-          else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-        }
-        if (new_names) {
-          ITEM_SET_BEST_NAMES(variableNameIsValid)
-          ITEM_SET_REFERENCE_NAMES(variableNameIsValid)
-        } else {
-          ITEM_SET_NAME_1(variableNameIsValid)
-          ITEM_SET_NAME_2
-          ITEM_SET_NAME_3
-        }
-        ITEM_SET_DTH
-        if (check_duplicates && !is_user_defs) {
-          for (size_t i = 1; i <= v->countNames();) {
-            if (getActiveVariable(v->getName(i).name) ||
-                getActiveUnit(v->getName(i).name) ||
-                getCompositeUnit(v->getName(i).name))
-              v->removeName(i);
-            else
-              i++;
-          }
-        }
-        if (v->countNames() == 0) {
-          v->destroy();
-          v = NULL;
-        } else {
-          addVariable(v, true, is_user_defs);
-          item->setChanged(false);
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"builtin_variable")) {
-        XML_GET_STRING_FROM_PROP(cur, "name", name)
-        v = getVariable(name);
-        if (v) {
-          XML_GET_FALSE_FROM_PROP(cur, "active", active)
-          v->setLocal(is_user_defs, active);
-          v->setCategory(category);
-          item = v;
-          child = cur->xmlChildrenNode;
-          ITEM_INIT_DTH
-          ITEM_INIT_NAME
-          while (child != NULL) {
-            ITEM_READ_NAME(variableNameIsValid)
-            else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-          }
-          if (new_names) {
-            ITEM_SAVE_BUILTIN_NAMES
-            ITEM_SET_BEST_NAMES(variableNameIsValid)
-            ITEM_SET_REFERENCE_NAMES(variableNameIsValid)
-            ITEM_SET_BUILTIN_NAMES
-          } else {
-            BUILTIN_NAMES_1
-            ITEM_SET_NAME_2
-            ITEM_SET_NAME_3
-            BUILTIN_NAMES_2
-          }
-          ITEM_SET_DTH
-          v->setChanged(false);
-          done_something = true;
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"unit")) {
-        XML_GET_STRING_FROM_PROP(cur, "type", type)
-        if (type == "base") {
-          if (VERSION_BEFORE(0, 6, 3)) {
-            XML_GET_STRING_FROM_PROP(cur, "name", name)
-          } else {
-            name = "";
-          }
-          XML_GET_FALSE_FROM_PROP(cur, "active", active)
-          u = new Unit(category, "", "", "", "", is_user_defs, false, active);
-          item = u;
-          child = cur->xmlChildrenNode;
-          singular = "";
-          best_singular = false;
-          next_best_singular = false;
-          plural = "";
-          best_plural = false;
-          next_best_plural = false;
-          countries = "", best_countries = false, next_best_countries = false;
-          use_with_prefixes_set = false;
-          ITEM_INIT_DTH
-          ITEM_INIT_NAME
-          while (child != NULL) {
-            if (!xmlStrcmp(child->name, (const xmlChar *)"system")) {
-              XML_DO_FROM_TEXT(child, u->setSystem)
-            } else if (!xmlStrcmp(child->name,
-                                  (const xmlChar *)"use_with_prefixes")) {
-              XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
-              use_with_prefixes_set = true;
-            } else if ((VERSION_BEFORE(0, 6, 3)) &&
-                       !xmlStrcmp(child->name, (const xmlChar *)"singular")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, singular, best_singular,
-                                              next_best_singular)
-              if (!unitNameIsValid(singular, version_numbers, is_user_defs)) {
-                singular = "";
-              }
-            } else if ((VERSION_BEFORE(0, 6, 3)) &&
-                       !xmlStrcmp(child->name, (const xmlChar *)"plural") &&
-                       !xmlGetProp(child, (xmlChar *)"index")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural,
-                                              next_best_plural)
-              if (!unitNameIsValid(plural, version_numbers, is_user_defs)) {
-                plural = "";
-              }
-            } else if (!xmlStrcmp(child->name, (const xmlChar *)"countries")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries,
-                                              next_best_countries)
-            } else
-              ITEM_READ_NAME(unitNameIsValid)
-            else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-          }
-          u->setCountries(countries);
-          if (new_names) {
-            ITEM_SET_BEST_NAMES(unitNameIsValid)
-            ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
-          } else {
-            ITEM_SET_SHORT_NAME
-            ITEM_SET_SINGULAR
-            ITEM_SET_PLURAL
-            ITEM_SET_NAME_2
-            ITEM_SET_NAME_3
-          }
-          ITEM_SET_DTH
-          if (use_with_prefixes_set) {
-            u->setUseWithPrefixesByDefault(use_with_prefixes);
-          }
-          if (check_duplicates && !is_user_defs) {
-            for (size_t i = 1; i <= u->countNames();) {
-              if (getActiveVariable(u->getName(i).name) ||
-                  getActiveUnit(u->getName(i).name) ||
-                  getCompositeUnit(u->getName(i).name))
-                u->removeName(i);
-              else
-                i++;
-            }
-          }
-          if (u->countNames() == 0) {
-            u->destroy();
-            u = NULL;
-          } else {
-            if (!is_user_defs && u->referenceName() == "s")
-              u_second = u;
-            addUnit(u, true, is_user_defs);
-            u->setChanged(false);
-          }
-          done_something = true;
-        } else if (type == "alias") {
-          if (VERSION_BEFORE(0, 6, 3)) {
-            XML_GET_STRING_FROM_PROP(cur, "name", name)
-          } else {
-            name = "";
-          }
-          XML_GET_FALSE_FROM_PROP(cur, "active", active)
-          u = NULL;
-          child = cur->xmlChildrenNode;
-          singular = "";
-          best_singular = false;
-          next_best_singular = false;
-          plural = "";
-          best_plural = false;
-          next_best_plural = false;
-          countries = "", best_countries = false, next_best_countries = false;
-          bool b_currency = false;
-          use_with_prefixes_set = false;
-          usystem = "";
-          prec = -1;
-          ITEM_INIT_DTH
-          ITEM_INIT_NAME
-          unc_rel = false;
-          while (child != NULL) {
-            if (!xmlStrcmp(child->name, (const xmlChar *)"base")) {
-              child2 = child->xmlChildrenNode;
-              exponent = 1;
-              mix_priority = 0;
-              mix_min = 0;
-              svalue = "";
-              inverse = "";
-              suncertainty = "";
-              b = true;
-              while (child2 != NULL) {
-                if (!xmlStrcmp(child2->name, (const xmlChar *)"unit")) {
-                  XML_GET_STRING_FROM_TEXT(child2, base);
-                  u = getUnit(base);
-                  b_currency = (!is_user_defs && u && u == u_euro);
-                  if (!u) {
-                    u = getCompositeUnit(base);
-                  }
-                } else if (!xmlStrcmp(child2->name,
-                                      (const xmlChar *)"relation")) {
-                  XML_GET_STRING_FROM_TEXT(child2, svalue);
-                  XML_GET_APPROX_FROM_PROP(child2, b)
-                  XML_GET_PREC_FROM_PROP(child2, prec)
-                  XML_GET_STRING_FROM_PROP(child2, "relative_uncertainty",
-                                           suncertainty)
-                  if (suncertainty.empty()) {
-                    XML_GET_STRING_FROM_PROP(child2, "uncertainty",
-                                             suncertainty)
-                  } else
-                    unc_rel = true;
-                } else if (!xmlStrcmp(child2->name,
-                                      (const xmlChar *)"reverse_relation")) {
-                  XML_GET_STRING_FROM_TEXT(child2, inverse);
-                } else if (!xmlStrcmp(child2->name,
-                                      (const xmlChar *)"inverse_relation")) {
-                  XML_GET_STRING_FROM_TEXT(child2, inverse);
-                } else if (!xmlStrcmp(child2->name,
-                                      (const xmlChar *)"exponent")) {
-                  XML_GET_STRING_FROM_TEXT(child2, stmp);
-                  if (stmp.empty()) {
-                    exponent = 1;
-                  } else {
-                    exponent = s2i(stmp);
-                  }
-                } else if (!xmlStrcmp(child2->name, (const xmlChar *)"mix")) {
-                  XML_GET_INT_FROM_PROP(child2, "min", mix_min);
-                  XML_GET_STRING_FROM_TEXT(child2, stmp);
-                  if (stmp.empty()) {
-                    mix_priority = 0;
-                  } else {
-                    mix_priority = s2i(stmp);
-                  }
-                }
-                child2 = child2->next;
-              }
-            } else if (!xmlStrcmp(child->name, (const xmlChar *)"system")) {
-              XML_GET_STRING_FROM_TEXT(child, usystem);
-            } else if (!xmlStrcmp(child->name,
-                                  (const xmlChar *)"use_with_prefixes")) {
-              XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
-              use_with_prefixes_set = true;
-            } else if ((VERSION_BEFORE(0, 6, 3)) &&
-                       !xmlStrcmp(child->name, (const xmlChar *)"singular")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, singular, best_singular,
-                                              next_best_singular)
-              if (!unitNameIsValid(singular, version_numbers, is_user_defs)) {
-                singular = "";
-              }
-            } else if ((VERSION_BEFORE(0, 6, 3)) &&
-                       !xmlStrcmp(child->name, (const xmlChar *)"plural") &&
-                       !xmlGetProp(child, (xmlChar *)"index")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural,
-                                              next_best_plural)
-              if (!unitNameIsValid(plural, version_numbers, is_user_defs)) {
-                plural = "";
-              }
-            } else if (!xmlStrcmp(child->name, (const xmlChar *)"countries")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries,
-                                              next_best_countries)
-            } else
-              ITEM_READ_NAME(unitNameIsValid)
-            else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-          }
-          if (!u) {
-            ITEM_CLEAR_NAMES
-            if (!in_unfinished) {
-              unfinished_nodes.push_back(cur);
-              unfinished_cats.push_back(category);
-            }
-          } else {
-            au = new AliasUnit(category, name, plural, singular, title, u,
-                               svalue, exponent, inverse, is_user_defs, false,
-                               active);
-            au->setCountries(countries);
-            if (mix_priority > 0) {
-              au->setMixWithBase(mix_priority);
-              au->setMixWithBaseMinimum(mix_min);
-            }
-            au->setDescription(description);
-            au->setPrecision(prec);
-            if (b)
-              au->setApproximate(true);
-            au->setUncertainty(suncertainty, unc_rel);
-            au->setHidden(hidden);
-            au->setSystem(usystem);
-            if (use_with_prefixes_set) {
-              au->setUseWithPrefixesByDefault(use_with_prefixes);
-            }
-            item = au;
-            if (new_names) {
-              ITEM_SET_BEST_NAMES(unitNameIsValid)
-              ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
-            } else {
-              ITEM_SET_NAME_2
-              ITEM_SET_NAME_3
-            }
-            if (b_currency && !au->referenceName().empty()) {
-              u = getUnit(au->referenceName());
-              if (u && u->subtype() == SUBTYPE_ALIAS_UNIT &&
-                  ((AliasUnit *)u)->baseUnit() == u_euro)
-                u->destroy();
-            }
-            if (check_duplicates && !is_user_defs) {
-              for (size_t i = 1; i <= au->countNames();) {
-                if (getActiveVariable(au->getName(i).name) ||
-                    getActiveUnit(au->getName(i).name) ||
-                    getCompositeUnit(au->getName(i).name))
-                  au->removeName(i);
-                else
-                  i++;
-              }
-            }
-            if (au->countNames() == 0) {
-              au->destroy();
-              au = NULL;
-            } else {
-              if (!is_user_defs && au->baseUnit() == u_second) {
-                if (au->referenceName() == "d" || au->referenceName() == "day")
-                  u_day = au;
-                else if (au->referenceName() == "year")
-                  u_year = au;
-                else if (au->referenceName() == "month")
-                  u_month = au;
-                else if (au->referenceName() == "min")
-                  u_minute = au;
-                else if (au->referenceName() == "h")
-                  u_hour = au;
-              }
-              addUnit(au, true, is_user_defs);
-              au->setChanged(false);
-            }
-            done_something = true;
-          }
-        } else if (type == "composite") {
-          if (VERSION_BEFORE(0, 6, 3)) {
-            XML_GET_STRING_FROM_PROP(cur, "name", name)
-          } else {
-            name = "";
-          }
-          XML_GET_FALSE_FROM_PROP(cur, "active", active)
-          child = cur->xmlChildrenNode;
-          usystem = "";
-          cu = NULL;
-          ITEM_INIT_DTH
-          ITEM_INIT_NAME
-          b = true;
-          while (child != NULL) {
-            u = NULL;
-            if (!xmlStrcmp(child->name, (const xmlChar *)"part")) {
-              child2 = child->xmlChildrenNode;
-              p = NULL;
-              exponent = 1;
-              while (child2 != NULL) {
-                if (!xmlStrcmp(child2->name, (const xmlChar *)"unit")) {
-                  XML_GET_STRING_FROM_TEXT(child2, base);
-                  u = getUnit(base);
-                  if (!u) {
-                    u = getCompositeUnit(base);
-                  }
-                } else if (!xmlStrcmp(child2->name,
-                                      (const xmlChar *)"prefix")) {
-                  XML_GET_STRING_FROM_PROP(child2, "type", stmp)
-                  XML_GET_STRING_FROM_TEXT(child2, svalue);
-                  p = NULL;
-                  if (stmp == "binary") {
-                    litmp = s2i(svalue);
-                    if (litmp != 0) {
-                      p = getExactBinaryPrefix(litmp);
-                      if (!p)
-                        b = false;
-                    }
-                  } else if (stmp == "number") {
-                    nr.set(stmp);
-                    if (!nr.isZero()) {
-                      p = getExactPrefix(stmp);
-                      if (!p)
-                        b = false;
-                    }
-                  } else {
-                    litmp = s2i(svalue);
-                    if (litmp != 0) {
-                      p = getExactDecimalPrefix(litmp);
-                      if (!p)
-                        b = false;
-                    }
-                  }
-                  if (!b) {
-                    if (cu) {
-                      delete cu;
-                    }
-                    cu = NULL;
-                    break;
-                  }
-                } else if (!xmlStrcmp(child2->name,
-                                      (const xmlChar *)"exponent")) {
-                  XML_GET_STRING_FROM_TEXT(child2, stmp);
-                  if (stmp.empty()) {
-                    exponent = 1;
-                  } else {
-                    exponent = s2i(stmp);
-                  }
-                }
-                child2 = child2->next;
-              }
-              if (!b)
-                break;
-              if (u) {
-                if (!cu) {
-                  cu = new CompositeUnit("", "", "", "", is_user_defs, false,
-                                         active);
-                }
-                cu->add(u, exponent, p);
-              } else {
-                if (cu)
-                  delete cu;
-                cu = NULL;
-                if (!in_unfinished) {
-                  unfinished_nodes.push_back(cur);
-                  unfinished_cats.push_back(category);
-                }
-                break;
-              }
-            } else if (!xmlStrcmp(child->name, (const xmlChar *)"system")) {
-              XML_GET_STRING_FROM_TEXT(child, usystem);
-            } else if (!xmlStrcmp(child->name,
-                                  (const xmlChar *)"use_with_prefixes")) {
-              XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
-              use_with_prefixes_set = true;
-            } else
-              ITEM_READ_NAME(unitNameIsValid)
-            else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-          }
-          if (cu) {
-            item = cu;
-            cu->setCategory(category);
-            cu->setSystem(usystem);
-            /*if(use_with_prefixes_set) {
-                    cu->setUseWithPrefixesByDefault(use_with_prefixes);
-            }*/
-            if (new_names) {
-              ITEM_SET_BEST_NAMES(unitNameIsValid)
-              ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
-            } else {
-              ITEM_SET_NAME_1(unitNameIsValid)
-              ITEM_SET_NAME_2
-              ITEM_SET_NAME_3
-            }
-            ITEM_SET_DTH
-            if (check_duplicates && !is_user_defs) {
-              for (size_t i = 1; i <= cu->countNames();) {
-                if (getActiveVariable(cu->getName(i).name) ||
-                    getActiveUnit(cu->getName(i).name) ||
-                    getCompositeUnit(cu->getName(i).name))
-                  cu->removeName(i);
-                else
-                  i++;
-              }
-            }
-            if (cu->countNames() == 0) {
-              cu->destroy();
-              cu = NULL;
-            } else {
-              addUnit(cu, true, is_user_defs);
-              cu->setChanged(false);
-            }
-            done_something = true;
-          } else {
-            ITEM_CLEAR_NAMES
-          }
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"builtin_unit")) {
-        XML_GET_STRING_FROM_PROP(cur, "name", name)
-        u = getUnit(name);
-        if (!u) {
-          u = getCompositeUnit(name);
-        }
-        if (u) {
-          XML_GET_FALSE_FROM_PROP(cur, "active", active)
-          u->setLocal(is_user_defs, active);
-          u->setCategory(category);
-          item = u;
-          child = cur->xmlChildrenNode;
-          singular = "";
-          best_singular = false;
-          next_best_singular = false;
-          plural = "";
-          best_plural = false;
-          next_best_plural = false;
-          countries = "", best_countries = false, next_best_countries = false;
-          use_with_prefixes_set = false;
-          ITEM_INIT_DTH
-          ITEM_INIT_NAME
-          while (child != NULL) {
-            if (!xmlStrcmp(child->name, (const xmlChar *)"singular")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, singular, best_singular,
-                                              next_best_singular)
-              if (!unitNameIsValid(singular, version_numbers, is_user_defs)) {
-                singular = "";
-              }
-            } else if (!xmlStrcmp(child->name, (const xmlChar *)"plural") &&
-                       !xmlGetProp(child, (xmlChar *)"index")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural,
-                                              next_best_plural)
-              if (!unitNameIsValid(plural, version_numbers, is_user_defs)) {
-                plural = "";
-              }
-            } else if (!xmlStrcmp(child->name,
-                                  (const xmlChar *)"use_with_prefixes")) {
-              XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
-              use_with_prefixes_set = true;
-            } else if (!xmlStrcmp(child->name, (const xmlChar *)"countries")) {
-              XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries,
-                                              next_best_countries)
-            } else
-              ITEM_READ_NAME(unitNameIsValid)
-            else ITEM_READ_DTH else {ITEM_READ_NAMES} child = child->next;
-          }
-          if (use_with_prefixes_set) {
-            u->setUseWithPrefixesByDefault(use_with_prefixes);
-          }
-          u->setCountries(countries);
-          if (new_names) {
-            ITEM_SAVE_BUILTIN_NAMES
-            ITEM_SET_BEST_NAMES(unitNameIsValid)
-            ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
-            ITEM_SET_BUILTIN_NAMES
-          } else {
-            BUILTIN_UNIT_NAMES_1
-            ITEM_SET_SINGULAR
-            ITEM_SET_PLURAL
-            ITEM_SET_NAME_2
-            ITEM_SET_NAME_3
-            BUILTIN_NAMES_2
-          }
-          ITEM_SET_DTH
-          if (u_usd && u->subtype() == SUBTYPE_ALIAS_UNIT &&
-              ((AliasUnit *)u)->firstBaseUnit() == u_usd)
-            u->setHidden(true);
-          u->setChanged(false);
-          done_something = true;
-        }
-      } else if (!xmlStrcmp(cur->name, (const xmlChar *)"prefix")) {
-        child = cur->xmlChildrenNode;
-        XML_GET_STRING_FROM_PROP(cur, "type", type)
-        uname = "";
-        sexp = "";
-        svalue = "";
-        name = "";
-        bool b_best = false;
-        while (child != NULL) {
-          if (!xmlStrcmp(child->name, (const xmlChar *)"name")) {
-            lang = xmlNodeGetLang(child);
-            if (!lang) {
-              if (name.empty()) {
-                XML_GET_STRING_FROM_TEXT(child, name);
-              }
-            } else {
-              if (!b_best && !locale.empty()) {
-                if (locale == (char *)lang) {
-                  XML_GET_STRING_FROM_TEXT(child, name);
-                  b_best = true;
-                } else if (strlen((char *)lang) >= 2 &&
-                           lang[0] == localebase[0] &&
-                           lang[1] == localebase[1]) {
-                  XML_GET_STRING_FROM_TEXT(child, name);
-                }
-              }
-              xmlFree(lang);
-            }
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"abbreviation")) {
-            XML_GET_STRING_FROM_TEXT(child, stmp);
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"unicode")) {
-            XML_GET_STRING_FROM_TEXT(child, uname);
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"exponent")) {
-            XML_GET_STRING_FROM_TEXT(child, sexp);
-          } else if (!xmlStrcmp(child->name, (const xmlChar *)"value")) {
-            XML_GET_STRING_FROM_TEXT(child, svalue);
-          }
-          child = child->next;
-        }
-        if (type == "decimal") {
-          addPrefix(new DecimalPrefix(s2i(sexp), name, stmp, uname));
-        } else if (type == "number") {
-          addPrefix(new NumberPrefix(svalue, name, stmp, uname));
-        } else if (type == "binary") {
-          addPrefix(new BinaryPrefix(s2i(sexp), name, stmp, uname));
-        } else {
-          if (svalue.empty()) {
-            addPrefix(new DecimalPrefix(s2i(sexp), name, stmp, uname));
-          } else {
-            addPrefix(new NumberPrefix(svalue, name, stmp, uname));
-          }
-        }
-        done_something = true;
-      }
-    after_load_object:
-      cur = NULL;
-      if (in_unfinished) {
-        if (done_something) {
-          in_unfinished--;
-          unfinished_nodes.erase(unfinished_nodes.begin() + in_unfinished);
-          unfinished_cats.erase(unfinished_cats.begin() + in_unfinished);
-        }
-        if ((int)unfinished_nodes.size() > in_unfinished) {
-          cur = unfinished_nodes[in_unfinished];
-          category = unfinished_cats[in_unfinished];
-        } else if (done_something && unfinished_nodes.size() > 0) {
-          cur = unfinished_nodes[0];
-          category = unfinished_cats[0];
-          in_unfinished = 0;
-          done_something = false;
-        }
-        in_unfinished++;
-        done_something = false;
-      }
-    }
-    if (in_unfinished) {
-      break;
-    }
-    while (!nodes.empty() && nodes.back().empty()) {
-      size_t cat_i = category.rfind("/");
-      if (cat_i == string::npos) {
-        category = "";
-      } else {
-        category = category.substr(0, cat_i);
-      }
-      nodes.pop_back();
-    }
-    if (!nodes.empty()) {
-      cur = nodes.back().front();
-      nodes.back().pop();
-      nodes.resize(nodes.size() + 1);
-    } else {
-      if (unfinished_nodes.size() > 0) {
-        cur = unfinished_nodes[0];
-        category = unfinished_cats[0];
-        in_unfinished = 1;
-        done_something = false;
-      } else {
-        cur = NULL;
-      }
-    }
-    if (cur == NULL) {
-      break;
-    }
-  }
-  xmlFreeDoc(doc);
-  return true;
+	while(true) {
+		if(!in_unfinished) {
+			category_title = ""; best_category_title = false; next_best_category_title = false;
+			child = cur->xmlChildrenNode;
+			while(child != NULL) {
+				if(!xmlStrcmp(child->name, (const xmlChar*) "title")) {
+					XML_GET_LOCALE_STRING_FROM_TEXT(child, category_title, best_category_title, next_best_category_title)
+				} else if(!xmlStrcmp(child->name, (const xmlChar*) "category")) {
+					nodes.back().push(child);
+				} else {
+					sub_items.push(child);
+				}
+				child = child->next;
+			}
+			if(!category.empty()) {
+				category += "/";
+			}
+			if(!category_title.empty() && category_title[0] == '!') {\
+				size_t i = category_title.find('!', 1);
+				if(i == string::npos) {
+					category += category_title;
+				} else if(i + 1 < category_title.length()) {
+					category += category_title.substr(i + 1, category_title.length() - (i + 1));
+				}
+			} else {
+				category += category_title;
+			}
+		}
+		while(!sub_items.empty() || (in_unfinished && cur)) {
+			if(!in_unfinished) {
+				cur = sub_items.front();
+				sub_items.pop();
+			}
+			if(!xmlStrcmp(cur->name, (const xmlChar*) "activate")) {
+				XML_GET_STRING_FROM_TEXT(cur, name)
+				ExpressionItem *item = getInactiveExpressionItem(name);
+				if(item && !item->isLocal()) {
+					item->setActive(true);
+					done_something = true;
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "deactivate")) {
+				XML_GET_STRING_FROM_TEXT(cur, name)
+				ExpressionItem *item = getActiveExpressionItem(name);
+				if(item && !item->isLocal()) {
+					item->setActive(false);
+					done_something = true;
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "function")) {
+				if(VERSION_BEFORE(0, 6, 3)) {
+					XML_GET_STRING_FROM_PROP(cur, "name", name)
+				} else {
+					name = "";
+				}
+				XML_GET_FALSE_FROM_PROP(cur, "active", active)
+				f = new UserFunction(category, "", "", is_user_defs, 0, "", "", 0, active);
+				item = f;
+				done_something = true;
+				child = cur->xmlChildrenNode;
+				ITEM_INIT_DTH
+				ITEM_INIT_NAME
+				while(child != NULL) {
+					if(!xmlStrcmp(child->name, (const xmlChar*) "expression")) {
+						XML_DO_FROM_TEXT(child, ((UserFunction*) f)->setFormula);
+						XML_GET_PREC_FROM_PROP(child, prec)
+						f->setPrecision(prec);
+						XML_GET_APPROX_FROM_PROP(child, b)
+						f->setApproximate(b);
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "condition")) {
+						XML_DO_FROM_TEXT(child, f->setCondition);
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "subfunction")) {
+						XML_GET_FALSE_FROM_PROP(child, "precalculate", b);
+						value = xmlNodeListGetString(doc, child->xmlChildrenNode, 1);
+						if(value) ((UserFunction*) f)->addSubfunction((char*) value, b);
+						else ((UserFunction*) f)->addSubfunction("", true);
+						if(value) xmlFree(value);
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "argument")) {
+						farg = NULL; iarg = NULL;
+						XML_GET_STRING_FROM_PROP(child, "type", type);
+						if(type == "text") {
+							arg = new TextArgument();
+						} else if(type == "symbol") {
+							arg = new SymbolicArgument();
+						} else if(type == "date") {
+							arg = new DateArgument();
+						} else if(type == "integer") {
+							iarg = new IntegerArgument();
+							arg = iarg;
+						} else if(type == "number") {
+							farg = new NumberArgument();
+							arg = farg;
+						} else if(type == "vector") {
+							arg = new VectorArgument();
+						} else if(type == "matrix") {
+							arg = new MatrixArgument();
+						} else if(type == "boolean") {
+							arg = new BooleanArgument();
+						} else if(type == "function") {
+							arg = new FunctionArgument();
+						} else if(type == "unit") {
+							arg = new UnitArgument();
+						} else if(type == "variable") {
+							arg = new VariableArgument();
+						} else if(type == "object") {
+							arg = new ExpressionItemArgument();
+						} else if(type == "angle") {
+							arg = new AngleArgument();
+						} else if(type == "data-object") {
+							arg = new DataObjectArgument(NULL, "");
+						} else if(type == "data-property") {
+							arg = new DataPropertyArgument(NULL, "");
+						} else {
+							arg = new Argument();
+						}
+						child2 = child->xmlChildrenNode;
+						argname = ""; best_argname = false; next_best_argname = false;
+						while(child2 != NULL) {
+							if(!xmlStrcmp(child2->name, (const xmlChar*) "title")) {
+								XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname, next_best_argname)
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "min")) {
+								if(farg) {
+									XML_DO_FROM_TEXT(child2, nr.set);
+									farg->setMin(&nr);
+									XML_GET_FALSE_FROM_PROP(child, "include_equals", b)
+									farg->setIncludeEqualsMin(b);
+								} else if(iarg) {
+									XML_GET_STRING_FROM_TEXT(child2, stmp);
+									Number integ(stmp);
+									iarg->setMin(&integ);
+								}
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "max")) {
+								if(farg) {
+									XML_DO_FROM_TEXT(child2, nr.set);
+									farg->setMax(&nr);
+									XML_GET_FALSE_FROM_PROP(child, "include_equals", b)
+									farg->setIncludeEqualsMax(b);
+								} else if(iarg) {
+									XML_GET_STRING_FROM_TEXT(child2, stmp);
+									Number integ(stmp);
+									iarg->setMax(&integ);
+								}
+							} else if(farg && !xmlStrcmp(child2->name, (const xmlChar*) "complex_allowed")) {
+								XML_GET_FALSE_FROM_TEXT(child2, b);
+								farg->setComplexAllowed(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "condition")) {
+								XML_DO_FROM_TEXT(child2, arg->setCustomCondition);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "matrix_allowed")) {
+								XML_GET_TRUE_FROM_TEXT(child2, b);
+								arg->setMatrixAllowed(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "zero_forbidden")) {
+								XML_GET_TRUE_FROM_TEXT(child2, b);
+								arg->setZeroForbidden(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "test")) {
+								XML_GET_FALSE_FROM_TEXT(child2, b);
+								arg->setTests(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "handle_vector")) {
+								XML_GET_FALSE_FROM_TEXT(child2, b);
+								arg->setHandleVector(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "alert")) {
+								XML_GET_FALSE_FROM_TEXT(child2, b);
+								arg->setAlerts(b);
+							}
+							child2 = child2->next;
+						}
+						if(!argname.empty() && argname[0] == '!') {
+							size_t i = argname.find('!', 1);
+							if(i == string::npos) {
+								arg->setName(argname);
+							} else if(i + 1 < argname.length()) {
+								arg->setName(argname.substr(i + 1, argname.length() - (i + 1)));
+							}
+						} else {
+							arg->setName(argname);
+						}
+						itmp = 1;
+						XML_GET_INT_FROM_PROP(child, "index", itmp);
+						f->setArgumentDefinition(itmp, arg);
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "example")) {
+						XML_DO_FROM_TEXT(child, f->setExample);
+					} else ITEM_READ_NAME(functionNameIsValid)
+					 else ITEM_READ_DTH
+					 else {
+						ITEM_READ_NAMES
+					}
+					child = child->next;
+				}
+				if(new_names) {
+					ITEM_SET_BEST_NAMES(functionNameIsValid)
+					ITEM_SET_REFERENCE_NAMES(functionNameIsValid)
+				} else {
+					ITEM_SET_NAME_1(functionNameIsValid)
+					ITEM_SET_NAME_2
+					ITEM_SET_NAME_3
+				}
+				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= f->countNames();) {
+						if(getActiveFunction(f->getName(i).name)) f->removeName(i);
+						else i++;
+					}
+				}
+				if(f->countNames() == 0) {
+					f->destroy();
+					f = NULL;
+				} else {
+					f->setChanged(false);
+					addFunction(f, true, is_user_defs);
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "dataset") || !xmlStrcmp(cur->name, (const xmlChar*) "builtin_dataset")) {
+				bool builtin = !xmlStrcmp(cur->name, (const xmlChar*) "builtin_dataset");
+				XML_GET_FALSE_FROM_PROP(cur, "active", active)
+				if(builtin) {
+					XML_GET_STRING_FROM_PROP(cur, "name", name)
+					dc = getDataSet(name);
+					if(!dc) {
+						goto after_load_object;
+					}
+					dc->setCategory(category);
+				} else {
+					dc = new DataSet(category, "", "", "", "", is_user_defs);
+				}
+				item = dc;
+				done_something = true;
+				child = cur->xmlChildrenNode;
+				ITEM_INIT_DTH
+				ITEM_INIT_NAME
+				while(child != NULL) {
+					if(!xmlStrcmp(child->name, (const xmlChar*) "property")) {
+						dp = new DataProperty(dc);
+						child2 = child->xmlChildrenNode;
+						if(new_names) {
+							default_prop_names = ""; best_prop_names = ""; nextbest_prop_names = "";
+						} else {
+							for(size_t i = 0; i < 10; i++) {
+								best_name[i] = false;
+								nextbest_name[i] = false;
+							}
+						}
+						proptitle = ""; best_proptitle = false; next_best_proptitle = false;
+						propdescr = ""; best_propdescr = false; next_best_propdescr = false;
+						while(child2 != NULL) {
+							if(!xmlStrcmp(child2->name, (const xmlChar*) "title")) {
+								XML_GET_LOCALE_STRING_FROM_TEXT(child2, proptitle, best_proptitle, next_best_proptitle)
+							} else if(!new_names && !xmlStrcmp(child2->name, (const xmlChar*) "name")) {
+								name_index = 1;
+								XML_GET_INT_FROM_PROP(child2, "index", name_index)
+								if(name_index > 0 && name_index <= 10) {
+									name_index--;
+									prop_names[name_index] = "";
+									ref_prop_names[name_index] = "";
+									value2 = NULL;
+									child3 = child2->xmlChildrenNode;
+									while(child3 != NULL) {
+										if((!best_name[name_index] || (ref_prop_names[name_index].empty() && !locale.empty())) && !xmlStrcmp(child3->name, (const xmlChar*) "name")) {
+											lang = xmlNodeGetLang(child3);
+											if(!lang) {
+												value2 = xmlNodeListGetString(doc, child3->xmlChildrenNode, 1);
+												if(locale.empty()) {
+													best_name[name_index] = true;
+													if(value2) prop_names[name_index] = (char*) value2;
+													else prop_names[name_index] = "";
+												} else {
+													if(!best_name[name_index] && !nextbest_name[name_index]) {
+														if(value2) prop_names[name_index] = (char*) value2;
+														else prop_names[name_index] = "";
+													}
+													if(value2) ref_prop_names[name_index] = (char*) value2;
+													else ref_prop_names[name_index] = "";
+												}
+											} else if(!best_name[name_index] && !locale.empty()) {
+												if(locale == (char*) lang) {
+													value2 = xmlNodeListGetString(doc, child3->xmlChildrenNode, 1);
+													best_name[name_index] = true;
+													if(value2) prop_names[name_index] = (char*) value2;
+													else prop_names[name_index] = "";
+												} else if(!nextbest_name[name_index] && strlen((char*) lang) >= 2 && fulfilled_translation == 0 && lang[0] == localebase[0] && lang[1] == localebase[1]) {
+													value2 = xmlNodeListGetString(doc, child3->xmlChildrenNode, 1);
+													nextbest_name[name_index] = true;
+													if(value2) prop_names[name_index] = (char*) value2;
+													else prop_names[name_index] = "";
+												}
+											}
+											if(value2) xmlFree(value2);
+											if(lang) xmlFree(lang);
+											value2 = NULL; lang = NULL;
+										}
+										child3 = child3->next;
+									}
+									if(!ref_prop_names[name_index].empty() && ref_prop_names[name_index] == prop_names[name_index]) {
+										ref_prop_names[name_index] = "";
+									}
+								}
+							} else if(new_names && !xmlStrcmp(child2->name, (const xmlChar*) "names") && ((best_prop_names.empty() && fulfilled_translation != 2) || default_prop_names.empty())) {
+									value2 = xmlNodeListGetString(doc, child2->xmlChildrenNode, 1);
+ 									lang = xmlNodeGetLang(child2);
+									if(!lang) {
+										if(default_prop_names.empty()) {
+											if(value2) {
+												default_prop_names = (char*) value2;
+												remove_blank_ends(default_prop_names);
+											} else {
+												default_prop_names = "";
+											}
+										}
+									} else {
+										if(locale == (char*) lang) {
+											if(value2) {
+												best_prop_names = (char*) value2;
+												remove_blank_ends(best_prop_names);
+											} else {
+												best_prop_names = " ";
+											}
+									} else if(nextbest_prop_names.empty() && strlen((char*) lang) >= 2 && fulfilled_translation == 0 && lang[0] == localebase[0] && lang[1] == localebase[1]) {
+										if(value2) {
+											nextbest_prop_names = (char*) value2;
+											remove_blank_ends(nextbest_prop_names);
+										} else {
+											nextbest_prop_names = " ";
+										}
+									} else if(nextbest_prop_names.empty() && default_prop_names.empty() && value2 && !require_translation) {
+										nextbest_prop_names = (char*) value2;
+										remove_blank_ends(nextbest_prop_names);
+									}
+								}
+								if(value2) xmlFree(value2);
+								if(lang) xmlFree(lang);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "description")) {
+								XML_GET_LOCALE_STRING_FROM_TEXT(child2, propdescr, best_propdescr, next_best_propdescr)
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "unit")) {
+								XML_DO_FROM_TEXT(child2, dp->setUnit)
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "key")) {
+								XML_GET_TRUE_FROM_TEXT(child2, b)
+								dp->setKey(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "hidden")) {
+								XML_GET_TRUE_FROM_TEXT(child2, b)
+								dp->setHidden(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "brackets")) {
+								XML_GET_TRUE_FROM_TEXT(child2, b)
+								dp->setUsesBrackets(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "approximate")) {
+								XML_GET_TRUE_FROM_TEXT(child2, b)
+								dp->setApproximate(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "case_sensitive")) {
+								XML_GET_TRUE_FROM_TEXT(child2, b)
+								dp->setCaseSensitive(b);
+							} else if(!xmlStrcmp(child2->name, (const xmlChar*) "type")) {
+								XML_GET_STRING_FROM_TEXT(child2, stmp)
+								if(stmp == "text") {
+									dp->setPropertyType(PROPERTY_STRING);
+								} else if(stmp == "number") {
+									dp->setPropertyType(PROPERTY_NUMBER);
+								} else if(stmp == "expression") {
+									dp->setPropertyType(PROPERTY_EXPRESSION);
+								}
+							}
+							child2 = child2->next;
+						}
+						if(!proptitle.empty() && proptitle[0] == '!') {\
+							size_t i = proptitle.find('!', 1);
+							if(i == string::npos) {
+								dp->setTitle(proptitle);
+							} else if(i + 1 < proptitle.length()) {
+								dp->setTitle(proptitle.substr(i + 1, proptitle.length() - (i + 1)));
+							}
+						} else {
+							dp->setTitle(proptitle);
+						}
+						dp->setDescription(propdescr);
+						if(new_names) {
+							size_t names_i = 0, i2 = 0;
+							string *str_names;
+							bool had_ref = false;
+							if(best_prop_names == "-") {best_prop_names = ""; nextbest_prop_names = "";}
+							if(!best_prop_names.empty()) {str_names = &best_prop_names;}
+							else if(!nextbest_prop_names.empty()) {str_names = &nextbest_prop_names;}
+							else {str_names = &default_prop_names;}
+							if(!str_names->empty() && (*str_names)[0] == '!') {
+								names_i = str_names->find('!', 1) + 1;
+							}
+							while(true) {
+								size_t i3 = names_i;
+								names_i = str_names->find(",", i3);
+								if(i2 == 0) {
+									i2 = str_names->find(":", i3);
+								}
+								bool b_prop_ref = false;
+								if(i2 < names_i) {
+									bool b = true;
+									for(; i3 < i2; i3++) {
+										switch((*str_names)[i3]) {
+											case '-': {b = false; break;}
+											case 'r': {b_prop_ref = b; b = true; break;}
+										}
+									}
+									i3++;
+									i2 = 0;
+								}
+								if(names_i == string::npos) {stmp = str_names->substr(i3, str_names->length() - i3);}
+								else {stmp = str_names->substr(i3, names_i - i3);}
+								remove_blank_ends(stmp);
+								if(!stmp.empty()) {
+									if(b_prop_ref) had_ref = true;
+									dp->addName(stmp, b_prop_ref);
+								}
+								if(names_i == string::npos) {break;}
+								names_i++;
+							}
+							if(str_names != &default_prop_names && !default_prop_names.empty()) {
+								if(default_prop_names[0] == '!') {
+									names_i = default_prop_names.find('!', 1) + 1;
+								} else {
+									names_i = 0;
+								}
+								i2 = 0;
+								while(true) {
+									size_t i3 = names_i;
+									names_i = default_prop_names.find(",", i3);
+									if(i2 == 0) {
+										i2 = default_prop_names.find(":", i3);
+									}
+									bool b_prop_ref = false;
+									if(i2 < names_i) {
+										bool b = true;
+										for(; i3 < i2; i3++) {
+											switch(default_prop_names[i3]) {
+												case '-': {b = false; break;}
+												case 'r': {b_prop_ref = b; b = true; break;}
+											}
+										}
+										i3++;
+										i2 = 0;
+									}
+									if(b_prop_ref || (!had_ref && names_i == string::npos)) {
+										had_ref = true;
+										if(names_i == string::npos) {stmp = default_prop_names.substr(i3, default_prop_names.length() - i3);}
+										else {stmp = default_prop_names.substr(i3, names_i - i3);}
+										remove_blank_ends(stmp);
+										size_t i4 = dp->hasName(stmp);
+										if(i4 > 0) {
+											dp->setNameIsReference(i4, true);
+										} else if(!stmp.empty()) {
+											dp->addName(stmp, true);
+										}
+									}
+									if(names_i == string::npos) {break;}
+									names_i++;
+								}
+							}
+							if(!had_ref && dp->countNames() > 0) dp->setNameIsReference(1, true);
+						} else {
+							bool b = false;
+							for(size_t i = 0; i < 10; i++) {
+								if(!prop_names[i].empty()) {
+									if(!b && ref_prop_names[i].empty()) {
+										dp->addName(prop_names[i], true, i + 1);
+										b = true;
+									} else {
+										dp->addName(prop_names[i], false, i + 1);
+									}
+									prop_names[i] = "";
+								}
+							}
+							for(size_t i = 0; i < 10; i++) {
+								if(!ref_prop_names[i].empty()) {
+									if(!b) {
+										dp->addName(ref_prop_names[i], true);
+										b = true;
+									} else {
+										dp->addName(ref_prop_names[i], false);
+									}
+									ref_prop_names[i] = "";
+								}
+							}
+						}
+						dp->setUserModified(is_user_defs);
+						dc->addProperty(dp);
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "argument")) {
+						child2 = child->xmlChildrenNode;
+						argname = ""; best_argname = false; next_best_argname = false;
+						while(child2 != NULL) {
+							if(!xmlStrcmp(child2->name, (const xmlChar*) "title")) {
+								XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname, next_best_argname)
+							}
+							child2 = child2->next;
+						}
+						itmp = 1;
+						XML_GET_INT_FROM_PROP(child, "index", itmp);
+						if(dc->getArgumentDefinition(itmp)) {
+							dc->getArgumentDefinition(itmp)->setName(argname);
+						}
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "object_argument")) {
+						child2 = child->xmlChildrenNode;
+						argname = ""; best_argname = false; next_best_argname = false;
+						while(child2 != NULL) {
+							if(!xmlStrcmp(child2->name, (const xmlChar*) "title")) {
+								XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname, next_best_argname)
+							}
+							child2 = child2->next;
+						}
+						itmp = 1;
+						if(dc->getArgumentDefinition(itmp)) {
+							if(!argname.empty() && argname[0] == '!') {
+								size_t i = argname.find('!', 1);
+								if(i == string::npos) {
+									dc->getArgumentDefinition(itmp)->setName(argname);
+								} else if(i + 1 < argname.length()) {
+									dc->getArgumentDefinition(itmp)->setName(argname.substr(i + 1, argname.length() - (i + 1)));
+								}
+							} else {
+								dc->getArgumentDefinition(itmp)->setName(argname);
+							}
+						}
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "property_argument")) {
+						child2 = child->xmlChildrenNode;
+						argname = ""; best_argname = false; next_best_argname = false;
+						while(child2 != NULL) {
+							if(!xmlStrcmp(child2->name, (const xmlChar*) "title")) {
+								XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname, next_best_argname)
+							}
+							child2 = child2->next;
+						}
+						itmp = 2;
+						if(dc->getArgumentDefinition(itmp)) {
+							if(!argname.empty() && argname[0] == '!') {
+								size_t i = argname.find('!', 1);
+								if(i == string::npos) {
+									dc->getArgumentDefinition(itmp)->setName(argname);
+								} else if(i + 1 < argname.length()) {
+									dc->getArgumentDefinition(itmp)->setName(argname.substr(i + 1, argname.length() - (i + 1)));
+								}
+							} else {
+								dc->getArgumentDefinition(itmp)->setName(argname);
+							}
+						}
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "default_property")) {
+						XML_DO_FROM_TEXT(child, dc->setDefaultProperty)
+					} else if(!builtin && !xmlStrcmp(child->name, (const xmlChar*) "copyright")) {
+						XML_DO_FROM_TEXT(child, dc->setCopyright)
+					} else if(!builtin && !xmlStrcmp(child->name, (const xmlChar*) "datafile")) {
+						XML_DO_FROM_TEXT(child, dc->setDefaultDataFile)
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "example")) {
+						XML_DO_FROM_TEXT(child, dc->setExample);
+					} else ITEM_READ_NAME(functionNameIsValid)
+					 else ITEM_READ_DTH
+					 else {
+						ITEM_READ_NAMES
+					}
+					child = child->next;
+				}
+				if(new_names) {
+					if(builtin) {
+						ITEM_SAVE_BUILTIN_NAMES
+					}
+					ITEM_SET_BEST_NAMES(functionNameIsValid)
+					ITEM_SET_REFERENCE_NAMES(functionNameIsValid)
+					if(builtin) {
+						ITEM_SET_BUILTIN_NAMES
+					}
+				} else {
+					if(builtin) {
+						BUILTIN_NAMES_1
+					}
+					ITEM_SET_NAME_2
+					ITEM_SET_NAME_3
+					if(builtin) {
+						BUILTIN_NAMES_2
+					}
+				}
+				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= dc->countNames();) {
+						if(getActiveFunction(dc->getName(i).name)) dc->removeName(i);
+						else i++;
+					}
+				}
+				if(!builtin && dc->countNames() == 0) {
+					dc->destroy();
+					dc = NULL;
+				} else {
+					dc->setChanged(builtin && is_user_defs);
+					if(!builtin) addDataSet(dc, true, is_user_defs);
+				}
+				done_something = true;
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "builtin_function")) {
+				XML_GET_STRING_FROM_PROP(cur, "name", name)
+				f = getFunction(name);
+				if(f) {
+					XML_GET_FALSE_FROM_PROP(cur, "active", active)
+					f->setLocal(is_user_defs, active);
+					f->setCategory(category);
+					item = f;
+					child = cur->xmlChildrenNode;
+					ITEM_INIT_DTH
+					ITEM_INIT_NAME
+					while(child != NULL) {
+						if(!xmlStrcmp(child->name, (const xmlChar*) "argument")) {
+							child2 = child->xmlChildrenNode;
+							argname = ""; best_argname = false; next_best_argname = false;
+							while(child2 != NULL) {
+								if(!xmlStrcmp(child2->name, (const xmlChar*) "title")) {
+									XML_GET_LOCALE_STRING_FROM_TEXT(child2, argname, best_argname, next_best_argname)
+								}
+								child2 = child2->next;
+							}
+							itmp = 1;
+							XML_GET_INT_FROM_PROP(child, "index", itmp);
+							if(f->getArgumentDefinition(itmp)) {
+								if(!argname.empty() && argname[0] == '!') {
+									size_t i = argname.find('!', 1);
+									if(i == string::npos) {
+										f->getArgumentDefinition(itmp)->setName(argname);
+									} else if(i + 1 < argname.length()) {
+										f->getArgumentDefinition(itmp)->setName(argname.substr(i + 1, argname.length() - (i + 1)));
+									}
+								} else {
+									f->getArgumentDefinition(itmp)->setName(argname);
+								}
+							} else if(itmp <= f->maxargs() || itmp <= f->minargs()) {
+								if(!argname.empty() && argname[0] == '!') {
+									size_t i = argname.find('!', 1);
+									if(i == string::npos) {
+										f->setArgumentDefinition(itmp, new Argument(argname, false));
+									} else if(i + 1 < argname.length()) {
+										f->setArgumentDefinition(itmp, new Argument(argname.substr(i + 1, argname.length() - (i + 1)), false));
+									}
+								} else {
+									f->setArgumentDefinition(itmp, new Argument(argname, false));
+								}
+							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "example")) {
+							XML_DO_FROM_TEXT(child, f->setExample);
+						} else ITEM_READ_NAME(functionNameIsValid)
+						 else ITEM_READ_DTH
+						 else {
+							ITEM_READ_NAMES
+						}
+						child = child->next;
+					}
+					if(new_names) {
+						ITEM_SAVE_BUILTIN_NAMES
+						ITEM_SET_BEST_NAMES(functionNameIsValid)
+						ITEM_SET_REFERENCE_NAMES(functionNameIsValid)
+						ITEM_SET_BUILTIN_NAMES
+					} else {
+						BUILTIN_NAMES_1
+						ITEM_SET_NAME_2
+						ITEM_SET_NAME_3
+						BUILTIN_NAMES_2
+					}
+					ITEM_SET_DTH
+					f->setChanged(false);
+					done_something = true;
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "unknown")) {
+				if(VERSION_BEFORE(0, 6, 3)) {
+					XML_GET_STRING_FROM_PROP(cur, "name", name)
+				} else {
+					name = "";
+				}
+				XML_GET_FALSE_FROM_PROP(cur, "active", active)
+				svalue = "";
+				v = new UnknownVariable(category, "", "", is_user_defs, false, active);
+				item = v;
+				done_something = true;
+				child = cur->xmlChildrenNode;
+				b = true;
+				ITEM_INIT_DTH
+				ITEM_INIT_NAME
+				while(child != NULL) {
+					if(!xmlStrcmp(child->name, (const xmlChar*) "type")) {
+						XML_GET_STRING_FROM_TEXT(child, stmp);
+						if(!((UnknownVariable*) v)->assumptions()) ((UnknownVariable*) v)->setAssumptions(new Assumptions());
+						if(stmp == "integer") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_INTEGER);
+						else if(stmp == "rational") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_RATIONAL);
+						else if(stmp == "real") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_REAL);
+						else if(stmp == "complex") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_COMPLEX);
+						else if(stmp == "number") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_NUMBER);
+						else if(stmp == "non-matrix") {
+							if(VERSION_BEFORE(0, 9, 13)) {
+								((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_NUMBER);
+							} else {
+								((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_NONMATRIX);
+							}
+						} else if(stmp == "none") {
+							if(VERSION_BEFORE(0, 9, 13)) {
+								((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_NUMBER);
+							} else {
+								((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_NONE);
+							}
+						}
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "sign")) {
+						XML_GET_STRING_FROM_TEXT(child, stmp);
+						if(!((UnknownVariable*) v)->assumptions()) ((UnknownVariable*) v)->setAssumptions(new Assumptions());
+						if(stmp == "non-zero") ((UnknownVariable*) v)->assumptions()->setSign(ASSUMPTION_SIGN_NONZERO);
+						else if(stmp == "non-positive") ((UnknownVariable*) v)->assumptions()->setSign(ASSUMPTION_SIGN_NONPOSITIVE);
+						else if(stmp == "negative") ((UnknownVariable*) v)->assumptions()->setSign(ASSUMPTION_SIGN_NEGATIVE);
+						else if(stmp == "non-negative") ((UnknownVariable*) v)->assumptions()->setSign(ASSUMPTION_SIGN_NONNEGATIVE);
+						else if(stmp == "positive") ((UnknownVariable*) v)->assumptions()->setSign(ASSUMPTION_SIGN_POSITIVE);
+						else if(stmp == "unknown") ((UnknownVariable*) v)->assumptions()->setSign(ASSUMPTION_SIGN_UNKNOWN);
+					} else ITEM_READ_NAME(variableNameIsValid)
+					 else ITEM_READ_DTH
+					 else {
+						ITEM_READ_NAMES
+					}
+					child = child->next;
+				}
+				if(new_names) {
+					ITEM_SET_BEST_NAMES(variableNameIsValid)
+					ITEM_SET_REFERENCE_NAMES(variableNameIsValid)
+				} else {
+					ITEM_SET_NAME_1(variableNameIsValid)
+					ITEM_SET_NAME_2
+					ITEM_SET_NAME_3
+				}
+				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= v->countNames();) {
+						if(getActiveVariable(v->getName(i).name) || getActiveUnit(v->getName(i).name) || getCompositeUnit(v->getName(i).name)) v->removeName(i);
+						else i++;
+					}
+				}
+				for(size_t i = 1; i <= v->countNames(); i++) {
+					if(v->getName(i).name == "x") {v_x->destroy(); v_x = (UnknownVariable*) v; break;}
+					if(v->getName(i).name == "y") {v_y->destroy(); v_y = (UnknownVariable*) v; break;}
+					if(v->getName(i).name == "z") {v_z->destroy(); v_z = (UnknownVariable*) v; break;}
+				}
+				if(v->countNames() == 0) {
+					v->destroy();
+					v = NULL;
+				} else {
+					addVariable(v, true, is_user_defs);
+					v->setChanged(false);
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "variable")) {
+				if(VERSION_BEFORE(0, 6, 3)) {
+					XML_GET_STRING_FROM_PROP(cur, "name", name)
+				} else {
+					name = "";
+				}
+				XML_GET_FALSE_FROM_PROP(cur, "active", active)
+				svalue = "";
+				v = new KnownVariable(category, "", "", "", is_user_defs, false, active);
+				item = v;
+				done_something = true;
+				child = cur->xmlChildrenNode;
+				b = true;
+				ITEM_INIT_DTH
+				ITEM_INIT_NAME
+				while(child != NULL) {
+					if(!xmlStrcmp(child->name, (const xmlChar*) "value")) {
+						XML_DO_FROM_TEXT(child, ((KnownVariable*) v)->set);
+						XML_GET_STRING_FROM_PROP(child, "relative_uncertainty", suncertainty)
+						unc_rel = false;
+						if(suncertainty.empty()) {XML_GET_STRING_FROM_PROP(child, "uncertainty", suncertainty)}
+						else unc_rel = true;
+						((KnownVariable*) v)->setUncertainty(suncertainty, unc_rel);
+						XML_DO_FROM_PROP(child, "unit", ((KnownVariable*) v)->setUnit)
+						XML_GET_PREC_FROM_PROP(child, prec)
+						v->setPrecision(prec);
+						XML_GET_APPROX_FROM_PROP(child, b);
+						if(b) v->setApproximate(true);
+					} else ITEM_READ_NAME(variableNameIsValid)
+					 else ITEM_READ_DTH
+					 else {
+						ITEM_READ_NAMES
+					}
+					child = child->next;
+				}
+				if(new_names) {
+					ITEM_SET_BEST_NAMES(variableNameIsValid)
+					ITEM_SET_REFERENCE_NAMES(variableNameIsValid)
+				} else {
+					ITEM_SET_NAME_1(variableNameIsValid)
+					ITEM_SET_NAME_2
+					ITEM_SET_NAME_3
+				}
+				ITEM_SET_DTH
+				if(check_duplicates && !is_user_defs) {
+					for(size_t i = 1; i <= v->countNames();) {
+						if(getActiveVariable(v->getName(i).name) || getActiveUnit(v->getName(i).name) || getCompositeUnit(v->getName(i).name)) v->removeName(i);
+						else i++;
+					}
+				}
+				if(v->countNames() == 0) {
+					v->destroy();
+					v = NULL;
+				} else {
+					addVariable(v, true, is_user_defs);
+					item->setChanged(false);
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "builtin_variable")) {
+				XML_GET_STRING_FROM_PROP(cur, "name", name)
+				v = getVariable(name);
+				if(v) {
+					XML_GET_FALSE_FROM_PROP(cur, "active", active)
+					v->setLocal(is_user_defs, active);
+					v->setCategory(category);
+					item = v;
+					child = cur->xmlChildrenNode;
+					ITEM_INIT_DTH
+					ITEM_INIT_NAME
+					while(child != NULL) {
+						ITEM_READ_NAME(variableNameIsValid)
+						 else ITEM_READ_DTH
+						 else {
+							ITEM_READ_NAMES
+						}
+						child = child->next;
+					}
+					if(new_names) {
+						ITEM_SAVE_BUILTIN_NAMES
+						ITEM_SET_BEST_NAMES(variableNameIsValid)
+						ITEM_SET_REFERENCE_NAMES(variableNameIsValid)
+						ITEM_SET_BUILTIN_NAMES
+					} else {
+						BUILTIN_NAMES_1
+						ITEM_SET_NAME_2
+						ITEM_SET_NAME_3
+						BUILTIN_NAMES_2
+					}
+					ITEM_SET_DTH
+					v->setChanged(false);
+					done_something = true;
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "unit")) {
+				XML_GET_STRING_FROM_PROP(cur, "type", type)
+				if(type == "base") {
+					if(VERSION_BEFORE(0, 6, 3)) {
+						XML_GET_STRING_FROM_PROP(cur, "name", name)
+					} else {
+						name = "";
+					}
+					XML_GET_FALSE_FROM_PROP(cur, "active", active)
+					u = new Unit(category, "", "", "", "", is_user_defs, false, active);
+					item = u;
+					child = cur->xmlChildrenNode;
+					singular = ""; best_singular = false; next_best_singular = false;
+					plural = ""; best_plural = false; next_best_plural = false;
+					countries = "", best_countries = false, next_best_countries = false;
+					use_with_prefixes_set = false;
+					ITEM_INIT_DTH
+					ITEM_INIT_NAME
+					while(child != NULL) {
+						if(!xmlStrcmp(child->name, (const xmlChar*) "system")) {
+							XML_DO_FROM_TEXT(child, u->setSystem)
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "use_with_prefixes")) {
+							XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
+							use_with_prefixes_set = true;
+						} else if((VERSION_BEFORE(0, 6, 3)) && !xmlStrcmp(child->name, (const xmlChar*) "singular")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, singular, best_singular, next_best_singular)
+							if(!unitNameIsValid(singular, version_numbers, is_user_defs)) {
+								singular = "";
+							}
+						} else if((VERSION_BEFORE(0, 6, 3)) && !xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlGetProp(child, (xmlChar*) "index")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural, next_best_plural)
+							if(!unitNameIsValid(plural, version_numbers, is_user_defs)) {
+								plural = "";
+							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "countries")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries, next_best_countries)
+						} else ITEM_READ_NAME(unitNameIsValid)
+						 else ITEM_READ_DTH
+						 else {
+							ITEM_READ_NAMES
+						}
+						child = child->next;
+					}
+					u->setCountries(countries);
+					if(new_names) {
+						ITEM_SET_BEST_NAMES(unitNameIsValid)
+						ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
+					} else {
+						ITEM_SET_SHORT_NAME
+						ITEM_SET_SINGULAR
+						ITEM_SET_PLURAL
+						ITEM_SET_NAME_2
+						ITEM_SET_NAME_3
+					}
+					ITEM_SET_DTH
+					if(use_with_prefixes_set) {
+						u->setUseWithPrefixesByDefault(use_with_prefixes);
+					}
+					if(check_duplicates && !is_user_defs) {
+						for(size_t i = 1; i <= u->countNames();) {
+							if(getActiveVariable(u->getName(i).name) || getActiveUnit(u->getName(i).name) || getCompositeUnit(u->getName(i).name)) u->removeName(i);
+							else i++;
+						}
+					}
+					if(u->countNames() == 0) {
+						u->destroy();
+						u = NULL;
+					} else {
+						if(!is_user_defs && u->referenceName() == "s") u_second = u;
+						addUnit(u, true, is_user_defs);
+						u->setChanged(false);
+					}
+					done_something = true;
+				} else if(type == "alias") {
+					if(VERSION_BEFORE(0, 6, 3)) {
+						XML_GET_STRING_FROM_PROP(cur, "name", name)
+					} else {
+						name = "";
+					}
+					XML_GET_FALSE_FROM_PROP(cur, "active", active)
+					u = NULL;
+					child = cur->xmlChildrenNode;
+					singular = ""; best_singular = false; next_best_singular = false;
+					plural = ""; best_plural = false; next_best_plural = false;
+					countries = "", best_countries = false, next_best_countries = false;
+					bool b_currency = false;
+					use_with_prefixes_set = false;
+					usystem = "";
+					prec = -1;
+					ITEM_INIT_DTH
+					ITEM_INIT_NAME
+					unc_rel = false;
+					while(child != NULL) {
+						if(!xmlStrcmp(child->name, (const xmlChar*) "base")) {
+							child2 = child->xmlChildrenNode;
+							exponent = 1;
+							mix_priority = 0;
+							mix_min = 0;
+							svalue = "";
+							inverse = "";
+							suncertainty = "";
+							b = true;
+							while(child2 != NULL) {
+								if(!xmlStrcmp(child2->name, (const xmlChar*) "unit")) {
+									XML_GET_STRING_FROM_TEXT(child2, base);
+									u = getUnit(base);
+									b_currency = (!is_user_defs && u && u == u_euro);
+									if(!u) {
+										u = getCompositeUnit(base);
+									}
+								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "relation")) {
+									XML_GET_STRING_FROM_TEXT(child2, svalue);
+									XML_GET_APPROX_FROM_PROP(child2, b)
+									XML_GET_PREC_FROM_PROP(child2, prec)
+									XML_GET_STRING_FROM_PROP(child2, "relative_uncertainty", suncertainty)
+									if(suncertainty.empty()) {XML_GET_STRING_FROM_PROP(child2, "uncertainty", suncertainty)}
+									else unc_rel = true;
+								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "reverse_relation")) {
+									XML_GET_STRING_FROM_TEXT(child2, inverse);
+								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "inverse_relation")) {
+									XML_GET_STRING_FROM_TEXT(child2, inverse);
+								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "exponent")) {
+									XML_GET_STRING_FROM_TEXT(child2, stmp);
+									if(stmp.empty()) {
+										exponent = 1;
+									} else {
+										exponent = s2i(stmp);
+									}
+								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "mix")) {
+									XML_GET_INT_FROM_PROP(child2, "min", mix_min);
+									XML_GET_STRING_FROM_TEXT(child2, stmp);
+									if(stmp.empty()) {
+										mix_priority = 0;
+									} else {
+										mix_priority = s2i(stmp);
+									}
+								}
+								child2 = child2->next;
+							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "system")) {
+							XML_GET_STRING_FROM_TEXT(child, usystem);
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "use_with_prefixes")) {
+							XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
+							use_with_prefixes_set = true;
+						} else if((VERSION_BEFORE(0, 6, 3)) && !xmlStrcmp(child->name, (const xmlChar*) "singular")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, singular, best_singular, next_best_singular)
+							if(!unitNameIsValid(singular, version_numbers, is_user_defs)) {
+								singular = "";
+							}
+						} else if((VERSION_BEFORE(0, 6, 3)) && !xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlGetProp(child, (xmlChar*) "index")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural, next_best_plural)
+							if(!unitNameIsValid(plural, version_numbers, is_user_defs)) {
+								plural = "";
+							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "countries")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries, next_best_countries)
+						} else ITEM_READ_NAME(unitNameIsValid)
+						 else ITEM_READ_DTH
+						 else {
+							ITEM_READ_NAMES
+						}
+						child = child->next;
+					}
+					if(!u) {
+						ITEM_CLEAR_NAMES
+						if(!in_unfinished) {
+							unfinished_nodes.push_back(cur);
+							unfinished_cats.push_back(category);
+						}
+					} else {
+						au = new AliasUnit(category, name, plural, singular, title, u, svalue, exponent, inverse, is_user_defs, false, active);
+						au->setCountries(countries);
+						if(mix_priority > 0) {
+							au->setMixWithBase(mix_priority);
+							au->setMixWithBaseMinimum(mix_min);
+						}
+						au->setDescription(description);
+						au->setPrecision(prec);
+						if(b) au->setApproximate(true);
+						au->setUncertainty(suncertainty, unc_rel);
+						if(hidden >= 0) au->setHidden(hidden);
+						au->setSystem(usystem);
+						if(use_with_prefixes_set) {
+							au->setUseWithPrefixesByDefault(use_with_prefixes);
+						}
+						item = au;
+						if(new_names) {
+							ITEM_SET_BEST_NAMES(unitNameIsValid)
+							ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
+						} else {
+							ITEM_SET_NAME_2
+							ITEM_SET_NAME_3
+						}
+						if(b_currency && !au->referenceName().empty()) {
+							u = getUnit(au->referenceName());
+							if(u && u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->baseUnit() == u_euro) u->destroy();
+						}
+						if(check_duplicates && !is_user_defs) {
+							for(size_t i = 1; i <= au->countNames();) {
+								if(getActiveVariable(au->getName(i).name) || getActiveUnit(au->getName(i).name) || getCompositeUnit(au->getName(i).name)) au->removeName(i);
+								else i++;
+							}
+						}
+						if(au->countNames() == 0) {
+							au->destroy();
+							au = NULL;
+						} else {
+							if(!is_user_defs && au->baseUnit() == u_second) {
+								if(au->referenceName() == "d" || au->referenceName() == "day") u_day = au;
+								else if(au->referenceName() == "year") u_year = au;
+								else if(au->referenceName() == "month") u_month = au;
+								else if(au->referenceName() == "min") u_minute = au;
+								else if(au->referenceName() == "h") u_hour = au;
+							}
+							addUnit(au, true, is_user_defs);
+							au->setChanged(false);
+						}
+						done_something = true;
+					}
+				} else if(type == "composite") {
+					if(VERSION_BEFORE(0, 6, 3)) {
+						XML_GET_STRING_FROM_PROP(cur, "name", name)
+					} else {
+						name = "";
+					}
+					XML_GET_FALSE_FROM_PROP(cur, "active", active)
+					child = cur->xmlChildrenNode;
+					usystem = "";
+					cu = NULL;
+					ITEM_INIT_DTH
+					ITEM_INIT_NAME
+					b = true;
+					while(child != NULL) {
+						u = NULL;
+						if(!xmlStrcmp(child->name, (const xmlChar*) "part")) {
+							child2 = child->xmlChildrenNode;
+							p = NULL;
+							exponent = 1;
+							while(child2 != NULL) {
+								if(!xmlStrcmp(child2->name, (const xmlChar*) "unit")) {
+									XML_GET_STRING_FROM_TEXT(child2, base);
+									u = getUnit(base);
+									if(!u) {
+										u = getCompositeUnit(base);
+									}
+								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "prefix")) {
+									XML_GET_STRING_FROM_PROP(child2, "type", stmp)
+									XML_GET_STRING_FROM_TEXT(child2, svalue);
+									p = NULL;
+									if(stmp == "binary") {
+										litmp = s2i(svalue);
+										if(litmp != 0) {
+											p = getExactBinaryPrefix(litmp);
+											if(!p) b = false;
+										}
+									} else if(stmp == "number") {
+										nr.set(stmp);
+										if(!nr.isZero()) {
+											p = getExactPrefix(stmp);
+											if(!p) b = false;
+										}
+									} else {
+										litmp = s2i(svalue);
+										if(litmp != 0) {
+											p = getExactDecimalPrefix(litmp);
+											if(!p) b = false;
+										}
+									}
+									if(!b) {
+										if(cu) {
+											delete cu;
+										}
+										cu = NULL;
+										break;
+									}
+								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "exponent")) {
+									XML_GET_STRING_FROM_TEXT(child2, stmp);
+									if(stmp.empty()) {
+										exponent = 1;
+									} else {
+										exponent = s2i(stmp);
+									}
+								}
+								child2 = child2->next;
+							}
+							if(!b) break;
+							if(u) {
+								if(!cu) {
+									cu = new CompositeUnit("", "", "", "", is_user_defs, false, active);
+								}
+								cu->add(u, exponent, p);
+							} else {
+								if(cu) delete cu;
+								cu = NULL;
+								if(!in_unfinished) {
+									unfinished_nodes.push_back(cur);
+									unfinished_cats.push_back(category);
+								}
+								break;
+							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "system")) {
+							XML_GET_STRING_FROM_TEXT(child, usystem);
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "use_with_prefixes")) {
+							XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
+							use_with_prefixes_set = true;
+						} else ITEM_READ_NAME(unitNameIsValid)
+						 else ITEM_READ_DTH
+						 else {
+							ITEM_READ_NAMES
+						}
+						child = child->next;
+					}
+					if(cu) {
+						item = cu;
+						cu->setCategory(category);
+						cu->setSystem(usystem);
+						/*if(use_with_prefixes_set) {
+							cu->setUseWithPrefixesByDefault(use_with_prefixes);
+						}*/
+						if(new_names) {
+							ITEM_SET_BEST_NAMES(unitNameIsValid)
+							ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
+						} else {
+							ITEM_SET_NAME_1(unitNameIsValid)
+							ITEM_SET_NAME_2
+							ITEM_SET_NAME_3
+						}
+						ITEM_SET_DTH
+						if(check_duplicates && !is_user_defs) {
+							for(size_t i = 1; i <= cu->countNames();) {
+								if(getActiveVariable(cu->getName(i).name) || getActiveUnit(cu->getName(i).name) || getCompositeUnit(cu->getName(i).name)) cu->removeName(i);
+								else i++;
+							}
+						}
+						if(cu->countNames() == 0) {
+							cu->destroy();
+							cu = NULL;
+						} else {
+							addUnit(cu, true, is_user_defs);
+							cu->setChanged(false);
+						}
+						done_something = true;
+					} else {
+						ITEM_CLEAR_NAMES
+					}
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "builtin_unit")) {
+				XML_GET_STRING_FROM_PROP(cur, "name", name)
+				u = getUnit(name);
+				if(!u) {
+					u = getCompositeUnit(name);
+				}
+				if(u) {
+					XML_GET_FALSE_FROM_PROP(cur, "active", active)
+					u->setLocal(is_user_defs, active);
+					u->setCategory(category);
+					item = u;
+					child = cur->xmlChildrenNode;
+					singular = ""; best_singular = false; next_best_singular = false;
+					plural = ""; best_plural = false; next_best_plural = false;
+					countries = "", best_countries = false, next_best_countries = false;
+					use_with_prefixes_set = false;
+					ITEM_INIT_DTH
+					ITEM_INIT_NAME
+					while(child != NULL) {
+						if(!xmlStrcmp(child->name, (const xmlChar*) "singular")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, singular, best_singular, next_best_singular)
+							if(!unitNameIsValid(singular, version_numbers, is_user_defs)) {
+								singular = "";
+							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlGetProp(child, (xmlChar*) "index")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural, next_best_plural)
+							if(!unitNameIsValid(plural, version_numbers, is_user_defs)) {
+								plural = "";
+							}
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "use_with_prefixes")) {
+							XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
+							use_with_prefixes_set = true;
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "countries")) {
+							XML_GET_LOCALE_STRING_FROM_TEXT(child, countries, best_countries, next_best_countries)
+						} else ITEM_READ_NAME(unitNameIsValid)
+						 else ITEM_READ_DTH
+						 else {
+							ITEM_READ_NAMES
+						}
+						child = child->next;
+					}
+					if(use_with_prefixes_set) {
+						u->setUseWithPrefixesByDefault(use_with_prefixes);
+					}
+					u->setCountries(countries);
+					if(new_names) {
+						ITEM_SAVE_BUILTIN_NAMES
+						ITEM_SET_BEST_NAMES(unitNameIsValid)
+						ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
+						ITEM_SET_BUILTIN_NAMES
+					} else {
+						BUILTIN_UNIT_NAMES_1
+						ITEM_SET_SINGULAR
+						ITEM_SET_PLURAL
+						ITEM_SET_NAME_2
+						ITEM_SET_NAME_3
+						BUILTIN_NAMES_2
+					}
+					ITEM_SET_DTH
+					if(u_usd && u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd) u->setHidden(true);
+					u->setChanged(false);
+					done_something = true;
+				}
+			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "prefix")) {
+				child = cur->xmlChildrenNode;
+				XML_GET_STRING_FROM_PROP(cur, "type", type)
+				uname = ""; sexp = ""; svalue = ""; name = "";
+				bool b_best = false;
+				while(child != NULL) {
+					if(!xmlStrcmp(child->name, (const xmlChar*) "name")) {
+						lang = xmlNodeGetLang(child);
+						if(!lang) {
+							if(name.empty()) {
+								XML_GET_STRING_FROM_TEXT(child, name);
+							}
+						} else {
+							if(!b_best && !locale.empty()) {
+								if(locale == (char*) lang) {
+									XML_GET_STRING_FROM_TEXT(child, name);
+									b_best = true;
+								} else if(strlen((char*) lang) >= 2 && lang[0] == localebase[0] && lang[1] == localebase[1]) {
+									XML_GET_STRING_FROM_TEXT(child, name);
+								}
+							}
+							xmlFree(lang);
+						}
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "abbreviation")) {
+						XML_GET_STRING_FROM_TEXT(child, stmp);
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "unicode")) {
+						XML_GET_STRING_FROM_TEXT(child, uname);
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "exponent")) {
+						XML_GET_STRING_FROM_TEXT(child, sexp);
+					} else if(!xmlStrcmp(child->name, (const xmlChar*) "value")) {
+						XML_GET_STRING_FROM_TEXT(child, svalue);
+					}
+					child = child->next;
+				}
+				if(type == "decimal") {
+					addPrefix(new DecimalPrefix(s2i(sexp), name, stmp, uname));
+				} else if(type == "number") {
+					addPrefix(new NumberPrefix(svalue, name, stmp, uname));
+				} else if(type == "binary") {
+					addPrefix(new BinaryPrefix(s2i(sexp), name, stmp, uname));
+				} else {
+					if(svalue.empty()) {
+						addPrefix(new DecimalPrefix(s2i(sexp), name, stmp, uname));
+					} else {
+						addPrefix(new NumberPrefix(svalue, name, stmp, uname));
+					}
+				}
+				done_something = true;
+			}
+			after_load_object:
+			cur = NULL;
+			if(in_unfinished) {
+				if(done_something) {
+					in_unfinished--;
+					unfinished_nodes.erase(unfinished_nodes.begin() + in_unfinished);
+					unfinished_cats.erase(unfinished_cats.begin() + in_unfinished);
+				}
+				if((int) unfinished_nodes.size() > in_unfinished) {
+					cur = unfinished_nodes[in_unfinished];
+					category = unfinished_cats[in_unfinished];
+				} else if(done_something && unfinished_nodes.size() > 0) {
+					cur = unfinished_nodes[0];
+					category = unfinished_cats[0];
+					in_unfinished = 0;
+					done_something = false;
+				}
+				in_unfinished++;
+				done_something = false;
+			}
+		}
+		if(in_unfinished) {
+			break;
+		}
+		while(!nodes.empty() && nodes.back().empty()) {
+			size_t cat_i = category.rfind("/");
+			if(cat_i == string::npos) {
+				category = "";
+			} else {
+				category = category.substr(0, cat_i);
+			}
+			nodes.pop_back();
+		}
+		if(!nodes.empty()) {
+			cur = nodes.back().front();
+			nodes.back().pop();
+			nodes.resize(nodes.size() + 1);
+		} else {
+			if(unfinished_nodes.size() > 0) {
+				cur = unfinished_nodes[0];
+				category = unfinished_cats[0];
+				in_unfinished = 1;
+				done_something = false;
+			} else {
+				cur = NULL;
+			}
+		}
+		if(cur == NULL) {
+			break;
+		}
+	}
+	xmlFreeDoc(doc);
+	return true;
 }
 bool Calculator::saveDefinitions() {
 
-  recursiveMakeDir(getLocalDataDir());
-  string homedir = buildPath(getLocalDataDir(), "definitions");
-  makeDir(homedir);
-  bool b = true;
-  if (!saveFunctions(buildPath(homedir, "functions.xml").c_str()))
-    b = false;
-  if (!saveUnits(buildPath(homedir, "units.xml").c_str()))
-    b = false;
-  if (!saveVariables(buildPath(homedir, "variables.xml").c_str()))
-    b = false;
-  if (!saveDataSets(buildPath(homedir, "datasets.xml").c_str()))
-    b = false;
-  if (!saveDataObjects())
-    b = false;
-  return b;
+	recursiveMakeDir(getLocalDataDir());
+	string homedir = buildPath(getLocalDataDir(), "definitions");
+	makeDir(homedir);
+	bool b = true;
+	if(!saveFunctions(buildPath(homedir, "functions.xml").c_str())) b = false;
+	if(!saveUnits(buildPath(homedir, "units.xml").c_str())) b = false;
+	if(!saveVariables(buildPath(homedir, "variables.xml").c_str())) b = false;
+	if(!saveDataSets(buildPath(homedir, "datasets.xml").c_str())) b = false;
+	if(!saveDataObjects()) b = false;
+	return b;
 }
 
 struct node_tree_item {
@@ -4407,7 +4291,7 @@ bool Calculator::loadExchangeRates() {
 		}
 	}
 
-	if(cunits.find(u_btc) != cunits.end()) {
+	if(cunits.find(u_btc) == cunits.end()) {
 		filename = getExchangeRatesFileName(2);
 		ifstream file2(filename.c_str());
 		if(file2.is_open()) {
@@ -4422,223 +4306,218 @@ bool Calculator::loadExchangeRates() {
 					((AliasUnit*) u_btc)->setBaseUnit(u_euro);
 					((AliasUnit*) u_btc)->setExpression(sbuffer.substr(i + 1, i2 - (i + 1)));
 					u_btc->setApproximate();
+					u_btc->setPrecision(-2);
+					u_btc->setChanged(false);
+				}
+			}
+			file2.close();
+			struct stat stats;
+			if(stat(filename.c_str(), &stats) == 0) {
+				exchange_rates_time[1] = stats.st_mtime;
+				if(exchange_rates_time[1] > exchange_rates_check_time[1]) exchange_rates_check_time[1] = exchange_rates_time[1];
+			}
+		}
+	} else {
+		exchange_rates_time[1] = exchange_rates_time[0];
+		if(exchange_rates_time[1] > exchange_rates_check_time[1]) exchange_rates_check_time[1] = exchange_rates_time[1];
+	}
 
-  filename = getExchangeRatesFileName(2);
-  ifstream file2(filename.c_str());
-  if (file2.is_open()) {
-    std::stringstream ssbuffer2;
-    ssbuffer2 << file2.rdbuf();
-    string sbuffer = ssbuffer2.str();
-    size_t i = sbuffer.find("\"amount\":");
-    if (i != string::npos) {
-      i = sbuffer.find("\"", i + 9);
-      if (i != string::npos) {
-        size_t i2 = sbuffer.find("\"", i + 1);
-        ((AliasUnit *)u_btc)
-            ->setExpression(sbuffer.substr(i + 1, i2 - (i + 1)));
-      }
-    }
-    file2.close();
-    struct stat stats;
-    if (stat(filename.c_str(), &stats) == 0) {
-      exchange_rates_time[1] = stats.st_mtime;
-      if (exchange_rates_time[1] > exchange_rates_check_time[1])
-        exchange_rates_check_time[1] = exchange_rates_time[1];
-    }
-  } else {
-    exchange_rates_time[1] = ((time_t)1531087L) * 1000;
-    if (exchange_rates_time[1] > exchange_rates_check_time[1])
-      exchange_rates_check_time[1] = exchange_rates_time[1];
-  }
+	if(cunits.find(priv->u_byn) == cunits.end()) {
+		filename = getExchangeRatesFileName(4);
+		ifstream file3(filename.c_str());
+		if(file3.is_open()) {
+			std::stringstream ssbuffer3;
+			ssbuffer3 << file3.rdbuf();
+			string sbuffer = ssbuffer3.str();
+			size_t i = sbuffer.find("\"Cur_OfficialRate\":");
+			if(i != string::npos) {
+				i = sbuffer.find_first_of(NUMBER_ELEMENTS, i + 19);
+				if(i != string::npos) {
+					size_t i2 = sbuffer.find_first_not_of(NUMBER_ELEMENTS, i);
+					if(i2 == string::npos) i2 = sbuffer.length();
+					((AliasUnit*) priv->u_byn)->setBaseUnit(u_euro);
+					((AliasUnit*) priv->u_byn)->setExpression(string("1/") + sbuffer.substr(i, i2 - i));
+					priv->u_byn->setApproximate();
+					priv->u_byn->setPrecision(-2);
+					priv->u_byn->setChanged(false);
+				}
+			}
+			i = sbuffer.find("\"Date\":");
+			if(i != string::npos) {
+				i = sbuffer.find("\"", i + 7);
+				if(i != string::npos) {
+					size_t i2 = sbuffer.find("\"", i + 1);
+					QalculateDateTime qdate;
+					if(qdate.set(sbuffer.substr(i + 1, i2 - (i + 1)))) {
+						priv->exchange_rates_time2[0] = (time_t) qdate.timestamp().ulintValue();
+						if(priv->exchange_rates_time2[0] > priv->exchange_rates_check_time2[0]) priv->exchange_rates_check_time2[0] = priv->exchange_rates_time2[0];
+					}
+				}
+			}
+			file3.close();
+		}
+	} else {
+		priv->exchange_rates_time2[0] = exchange_rates_time[0];
+		if(priv->exchange_rates_time2[0] > priv->exchange_rates_check_time2[0]) priv->exchange_rates_check_time2[0] = priv->exchange_rates_time2[0];
+	}
 
-  filename = getExchangeRatesFileName(4);
-  ifstream file3(filename.c_str());
-  if (file3.is_open()) {
-    std::stringstream ssbuffer3;
-    ssbuffer3 << file3.rdbuf();
-    string sbuffer = ssbuffer3.str();
-    size_t i = sbuffer.find("\"Cur_OfficialRate\":");
-    if (i != string::npos) {
-      i = sbuffer.find_first_of(NUMBER_ELEMENTS, i + 19);
-      if (i != string::npos) {
-        size_t i2 = sbuffer.find_first_not_of(NUMBER_ELEMENTS, i);
-        if (i2 == string::npos)
-          i2 = sbuffer.length();
-        ((AliasUnit *)priv->u_byn)->setExpression(sbuffer.substr(i, i2 - i));
-      }
-    }
-    i = sbuffer.find("\"Date\":");
-    if (i != string::npos) {
-      i = sbuffer.find("\"", i + 7);
-      if (i != string::npos) {
-        size_t i2 = sbuffer.find("\"", i + 1);
-        QalculateDateTime qdate;
-        if (qdate.set(sbuffer.substr(i + 1, i2 - (i + 1)))) {
-          priv->exchange_rates_time2[0] =
-              (time_t)qdate.timestamp().ulintValue();
-          if (priv->exchange_rates_time2[0] >
-              priv->exchange_rates_check_time2[0])
-            priv->exchange_rates_check_time2[0] = priv->exchange_rates_time2[0];
-        }
-      }
-    }
-    file3.close();
-  } else {
-    priv->exchange_rates_time2[0] = ((time_t)1531087L) * 1000;
-    if (priv->exchange_rates_time2[0] > priv->exchange_rates_check_time2[0])
-      priv->exchange_rates_check_time2[0] = priv->exchange_rates_time2[0];
-  }
+	Unit *u_usd = getUnit("USD");
+	if(!u_usd) return true;
 
-  Unit *u_usd = getUnit("USD");
-  if (!u_usd)
-    return true;
+	string sbuffer;
+	filename = getExchangeRatesFileName(3);
+	ifstream file(filename.c_str());
+	if(file.is_open()) {
+		std::stringstream ssbuffer;
+		ssbuffer << file.rdbuf();
+		sbuffer = ssbuffer.str();
+	}
+	if(sbuffer.empty()) {
+		if(file.is_open()) file.close();
+		file.clear();
+		filename = buildPath(getGlobalDefinitionsDir(), "rates.json");
+#ifdef COMPILED_DEFINITIONS
+		if(filename.find("resource:") == 0) {
+			GFile *f = g_file_new_for_uri(filename.c_str());
+			if(!f) return true;
+			GFileInputStream *s = g_file_read(f, NULL, NULL);
+			if(!s) return true;
+			int res, size = 1024;
+			char chars[1025];
+			while((res = g_input_stream_read(G_INPUT_STREAM(s), chars, size, NULL, NULL)) > 0) {
+				chars[res] = '\0';
+				sbuffer += chars;
+			}
+			if(sbuffer.empty()) return true;
+		} else {
+#endif
+			file.open(filename.c_str());
+			if(!file.is_open()) return true;
+			std::stringstream ssbuffer;
+			ssbuffer << file.rdbuf();
+			sbuffer = ssbuffer.str();
+#ifdef COMPILED_DEFINITIONS
+		}
+#endif
+		string sname;
+		size_t i = sbuffer.find("\"currency_code\":");
+		while(i != string::npos) {
+			i += 16;
+			size_t i2 = sbuffer.find("\"", i);
+			if(i2 == string::npos) break;
+			size_t i3 = sbuffer.find("\"", i2 + 1);
+			if(i3 != string::npos && i3 - (i2 + 1) == 3) {
+				currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+				if(currency.length() == 3 && currency[0] >= 'A' && currency[0] <= 'Z') {
+					u = getUnit(currency);
+					if(!u || (u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd)) {
+						i2 = sbuffer.find("\"rate\":", i3 + 1);
+						size_t i4 = sbuffer.find("}", i3 + 1);
+						if(i2 != string::npos && i2 < i4) {
+							i3 = sbuffer.find(",", i2 + 7);
+							rate = sbuffer.substr(i2 + 7, i3 - (i2 + 7));
+							rate = "1/" + rate;
+							if(!u) {
+								i2 = sbuffer.find("\"name\":\"", i3 + 1);
+								if(i2 != string::npos && i2 < i4) {
+									i3 = sbuffer.find("\"", i2 + 8);
+									if(i3 != string::npos) {
+										sname = sbuffer.substr(i2 + 8, i3 - (i2 + 8));
+										remove_blank_ends(sname);
+									}
+								} else {
+									sname = "";
+								}
+								u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname, u_usd, rate, 1, "", false, true), false, true);
+								if(u) u->setHidden(true);
+							} else {
+								if(cunits.find(u) != cunits.end()) {
+									u = NULL;
+								} else {
+									((AliasUnit*) u)->setBaseUnit(u_usd);
+									((AliasUnit*) u)->setExpression(rate);
+								}
+							}
+							if(u) {
+								u->setApproximate();
+								u->setPrecision(-2);
+								u->setChanged(false);
+							}
+						}
+					}
+				}
+			}
+			i = sbuffer.find("\"currency_code\":", i);
+		}
+		file.close();
+		exchange_rates_time[2] = ((time_t) 1527199L) * 1000;
+		if(exchange_rates_time[2] > exchange_rates_check_time[2]) exchange_rates_check_time[2] = exchange_rates_time[2];
+	} else {
+		string sname;
+		size_t i = sbuffer.find("class=\'country\'");
+		while(i != string::npos) {
+			currency = ""; sname = ""; rate = "";
+			i += 15;
+			size_t i2 = sbuffer.find("data-currency-code=\"", i);
+			if(i2 != string::npos) {
+				i2 += 19;
+				size_t i3 = sbuffer.find("\"", i2 + 1);
+				if(i3 != string::npos) {
+					currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+					remove_blank_ends(currency);
+				}
+			}
+			i2 = sbuffer.find("data-currency-name=\'", i);
+			if(i2 != string::npos) {
+				i2 += 19;
+				size_t i3 = sbuffer.find("|", i2 + 1);
+				if(i3 != string::npos) {
+					sname = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+					remove_blank_ends(sname);
+				}
+			}
+			i2 = sbuffer.find("data-rate=\'", i);
+			if(i2 != string::npos) {
+				i2 += 10;
+				size_t i3 = sbuffer.find("'", i2 + 1);
+				if(i3 != string::npos) {
+					rate = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+					remove_blank_ends(rate);
+				}
+			}
+			if(currency.length() == 3 && currency[0] >= 'A' && currency[0] <= 'Z' && !rate.empty()) {
+				u = getUnit(currency);
+				if(!u || (u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd)) {
+					rate = "1/" + rate;
+					if(!u) {
+						u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname, u_usd, rate, 1, "", false, true), false, true);
+						if(u) u->setHidden(true);
+					} else {
+						if(cunits.find(u) != cunits.end()) {
+							u = NULL;
+						} else {
+							((AliasUnit*) u)->setBaseUnit(u_usd);
+							((AliasUnit*) u)->setExpression(rate);
+						}
+					}
+					if(u) {
+						u->setApproximate();
+						u->setPrecision(-2);
+						u->setChanged(false);
+					}
+				}
+			}
+			i = sbuffer.find("class=\'country\'", i);
+		}
+		file.close();
+		struct stat stats;
+		if(stat(filename.c_str(), &stats) == 0) {
+			exchange_rates_time[2] = stats.st_mtime;
+			if(exchange_rates_time[2] > exchange_rates_check_time[2]) exchange_rates_check_time[2] = exchange_rates_time[2];
+		}
+	}
 
-  string sbuffer;
-  filename = getExchangeRatesFileName(3);
-  ifstream file(filename.c_str());
-  if (file.is_open()) {
-    std::stringstream ssbuffer;
-    ssbuffer << file.rdbuf();
-    sbuffer = ssbuffer.str();
-  }
-  if (sbuffer.empty()) {
-    if (file.is_open())
-      file.close();
-    file.clear();
-    filename = buildPath(getGlobalDefinitionsDir(), "rates.json");
-    file.open(filename.c_str());
-    if (!file.is_open())
-      return true;
-    std::stringstream ssbuffer;
-    ssbuffer << file.rdbuf();
-    sbuffer = ssbuffer.str();
-    string sname;
-    size_t i = sbuffer.find("\"currency_code\":");
-    while (i != string::npos) {
-      i += 16;
-      size_t i2 = sbuffer.find("\"", i);
-      if (i2 == string::npos)
-        break;
-      size_t i3 = sbuffer.find("\"", i2 + 1);
-      if (i3 != string::npos && i3 - (i2 + 1) == 3) {
-        currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-        if (currency.length() == 3 && currency[0] >= 'A' &&
-            currency[0] <= 'Z') {
-          u = getUnit(currency);
-          if (!u || (u->subtype() == SUBTYPE_ALIAS_UNIT &&
-                     ((AliasUnit *)u)->firstBaseUnit() == u_usd)) {
-            i2 = sbuffer.find("\"rate\":", i3 + 1);
-            size_t i4 = sbuffer.find("}", i3 + 1);
-            if (i2 != string::npos && i2 < i4) {
-              i3 = sbuffer.find(",", i2 + 7);
-              rate = sbuffer.substr(i2 + 7, i3 - (i2 + 7));
-              rate = "1/" + rate;
-              if (!u) {
-                i2 = sbuffer.find("\"name\":\"", i3 + 1);
-                if (i2 != string::npos && i2 < i4) {
-                  i3 = sbuffer.find("\"", i2 + 8);
-                  if (i3 != string::npos) {
-                    sname = sbuffer.substr(i2 + 8, i3 - (i2 + 8));
-                    remove_blank_ends(sname);
-                  }
-                } else {
-                  sname = "";
-                }
-                u = addUnit(new AliasUnit(_("Currency"), currency, "", "",
-                                          sname, u_usd, rate, 1, "", false,
-                                          true),
-                            false, true);
-                if (u)
-                  u->setHidden(true);
-              } else {
-                ((AliasUnit *)u)->setBaseUnit(u_usd);
-                ((AliasUnit *)u)->setExpression(rate);
-              }
-              if (u) {
-                u->setApproximate();
-                u->setPrecision(-2);
-                u->setChanged(false);
-              }
-            }
-          }
-        }
-      }
-      i = sbuffer.find("\"currency_code\":", i);
-    }
-    file.close();
-    exchange_rates_time[2] = ((time_t)1527199L) * 1000;
-    if (exchange_rates_time[2] > exchange_rates_check_time[2])
-      exchange_rates_check_time[2] = exchange_rates_time[2];
-  } else {
-    string sname;
-    size_t i = sbuffer.find("class=\'country\'");
-    while (i != string::npos) {
-      currency = "";
-      sname = "";
-      rate = "";
-      i += 15;
-      size_t i2 = sbuffer.find("data-currency-code=\"", i);
-      if (i2 != string::npos) {
-        i2 += 19;
-        size_t i3 = sbuffer.find("\"", i2 + 1);
-        if (i3 != string::npos) {
-          currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-          remove_blank_ends(currency);
-        }
-      }
-      i2 = sbuffer.find("data-currency-name=\'", i);
-      if (i2 != string::npos) {
-        i2 += 19;
-        size_t i3 = sbuffer.find("|", i2 + 1);
-        if (i3 != string::npos) {
-          sname = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-          remove_blank_ends(sname);
-        }
-      }
-      i2 = sbuffer.find("data-rate=\'", i);
-      if (i2 != string::npos) {
-        i2 += 10;
-        size_t i3 = sbuffer.find("'", i2 + 1);
-        if (i3 != string::npos) {
-          rate = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-          remove_blank_ends(rate);
-        }
-      }
-      if (currency.length() == 3 && currency[0] >= 'A' && currency[0] <= 'Z' &&
-          !rate.empty()) {
-        u = getUnit(currency);
-        if (!u || (u->subtype() == SUBTYPE_ALIAS_UNIT &&
-                   ((AliasUnit *)u)->firstBaseUnit() == u_usd)) {
-          rate = "1/" + rate;
-          if (!u) {
-            u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname,
-                                      u_usd, rate, 1, "", false, true),
-                        false, true);
-            if (u)
-              u->setHidden(true);
-          } else {
-            ((AliasUnit *)u)->setBaseUnit(u_usd);
-            ((AliasUnit *)u)->setExpression(rate);
-          }
-          if (u) {
-            u->setApproximate();
-            u->setPrecision(-2);
-            u->setChanged(false);
-          }
-        }
-      }
-      i = sbuffer.find("class=\'country\'", i);
-    }
-    file.close();
-    struct stat stats;
-    if (stat(filename.c_str(), &stats) == 0) {
-      exchange_rates_time[2] = stats.st_mtime;
-      if (exchange_rates_time[2] > exchange_rates_check_time[2])
-        exchange_rates_check_time[2] = exchange_rates_time[2];
-    }
-  }
-
-  return true;
+	return true;
 }
 bool Calculator::hasGVFS() { return false; }
 bool Calculator::hasGnomeVFS() { return hasGVFS(); }

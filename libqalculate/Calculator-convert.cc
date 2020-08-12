@@ -496,21 +496,20 @@ MathStructure Calculator::convert(const MathStructure &mstruct, Unit *to_unit,
 
       eo2.sync_units = false;
       eo2.keep_prefixes = true;
-      mstruct_new.eval(eo2);
+      if(b_eval) mstruct_new.eval(eo2);
 
-      cleanMessages(mstruct, n_messages + 1);
+			cleanMessages(mstruct, n_messages + 1);
 
-      if (convert_to_mixed_units &&
-          eo2.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) {
-        eo2.mixed_units_conversion = MIXED_UNITS_CONVERSION_DOWNWARDS_KEEP;
-        return convertToMixedUnits(mstruct_new, eo2);
-      } else {
-        return mstruct_new;
-      }
-    }
-  }
+			if(convert_to_mixed_units && eo2.mixed_units_conversion != MIXED_UNITS_CONVERSION_NONE) {
+				eo2.mixed_units_conversion = MIXED_UNITS_CONVERSION_DOWNWARDS_KEEP;
+				return convertToMixedUnits(mstruct_new, eo2);
+			} else {
+				return mstruct_new;
+			}
+		}
+	}
 
-  return mstruct;
+	return mstruct;
 }
 MathStructure Calculator::convertToBaseUnits(const MathStructure &mstruct,
                                              const EvaluationOptions &eo) {

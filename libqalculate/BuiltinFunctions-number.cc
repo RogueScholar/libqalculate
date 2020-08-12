@@ -624,6 +624,57 @@ int BernoulliFunction::calculate(MathStructure &mstruct, const MathStructure &va
 	FR_FUNCTION(bernoulli)
 }
 
+TotientFunction::TotientFunction() : MathFunction("totient", 1, 1) {
+	setArgumentDefinition(1, new IntegerArgument());
+}
+int TotientFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
+	if(vargs[0].number().isZero()) {mstruct.clear(); return 1;}
+	if(vargs[0].number() <= 2 && vargs[0].number() >= -2) {mstruct.set(1, 1, 0); return 1;}
+	mpz_t n, result, tmp, p_square, p;
+	mpz_inits(n, result, tmp, p_square, p, NULL);
+	mpz_set(n, mpq_numref(vargs[0].number().internalRational()));
+	mpz_abs(n, n);
+	mpz_set(result, n);
+	size_t i = 0;
+	while(true) {
+		if(CALCULATOR->aborted()) {mpz_clears(n, result, tmp, p, p_square, NULL); return 0;}
+		if(i < NR_OF_PRIMES) {
+			if(i < NR_OF_SQUARE_PRIMES) {
+				if(mpz_cmp_si(n, SQUARE_PRIMES[i]) < 0) break;
+			} else {
+				mpz_ui_pow_ui(p_square, PRIMES[i], 2);
+				if(mpz_cmp(n, p_square) < 0) break;
+			}
+			if(mpz_divisible_ui_p(n, PRIMES[i])) {
+				mpz_divexact_ui(n, n, PRIMES[i]);
+				while(mpz_divisible_ui_p(n, PRIMES[i])) mpz_divexact_ui(n, n, PRIMES[i]);
+				mpz_divexact_ui(tmp, result, PRIMES[i]);
+				mpz_sub(result, result, tmp);
+			}
+			i++;
+		} else {
+			if(i == NR_OF_PRIMES) {mpz_set_si(p, PRIMES[i - 1]); i++;}
+			mpz_add_ui(p, p, 2);
+			mpz_pow_ui(p_square, p, 2);
+			if(mpz_cmp(n, p_square) < 0) break;
+			if(mpz_divisible_p(n, p)) {
+				mpz_divexact(n, n, p);
+				while(mpz_divisible_p(n, p)) mpz_divexact(n, n, p);
+				mpz_divexact(tmp, result, p);
+				mpz_sub(result, result, tmp);
+			}
+		}
+	}
+	if(mpz_cmp_ui(n, 1) > 0) {
+		mpz_divexact(tmp, result, n);
+		mpz_sub(result, result, tmp);
+	}
+	mstruct.clear();
+	mstruct.number().setInternal(result);
+	mpz_clears(n, result, tmp, p, p_square, NULL);
+	return 1;
+}
+
 PolynomialUnitFunction::PolynomialUnitFunction() : MathFunction("punit", 1, 2) {
 	RATIONAL_POLYNOMIAL_ARGUMENT(1)
 	setArgumentDefinition(2, new SymbolicArgument());

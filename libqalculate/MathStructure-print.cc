@@ -103,6 +103,29 @@ string format_and_print(const MathStructure &mstruct) {
   }
 }
 
+bool name_is_less(const string &str1, const string &str2) {
+	for(size_t i = 0; ; i++) {
+		if(i == str1.length()) return true;
+		if(i == str2.length()) return false;
+		char c1 = str1[i];
+		char c2 = str2[i];
+		if(c1 < 0 || c2 < 0) break;
+		if(c1 >= 'A' && c1 <= 'Z') c1 += 'a' - 'A';
+		if(c2 >= 'A' && c2 <= 'Z') c2 += 'a' - 'A';
+		if(c1 < c2) return true;
+		if(c1 > c2) return false;
+	}
+	char *s1 = utf8_strdown(str1.c_str());
+	char *s2 = utf8_strdown(str2.c_str());
+	if(s1 && s2) {
+		bool b = strcmp(s1, s2) < 0;
+		free(s1);
+		free(s2);
+		return b;
+	}
+	return false;
+}
+
 int sortCompare(const MathStructure &mstruct1, const MathStructure &mstruct2, const MathStructure &parent, const PrintOptions &po);
 int sortCompare(const MathStructure &mstruct1, const MathStructure &mstruct2, const MathStructure &parent, const PrintOptions &po) {
 	// returns -1 if mstruct1 should be placed before mstruct2, 1 if mstruct1 should be placed after mstruct2, and 0 if current order should be preserved
@@ -941,27 +964,30 @@ int idm3_test(bool &b_fail, const MathStructure &mnum, const Number &nr,
 }
 
 bool is_unit_multiexp(const MathStructure &mstruct) {
-  if (mstruct.isUnit_exp())
-    return true;
-  if (mstruct.isMultiplication()) {
-    for (size_t i3 = 0; i3 < mstruct.size(); i3++) {
-      if (!mstruct[i3].isUnit_exp()) {
-        return false;
-        break;
-      }
-    }
-    return true;
-  }
-  if (mstruct.isPower() && mstruct[0].isMultiplication()) {
-    for (size_t i3 = 0; i3 < mstruct[0].size(); i3++) {
-      if (!mstruct[0][i3].isUnit_exp()) {
-        return false;
-        break;
-      }
-    }
-    return true;
-  }
-  return false;
+	if(mstruct.isUnit_exp()) return true;
+	if(mstruct.isMultiplication()) {
+		for(size_t i3 = 0; i3 < mstruct.size(); i3++) {
+			if(!mstruct[i3].isUnit_exp()) {
+				return false;
+				break;
+			}
+		}
+		return true;
+	} else if(mstruct.isDivision()) {
+		return is_unit_multiexp(mstruct[0]) && is_unit_multiexp(mstruct[1]);
+	} else if(mstruct.isInverse()) {
+		return is_unit_multiexp(mstruct[0]);
+	}
+	if(mstruct.isPower() && mstruct[0].isMultiplication()) {
+		for(size_t i3 = 0; i3 < mstruct[0].size(); i3++) {
+			if(!mstruct[0][i3].isUnit_exp()) {
+				return false;
+				break;
+			}
+		}
+		return true;
+	}
+	return false;
 }
 
 bool MathStructure::improve_division_multipliers(const PrintOptions &po,
@@ -1673,282 +1699,269 @@ bool split_unit_powers(MathStructure &mstruct) {
   }
   return b;
 }
-void MathStructure::postFormatUnits(const PrintOptions &po, MathStructure *,
-                                    size_t) {
-  switch (m_type) {
-  case STRUCT_DIVISION: {
-    if (po.place_units_separately) {
-      vector<size_t> nums;
-      bool b1 = false, b2 = false;
-      if (CHILD(0).isMultiplication()) {
-        for (size_t i = 0; i < CHILD(0).size(); i++) {
-          if (CHILD(0)[i].isUnit_exp()) {
-            nums.push_back(i);
-          } else {
-            b1 = true;
-          }
-        }
-        b1 = b1 && !nums.empty();
-      } else if (CHILD(0).isUnit_exp()) {
-        b1 = true;
-      }
-      vector<size_t> dens;
-      if (CHILD(1).isMultiplication()) {
-        for (size_t i = 0; i < CHILD(1).size(); i++) {
-          if (CHILD(1)[i].isUnit_exp()) {
-            dens.push_back(i);
-          } else {
-            b2 = true;
-          }
-        }
-        b2 = b2 && !dens.empty();
-      } else if (CHILD(1).isUnit_exp()) {
-        if (CHILD(0).isUnit_exp()) {
-          b1 = false;
-        } else {
-          b2 = true;
-        }
-      }
-      if (b2 && !b1)
-        b1 = true;
-      if (b1) {
-        MathStructure num = m_undefined;
-        if (CHILD(0).isUnit_exp()) {
-          num = CHILD(0);
-          CHILD(0).set(m_one);
-        } else if (nums.size() > 0) {
-          num = CHILD(0)[nums[0]];
-          for (size_t i = 1; i < nums.size(); i++) {
-            num.multiply(CHILD(0)[nums[i]], i > 1);
-          }
-          for (size_t i = 0; i < nums.size(); i++) {
-            CHILD(0).delChild(nums[i] + 1 - i);
-          }
-          if (CHILD(0).size() == 1) {
-            CHILD(0).setToChild(1, true);
-          }
-        }
-        MathStructure den = m_undefined;
-        if (CHILD(1).isUnit_exp()) {
-          den = CHILD(1);
-          setToChild(1, true);
-        } else if (dens.size() > 0) {
-          den = CHILD(1)[dens[0]];
-          for (size_t i = 1; i < dens.size(); i++) {
-            den.multiply(CHILD(1)[dens[i]], i > 1);
-          }
-          for (size_t i = 0; i < dens.size(); i++) {
-            CHILD(1).delChild(dens[i] + 1 - i);
-          }
-          if (CHILD(1).size() == 1) {
-            CHILD(1).setToChild(1, true);
-          }
-        }
-        if (num.isUndefined()) {
-          transform(STRUCT_DIVISION, den);
-        } else {
-          if (!den.isUndefined()) {
-            num.transform(STRUCT_DIVISION, den);
-          }
-          multiply(num, false);
-        }
-        if (CHILD(0).isDivision()) {
-          if (CHILD(0)[0].isMultiplication()) {
-            if (CHILD(0)[0].size() == 1) {
-              CHILD(0)[0].setToChild(1, true);
-            } else if (CHILD(0)[0].size() == 0) {
-              CHILD(0)[0] = 1;
-            }
-          }
-          if (CHILD(0)[1].isMultiplication()) {
-            if (CHILD(0)[1].size() == 1) {
-              CHILD(0)[1].setToChild(1, true);
-            } else if (CHILD(0)[1].size() == 0) {
-              CHILD(0).setToChild(1, true);
-            }
-          } else if (CHILD(0)[1].isOne()) {
-            CHILD(0).setToChild(1, true);
-          }
-          if (CHILD(0).isDivision() && CHILD(0)[1].isNumber() &&
-              CHILD(0)[0].isMultiplication() && CHILD(0)[0].size() > 1 &&
-              CHILD(0)[0][0].isNumber()) {
-            MathStructure *msave = new MathStructure;
-            if (CHILD(0)[0].size() == 2) {
-              msave->set(CHILD(0)[0][1]);
-              CHILD(0)[0].setToChild(1, true);
-            } else {
-              msave->set(CHILD(0)[0]);
-              CHILD(0)[0].setToChild(1, true);
-              msave->delChild(1);
-            }
-            if (isMultiplication()) {
-              insertChild_nocopy(msave, 2);
-            } else {
-              CHILD(0).multiply_nocopy(msave);
-            }
-          }
-        }
-        bool do_plural = po.short_multiplication;
-        CHILD(0).postFormatUnits(po, this, 1);
-        CHILD_UPDATED(0);
-        switch (CHILD(0).type()) {
-        case STRUCT_NUMBER: {
-          if (CHILD(0).isZero() || CHILD(0).number().isOne() ||
-              CHILD(0).number().isMinusOne() ||
-              CHILD(0).number().isFraction()) {
-            do_plural = false;
-          }
-          break;
-        }
-        case STRUCT_DIVISION: {
-          if (CHILD(0)[0].isNumber() && CHILD(0)[1].isNumber()) {
-            if (CHILD(0)[0].number().isLessThanOrEqualTo(
-                    CHILD(0)[1].number())) {
-              do_plural = false;
-            }
-          }
-          break;
-        }
-        case STRUCT_INVERSE: {
-          if (CHILD(0)[0].isNumber() &&
-              CHILD(0)[0].number().isGreaterThanOrEqualTo(1)) {
-            do_plural = false;
-          }
-          break;
-        }
-        default: {
-        }
-        }
-        split_unit_powers(CHILD(1));
-        switch (CHILD(1).type()) {
-        case STRUCT_UNIT: {
-          CHILD(1).setPlural(do_plural);
-          break;
-        }
-        case STRUCT_POWER: {
-          CHILD(1)[0].setPlural(do_plural);
-          break;
-        }
-        case STRUCT_MULTIPLICATION: {
-          if (po.limit_implicit_multiplication)
-            CHILD(1)[0].setPlural(do_plural);
-          else
-            CHILD(1)[CHILD(1).size() - 1].setPlural(do_plural);
-          break;
-        }
-        case STRUCT_DIVISION: {
-          switch (CHILD(1)[0].type()) {
-          case STRUCT_UNIT: {
-            CHILD(1)[0].setPlural(do_plural);
-            break;
-          }
-          case STRUCT_POWER: {
-            CHILD(1)[0][0].setPlural(do_plural);
-            break;
-          }
-          case STRUCT_MULTIPLICATION: {
-            if (po.limit_implicit_multiplication)
-              CHILD(1)[0][0].setPlural(do_plural);
-            else
-              CHILD(1)[0][CHILD(1)[0].size() - 1].setPlural(do_plural);
-            break;
-          }
-          default: {
-          }
-          }
-          break;
-        }
-        default: {
-        }
-        }
-      }
-    } else {
-      for (size_t i = 0; i < SIZE; i++) {
-        if (CALCULATOR->aborted())
-          break;
-        CHILD(i).postFormatUnits(po, this, i + 1);
-        CHILD_UPDATED(i);
-      }
-    }
-    break;
-  }
-  case STRUCT_UNIT: {
-    b_plural = false;
-    break;
-  }
-  case STRUCT_MULTIPLICATION: {
-    if (SIZE > 1 && CHILD(1).isUnit_exp() && CHILD(0).isNumber()) {
-      bool do_plural =
-          po.short_multiplication &&
-          !(CHILD(0).isZero() || CHILD(0).number().isOne() ||
-            CHILD(0).number().isMinusOne() || CHILD(0).number().isFraction());
-      size_t i = 2;
-      for (; i < SIZE; i++) {
-        if (CALCULATOR->aborted())
-          break;
-        if (CHILD(i).isUnit()) {
-          CHILD(i).setPlural(false);
-        } else if (CHILD(i).isPower() && CHILD(i)[0].isUnit()) {
-          CHILD(i)[0].setPlural(false);
-        } else {
-          break;
-        }
-      }
-      if (do_plural) {
-        if (po.limit_implicit_multiplication)
-          i = 1;
-        else
-          i--;
-        if (CHILD(i).isUnit()) {
-          CHILD(i).setPlural(true);
-        } else {
-          CHILD(i)[0].setPlural(true);
-        }
-      }
-    } else if (SIZE > 0) {
-      int last_unit = -1;
-      for (size_t i = 0; i < SIZE; i++) {
-        if (CALCULATOR->aborted())
-          break;
-        if (CHILD(i).isUnit()) {
-          CHILD(i).setPlural(false);
-          if (!po.limit_implicit_multiplication || last_unit < 0) {
-            last_unit = i;
-          }
-        } else if (CHILD(i).isPower() && CHILD(i)[0].isUnit()) {
-          CHILD(i)[0].setPlural(false);
-          if (!po.limit_implicit_multiplication || last_unit < 0) {
-            last_unit = i;
-          }
-        } else if (last_unit >= 0) {
-          break;
-        }
-      }
-      if (po.short_multiplication && last_unit > 0) {
-        if (CHILD(last_unit).isUnit()) {
-          CHILD(last_unit).setPlural(true);
-        } else {
-          CHILD(last_unit)[0].setPlural(true);
-        }
-      }
-    }
-    break;
-  }
-  case STRUCT_POWER: {
-    if (CHILD(0).isUnit()) {
-      CHILD(0).setPlural(false);
-      break;
-    }
-  }
-  default: {
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        break;
-      CHILD(i).postFormatUnits(po, this, i + 1);
-      CHILD_UPDATED(i);
-    }
-  }
-  }
+void MathStructure::postFormatUnits(const PrintOptions &po, MathStructure *parent, size_t) {
+	switch(m_type) {
+		case STRUCT_DIVISION: {
+			if(po.place_units_separately) {
+				vector<size_t> nums;
+				bool b1 = false, b2 = false;
+				if(CHILD(0).isMultiplication()) {
+					for(size_t i = 0; i < CHILD(0).size(); i++) {
+						if(CHILD(0)[i].isUnit_exp()) {
+							nums.push_back(i);
+						} else {
+							b1 = true;
+						}
+					}
+					b1 = b1 && !nums.empty();
+				} else if(CHILD(0).isUnit_exp()) {
+					b1 = true;
+				}
+				vector<size_t> dens;
+				if(CHILD(1).isMultiplication()) {
+					for(size_t i = 0; i < CHILD(1).size(); i++) {
+						if(CHILD(1)[i].isUnit_exp()) {
+							dens.push_back(i);
+						} else {
+							b2 = true;
+						}
+					}
+					b2 = b2 && !dens.empty();
+				} else if(CHILD(1).isUnit_exp()) {
+					if(CHILD(0).isUnit_exp()) {
+						b1 = false;
+					} else {
+						b2 = true;
+					}
+				}
+				if(b2 && !b1) b1 = true;
+				if(b1) {
+					MathStructure num = m_undefined;
+					if(CHILD(0).isUnit_exp()) {
+						num = CHILD(0);
+						CHILD(0).set(m_one);
+					} else if(nums.size() > 0) {
+						num = CHILD(0)[nums[0]];
+						for(size_t i = 1; i < nums.size(); i++) {
+							num.multiply(CHILD(0)[nums[i]], i > 1);
+						}
+						for(size_t i = 0; i < nums.size(); i++) {
+							CHILD(0).delChild(nums[i] + 1 - i);
+						}
+						if(CHILD(0).size() == 1) {
+							CHILD(0).setToChild(1, true);
+						}
+					}
+					MathStructure den = m_undefined;
+					if(CHILD(1).isUnit_exp()) {
+						den = CHILD(1);
+						setToChild(1, true);
+					} else if(dens.size() > 0) {
+						den = CHILD(1)[dens[0]];
+						for(size_t i = 1; i < dens.size(); i++) {
+							den.multiply(CHILD(1)[dens[i]], i > 1);
+						}
+						for(size_t i = 0; i < dens.size(); i++) {
+							CHILD(1).delChild(dens[i] + 1 - i);
+						}
+						if(CHILD(1).size() == 1) {
+							CHILD(1).setToChild(1, true);
+						}
+					}
+					if(num.isUndefined()) {
+						transform(STRUCT_DIVISION, den);
+					} else {
+						if(!den.isUndefined()) {
+							num.transform(STRUCT_DIVISION, den);
+						}
+						multiply(num, false);
+					}
+					if(CHILD(0).isDivision()) {
+						if(CHILD(0)[0].isMultiplication()) {
+							if(CHILD(0)[0].size() == 1) {
+								CHILD(0)[0].setToChild(1, true);
+							} else if(CHILD(0)[0].size() == 0) {
+								CHILD(0)[0] = 1;
+							}
+						}
+						if(CHILD(0)[1].isMultiplication()) {
+							if(CHILD(0)[1].size() == 1) {
+								CHILD(0)[1].setToChild(1, true);
+							} else if(CHILD(0)[1].size() == 0) {
+								CHILD(0).setToChild(1, true);
+							}
+						} else if(CHILD(0)[1].isOne()) {
+							CHILD(0).setToChild(1, true);
+						}
+						if(CHILD(0).isDivision() && CHILD(0)[1].isNumber() && CHILD(0)[0].isMultiplication() && CHILD(0)[0].size() > 1 && CHILD(0)[0][0].isNumber()) {
+							MathStructure *msave = new MathStructure;
+							if(CHILD(0)[0].size() == 2) {
+								msave->set(CHILD(0)[0][1]);
+								CHILD(0)[0].setToChild(1, true);
+							} else {
+								msave->set(CHILD(0)[0]);
+								CHILD(0)[0].setToChild(1, true);
+								msave->delChild(1);
+							}
+							if(isMultiplication()) {
+								insertChild_nocopy(msave, 2);
+							} else {
+								CHILD(0).multiply_nocopy(msave);
+							}
+						}
+					}
+					bool do_plural = po.short_multiplication;
+					CHILD(0).postFormatUnits(po, this, 1);
+					CHILD_UPDATED(0);
+					switch(CHILD(0).type()) {
+						case STRUCT_NUMBER: {
+							if(CHILD(0).isZero() || CHILD(0).number().isOne() || CHILD(0).number().isMinusOne() || CHILD(0).number().isFraction()) {
+								do_plural = false;
+							}
+							break;
+						}
+						case STRUCT_DIVISION: {
+							if(CHILD(0)[0].isNumber() && CHILD(0)[1].isNumber()) {
+								if(CHILD(0)[0].number().isLessThanOrEqualTo(CHILD(0)[1].number())) {
+									do_plural = false;
+								}
+							}
+							break;
+						}
+						case STRUCT_INVERSE: {
+							if(CHILD(0)[0].isNumber() && CHILD(0)[0].number().isGreaterThanOrEqualTo(1)) {
+								do_plural = false;
+							}
+							break;
+						}
+						default: {}
+					}
+					split_unit_powers(CHILD(1));
+					switch(CHILD(1).type()) {
+						case STRUCT_UNIT: {
+							CHILD(1).setPlural(do_plural);
+							break;
+						}
+						case STRUCT_POWER: {
+							CHILD(1)[0].setPlural(do_plural);
+							break;
+						}
+						case STRUCT_MULTIPLICATION: {
+							if(po.limit_implicit_multiplication) CHILD(1)[0].setPlural(do_plural);
+							else CHILD(1)[CHILD(1).size() - 1].setPlural(do_plural);
+							break;
+						}
+						case STRUCT_DIVISION: {
+							switch(CHILD(1)[0].type()) {
+								case STRUCT_UNIT: {
+									CHILD(1)[0].setPlural(do_plural);
+									break;
+								}
+								case STRUCT_POWER: {
+									CHILD(1)[0][0].setPlural(do_plural);
+									break;
+								}
+								case STRUCT_MULTIPLICATION: {
+									if(po.limit_implicit_multiplication) CHILD(1)[0][0].setPlural(do_plural);
+									else CHILD(1)[0][CHILD(1)[0].size() - 1].setPlural(do_plural);
+									break;
+								}
+								default: {}
+							}
+							break;
+						}
+						default: {}
+					}
+				}
+			} else {
+				for(size_t i = 0; i < SIZE; i++) {
+					if(CALCULATOR->aborted()) break;
+					CHILD(i).postFormatUnits(po, this, i + 1);
+					CHILD_UPDATED(i);
+				}
+			}
+			break;
+		}
+		case STRUCT_UNIT: {
+			b_plural = false;
+			break;
+		}
+		case STRUCT_MULTIPLICATION: {
+			if(SIZE > 1 && CHILD(1).isUnit_exp() && CHILD(0).isNumber()) {
+				bool do_plural = po.short_multiplication && !(CHILD(0).isZero() || CHILD(0).number().isOne() || CHILD(0).number().isMinusOne() || CHILD(0).number().isFraction());
+				size_t i = 2;
+				for(; i < SIZE; i++) {
+					if(CALCULATOR->aborted()) break;
+					if(CHILD(i).isUnit()) {
+						CHILD(i).setPlural(false);
+					} else if(CHILD(i).isPower() && CHILD(i)[0].isUnit()) {
+						CHILD(i)[0].setPlural(false);
+					} else {
+						break;
+					}
+				}
+				if(do_plural) {
+					if(po.limit_implicit_multiplication) i = 1;
+					else i--;
+					if(CHILD(i).isUnit()) {
+						CHILD(i).setPlural(true);
+					} else {
+						CHILD(i)[0].setPlural(true);
+					}
+				}
+			} else if(SIZE > 0) {
+				int last_unit = -1;
+				for(size_t i = 0; i < SIZE; i++) {
+					if(CALCULATOR->aborted()) break;
+					if(CHILD(i).isUnit()) {
+						CHILD(i).setPlural(false);
+						if(!po.limit_implicit_multiplication || last_unit < 0) {
+							last_unit = i;
+						}
+					} else if(CHILD(i).isPower() && CHILD(i)[0].isUnit()) {
+						CHILD(i)[0].setPlural(false);
+						if(!po.limit_implicit_multiplication || last_unit < 0) {
+							last_unit = i;
+						}
+					} else if(last_unit >= 0) {
+						break;
+					}
+				}
+				if(po.short_multiplication && last_unit > 0) {
+					if(CHILD(last_unit).isUnit()) {
+						CHILD(last_unit).setPlural(true);
+					} else {
+						CHILD(last_unit)[0].setPlural(true);
+					}
+				}
+			}
+			break;
+		}
+		case STRUCT_POWER: {
+			if(CHILD(0).isUnit()) {
+				CHILD(0).setPlural(false);
+				break;
+			}
+		}
+		case STRUCT_NEGATE: {
+			if(po.place_units_separately && (!parent || !parent->isAddition())) {
+				CHILD(0).postFormatUnits(po, this, 1);
+				CHILD_UPDATED(0);
+				if(CHILD(0).isMultiplication() && SIZE > 0 && ((CHILD(0)[0].isDivision() && CHILD(0)[0][0].isInteger() && CHILD(0)[0][1].isInteger()) || (CHILD(0)[0].isInverse() && CHILD(0)[0][0].isInteger()))) {
+					setToChild(1, true);
+					CHILD(0).transform(STRUCT_NEGATE);
+				}
+				break;
+			}
+		}
+		default: {
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) break;
+				CHILD(i).postFormatUnits(po, this, i + 1);
+				CHILD_UPDATED(i);
+			}
+		}
+	}
 }
 void MathStructure::prefixCurrencies(const PrintOptions &po) {
   if (isMultiplication()) {
@@ -2222,709 +2235,581 @@ void separate_units(MathStructure &m, MathStructure *parent = NULL, size_t index
 	}
 }
 void MathStructure::format(const PrintOptions &po) {
-  if (!po.preserve_format) {
-    if (po.place_units_separately) {
-      // a*u+b*u=(a+b)*u
-      factorizeUnits();
-    }
-    sort(po);
-    // 5000 u = 5 ku
-    setPrefixes(po);
-    // -1/(a-b)=1/(b-a)
-    unnegate_multiplier(*this, po);
-    // a(bx+y)=abx+ay if a and/or b are rational number displayed approximately
-    fix_approximate_multiplier(*this, po);
-    if (po.improve_division_multipliers) {
-      // 0.5x/y=x/(2y)
-      if (improve_division_multipliers(po))
-        sort(po);
-    }
-    // 1*a=a
-    remove_multi_one(*this);
-  }
-  formatsub(po, NULL, 0, true, this);
-  if (!po.preserve_format) {
-    postFormatUnits(po);
-    if (po.sort_options.prefix_currencies) {
-      prefixCurrencies(po);
-    }
-  }
+	if(!po.preserve_format) {
+		if(po.place_units_separately) {
+			// a*u+b*u=(a+b)*u
+			factorizeUnits();
+			separate_units(*this);
+		}
+		sort(po);
+		// 5000 u = 5 ku
+		setPrefixes(po);
+		// -1/(a-b)=1/(b-a)
+		unnegate_multiplier(*this, po);
+		// a(bx+y)=abx+ay if a and/or b are rational number displayed approximately
+		fix_approximate_multiplier(*this, po);
+		if(po.improve_division_multipliers) {
+			// 0.5x/y=x/(2y)
+			if(improve_division_multipliers(po)) sort(po);
+		}
+		// 1*a=a
+		remove_multi_one(*this);
+	}
+	formatsub(po, NULL, 0, true, this);
+	if(!po.preserve_format) {
+		postFormatUnits(po);
+		if(po.sort_options.prefix_currencies) {
+			prefixCurrencies(po);
+		}
+	}
 }
 
-void MathStructure::formatsub(const PrintOptions &po, MathStructure *parent,
-                              size_t pindex, bool recursive,
-                              MathStructure *top_parent) {
+bool is_unit_multiadd(const MathStructure &m) {
+	for(size_t i = 0; i < m.size(); i++) {
+		if(!is_unit_multiexp(m[i]) && (!m[i].isMultiplication() || m[i].size() <= 1 || !m[i][0].isNumber() || !is_unit_multiexp(m[i][1]))) return false;
+	}
+	return true;
+}
 
-  if (recursive) {
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        break;
-      if (i == 1 && m_type == STRUCT_POWER &&
-          po.number_fraction_format < FRACTION_FRACTIONAL &&
-          CHILD(1).isNumber() && CHILD(1).number().isRational() &&
-          !CHILD(1).number().isInteger() &&
-          CHILD(1).number().numeratorIsLessThan(10) &&
-          CHILD(1).number().numeratorIsGreaterThan(-10) &&
-          CHILD(1).number().denominatorIsLessThan(10)) {
-        // always display rational number exponents with small numerator and
-        // denominator as fraction (e.g. 5^(2/3) instead of 5^0.666...)
-        PrintOptions po2 = po;
-        po2.number_fraction_format = FRACTION_FRACTIONAL;
-        CHILD(i).formatsub(po2, this, i + 1, false, top_parent);
-      } else {
-        CHILD(i).formatsub(po, this, i + 1, true, top_parent);
-      }
-      CHILD_UPDATED(i);
-    }
-  }
-  switch (m_type) {
-  case STRUCT_ADDITION: {
-    break;
-  }
-  case STRUCT_NEGATE: {
-    break;
-  }
-  case STRUCT_DIVISION: {
-    if (po.preserve_format)
-      break;
-    if (CHILD(0).isAddition() && CHILD(0).size() > 0 &&
-        CHILD(0)[0].isNegate()) {
-      // (-a-b)/(c-d)=-(a+b)/(c-d); (-a+b)/(-c-d)=(a-b)/(c+d)
-      int imin = 1;
-      for (size_t i = 1; i < CHILD(0).size(); i++) {
-        if (CHILD(0)[i].isNegate()) {
-          imin++;
-        } else {
-          imin--;
-        }
-      }
-      bool b = CHILD(1).isAddition() && CHILD(1).size() > 0 &&
-               CHILD(1)[0].isNegate();
-      if (b) {
-        imin++;
-        for (size_t i = 1; i < CHILD(1).size(); i++) {
-          if (CHILD(1)[i].isNegate()) {
-            imin++;
-          } else {
-            imin--;
-          }
-        }
-      }
-      if (imin > 0 || (imin == 0 && parent && parent->isNegate())) {
-        for (size_t i = 0; i < CHILD(0).size(); i++) {
-          if (CHILD(0)[i].isNegate()) {
-            CHILD(0)[i].setToChild(1, true);
-          } else {
-            CHILD(0)[i].transform(STRUCT_NEGATE);
-          }
-        }
-        if (b) {
-          for (size_t i = 0; i < CHILD(1).size(); i++) {
-            if (CHILD(1)[i].isNegate()) {
-              CHILD(1)[i].setToChild(1, true);
-            } else {
-              CHILD(1)[i].transform(STRUCT_NEGATE);
-            }
-          }
-        } else {
-          transform(STRUCT_NEGATE);
-        }
-        break;
-      }
-    } else if (CHILD(1).isAddition() && CHILD(1).size() > 0 &&
-               CHILD(1)[0].isNegate()) {
-      // (a+b)/(-c-d)=-(a+b)/(c+d)
-      int imin = 1;
-      for (size_t i = 1; i < CHILD(1).size(); i++) {
-        if (CHILD(1)[i].isNegate()) {
-          imin++;
-        } else {
-          imin--;
-        }
-      }
-      if (imin > 0 || (imin == 0 && parent && parent->isNegate())) {
-        for (size_t i = 0; i < CHILD(1).size(); i++) {
-          if (CHILD(1)[i].isNegate()) {
-            CHILD(1)[i].setToChild(1, true);
-          } else {
-            CHILD(1)[i].transform(STRUCT_NEGATE);
-          }
-        }
-        transform(STRUCT_NEGATE);
-      }
-    }
-    break;
-  }
-  case STRUCT_INVERSE: {
-    if (po.preserve_format)
-      break;
-    if ((!parent || !parent->isMultiplication()) && CHILD(0).isAddition() &&
-        CHILD(0).size() > 0 && CHILD(0)[0].isNegate()) {
-      // (-a-b+c)^-1=-(a+b-c)^-1
-      int imin = 1;
-      for (size_t i = 1; i < CHILD(0).size(); i++) {
-        if (CHILD(0)[i].isNegate()) {
-          imin++;
-        } else {
-          imin--;
-        }
-      }
-      if (imin > 0 || (imin == 0 && parent && parent->isNegate())) {
-        for (size_t i = 0; i < CHILD(0).size(); i++) {
-          if (CHILD(0)[i].isNegate()) {
-            CHILD(0)[i].setToChild(1, true);
-          } else {
-            CHILD(0)[i].transform(STRUCT_NEGATE);
-          }
-        }
-        transform(STRUCT_NEGATE);
-      }
-    }
-    break;
-  }
-  case STRUCT_MULTIPLICATION: {
-    if (po.preserve_format)
-      break;
-    if (CHILD(0).isNegate()) {
-      if (CHILD(0)[0].isOne()) {
-        // (-1)x=-(x)
-        ERASE(0);
-        if (SIZE == 1) {
-          setToChild(1, true);
-        }
-      } else {
-        // -(a)x=-(ax)
-        CHILD(0).setToChild(1, true);
-      }
-      transform(STRUCT_NEGATE);
-      CHILD(0).formatsub(po, this, 1, false, top_parent);
-      break;
-    }
+void MathStructure::formatsub(const PrintOptions &po, MathStructure *parent, size_t pindex, bool recursive, MathStructure *top_parent) {
 
-    bool b = false;
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        break;
-      if (CHILD(i).isInverse()) {
-        if (!po.negative_exponents || !CHILD(i)[0].isNumber()) {
-          b = true;
-          break;
-        }
-      } else if (CHILD(i).isDivision()) {
-        if (!CHILD(i)[0].isNumber() || !CHILD(i)[1].isNumber() ||
-            (!po.negative_exponents && CHILD(i)[0].number().isOne())) {
-          b = true;
-          break;
-        }
-      }
-    }
+	if(recursive) {
+		size_t first_neg_exp = SIZE;
+		if(m_type == STRUCT_MULTIPLICATION && po.place_units_separately && !po.negative_exponents) {
+			// use negative exponents (instead of division) for units if fist unit has negative exponent (this should ordinarily mean that all subsequent units also has negative exponents)
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CHILD(i).isUnit_exp()) {
+					if(!CHILD(i).isPower() || !CHILD(i)[1].hasNegativeSign()) break;
+					first_neg_exp = i;
+					break;
+				}
+			}
+		}
+		for(size_t i = 0; i < SIZE; i++) {
+			if(CALCULATOR->aborted()) break;
+			if(i >= first_neg_exp) {
+				PrintOptions po2 = po;
+				po2.negative_exponents = true;
+				CHILD(i).formatsub(po2, this, i + 1, true, top_parent);
+			} else if(po.number_fraction_format == FRACTION_COMBINED && (m_type == STRUCT_FUNCTION || m_type == STRUCT_POWER || (m_type == STRUCT_ADDITION && (!po.place_units_separately || !is_unit_multiadd(*this))) || (m_type == STRUCT_MULTIPLICATION && SIZE > 1 && (!po.place_units_separately || !CHILD(0).isNumber() || !is_unit_multiexp(CHILD(1)))))) {
+				PrintOptions po2 = po;
+				po2.number_fraction_format = FRACTION_FRACTIONAL;
+				CHILD(i).formatsub(po2, this, i + 1, true, top_parent);
+			} else if(!po.preserve_format && i == 1 && m_type == STRUCT_POWER && po.number_fraction_format < FRACTION_FRACTIONAL && CHILD(1).isNumber() && CHILD(1).number().isRational() && !CHILD(1).number().isInteger() && CHILD(1).number().numeratorIsLessThan(10) && CHILD(1).number().numeratorIsGreaterThan(-10) && CHILD(1).number().denominatorIsLessThan(10)) {
+				// always display rational number exponents with small numerator and denominator as fraction (e.g. 5^(2/3) instead of 5^0.666...)
+				PrintOptions po2 = po;
+				po2.number_fraction_format = FRACTION_FRACTIONAL;
+				CHILD(i).formatsub(po2, this, i + 1, false, top_parent);
+			} else {
+				CHILD(i).formatsub(po, this, i + 1, true, top_parent);
+			}
+			CHILD_UPDATED(i);
+		}
+	}
+	switch(m_type) {
+		case STRUCT_ADDITION: {
+			break;
+		}
+		case STRUCT_NEGATE: {
+			break;
+		}
+		case STRUCT_DIVISION: {
+			if(po.preserve_format) break;
+			if(CHILD(0).isAddition() && CHILD(0).size() > 0 && CHILD(0)[0].isNegate()) {
+				// (-a-b)/(c-d)=-(a+b)/(c-d); (-a+b)/(-c-d)=(a-b)/(c+d)
+				int imin = 1;
+				for(size_t i = 1; i < CHILD(0).size(); i++) {
+					if(CHILD(0)[i].isNegate()) {
+						imin++;
+					} else {
+						imin--;
+					}
+				}
+				bool b = CHILD(1).isAddition() && CHILD(1).size() > 0 && CHILD(1)[0].isNegate();
+				if(b) {
+					imin++;
+					for(size_t i = 1; i < CHILD(1).size(); i++) {
+						if(CHILD(1)[i].isNegate()) {
+							imin++;
+						} else {
+							imin--;
+						}
+					}
+				}
+				if(imin > 0 || (imin == 0 && parent && parent->isNegate())) {
+					for(size_t i = 0; i < CHILD(0).size(); i++) {
+						if(CHILD(0)[i].isNegate()) {
+							CHILD(0)[i].setToChild(1, true);
+						} else {
+							CHILD(0)[i].transform(STRUCT_NEGATE);
+						}
+					}
+					if(b) {
+						for(size_t i = 0; i < CHILD(1).size(); i++) {
+							if(CHILD(1)[i].isNegate()) {
+								CHILD(1)[i].setToChild(1, true);
+							} else {
+								CHILD(1)[i].transform(STRUCT_NEGATE);
+							}
+						}
+					} else {
+						transform(STRUCT_NEGATE);
+					}
+					break;
+				}
+			} else if(CHILD(1).isAddition() && CHILD(1).size() > 0 && CHILD(1)[0].isNegate()) {
+				// (a+b)/(-c-d)=-(a+b)/(c+d)
+				int imin = 1;
+				for(size_t i = 1; i < CHILD(1).size(); i++) {
+					if(CHILD(1)[i].isNegate()) {
+						imin++;
+					} else {
+						imin--;
+					}
+				}
+				if(imin > 0 || (imin == 0 && parent && parent->isNegate())) {
+					for(size_t i = 0; i < CHILD(1).size(); i++) {
+						if(CHILD(1)[i].isNegate()) {
+							CHILD(1)[i].setToChild(1, true);
+						} else {
+							CHILD(1)[i].transform(STRUCT_NEGATE);
+						}
+					}
+					transform(STRUCT_NEGATE);
+				}
+			}
+			break;
+		}
+		case STRUCT_INVERSE: {
+			if(po.preserve_format) break;
+			if((!parent || !parent->isMultiplication()) && CHILD(0).isAddition() && CHILD(0).size() > 0 && CHILD(0)[0].isNegate()) {
+				// (-a-b+c)^-1=-(a+b-c)^-1
+				int imin = 1;
+				for(size_t i = 1; i < CHILD(0).size(); i++) {
+					if(CHILD(0)[i].isNegate()) {
+						imin++;
+					} else {
+						imin--;
+					}
+				}
+				if(imin > 0 || (imin == 0 && parent && parent->isNegate())) {
+					for(size_t i = 0; i < CHILD(0).size(); i++) {
+						if(CHILD(0)[i].isNegate()) {
+							CHILD(0)[i].setToChild(1, true);
+						} else {
+							CHILD(0)[i].transform(STRUCT_NEGATE);
+						}
+					}
+					transform(STRUCT_NEGATE);
+				}
+			}
+			break;
+		}
+		case STRUCT_MULTIPLICATION: {
+			if(po.preserve_format) break;
 
-    if (b) {
-      MathStructure *den = new MathStructure();
-      MathStructure *num = new MathStructure();
-      num->setUndefined();
-      short ds = 0, ns = 0;
-      MathStructure *mnum = NULL, *mden = NULL;
-      for (size_t i = 0; i < SIZE; i++) {
-        if (CHILD(i).isInverse()) {
-          mden = &CHILD(i)[0];
-        } else if (CHILD(i).isDivision()) {
-          mnum = &CHILD(i)[0];
-          mden = &CHILD(i)[1];
-        } else {
-          mnum = &CHILD(i);
-        }
-        if (mnum && !mnum->isOne()) {
-          if (ns > 0) {
-            if (mnum->isMultiplication() && num->isNumber()) {
-              for (size_t i2 = 0; i2 < mnum->size(); i2++) {
-                num->multiply((*mnum)[i2], true);
-              }
-            } else {
-              num->multiply(*mnum, ns > 1);
-            }
-          } else {
-            num->set(*mnum);
-          }
-          ns++;
-          mnum = NULL;
-        }
-        if (mden) {
-          if (ds > 0) {
-            if (mden->isMultiplication() && den->isNumber()) {
-              for (size_t i2 = 0; i2 < mden->size(); i2++) {
-                den->multiply((*mden)[i2], true);
-              }
-            } else {
-              den->multiply(*mden, ds > 1);
-            }
-          } else {
-            den->set(*mden);
-          }
-          ds++;
-          mden = NULL;
-        }
-      }
-      clear(true);
-      m_type = STRUCT_DIVISION;
-      if (num->isUndefined())
-        num->set(m_one);
-      APPEND_POINTER(num);
-      APPEND_POINTER(den);
-      num->formatsub(po, this, 1, false, top_parent);
-      den->formatsub(po, this, 2, false, top_parent);
-      formatsub(po, parent, pindex, false, top_parent);
-      break;
-    }
+			if(CHILD(0).isNegate()) {
+				if(CHILD(0)[0].isOne()) {
+					// (-1)x=-(x)
+					ERASE(0);
+					if(SIZE == 1) setToChild(1, true);
+				} else {
+					// -(a)x=-(ax)
+					CHILD(0).setToChild(1, true);
+				}
+				formatsub(po, parent, pindex, false, top_parent);
+				if((!parent || !parent->isAddition()) && (isMultiplication() && SIZE > 0 && ((CHILD(0).isDivision() && CHILD(0)[0].isInteger() && CHILD(0)[1].isInteger()) || (CHILD(0).isInverse() && CHILD(0)[0].isInteger())))) {
+					CHILD(0).transform(STRUCT_NEGATE);
+				} else {
+					transform(STRUCT_NEGATE);
+				}
+				break;
+			}
 
-    size_t index = 0;
-    if (CHILD(0).isOne()) {
-      index = 1;
-    }
-    switch (CHILD(index).type()) {
-    case STRUCT_POWER: {
-      if (!CHILD(index)[0].isUnit_exp()) {
-        break;
-      }
-    }
-    case STRUCT_UNIT: {
-      if (index == 0) {
-        if (!parent ||
-            (!parent->isPower() && !parent->isMultiplication() &&
-             !parent->isInverse() && (!parent->isDivision() || pindex != 2))) {
-          PREPEND(m_one);
-          break;
-        }
-      }
-      break;
-    }
-    case STRUCT_FUNCTION: {
-      if (index == 1 && SIZE == 2 &&
-          CHILD(index).function()->referenceName() == "cis" &&
-          CHILD(index).size() == 1)
-        break;
-    }
-    default: {
-      if (index == 1) {
-        ERASE(0);
-        if (SIZE == 1) {
-          setToChild(1, true);
-        }
-        break;
-      }
-    }
-    }
-    break;
-  }
-  case STRUCT_UNIT: {
-    if (po.preserve_format)
-      break;
-    if (!parent ||
-        (!parent->isPower() && !parent->isMultiplication() &&
-         !parent->isInverse() && !(parent->isDivision() && pindex == 2))) {
-      // u = 1 u
-      multiply(m_one);
-      SWAP_CHILDREN(0, 1);
-    }
-    break;
-  }
-  case STRUCT_POWER: {
-    if (po.preserve_format)
-      break;
-    if (!po.negative_exponents && CHILD(1).isNegate() &&
-        (!CHILD(0).isVector() || !CHILD(1).isMinusOne())) {
-      if (CHILD(1)[0].isOne()) {
-        // f(a)^-1=1/f(a)
-        m_type = STRUCT_INVERSE;
-        ERASE(1);
-      } else {
-        // f(a)^-b=1/f(a)^b
-        CHILD(1).setToChild(1, true);
-        transform(STRUCT_INVERSE);
-      }
-      formatsub(po, parent, pindex, true, top_parent);
-      break;
-    } else if (po.halfexp_to_sqrt &&
-               ((CHILD(1).isDivision() && CHILD(1)[0].isNumber() &&
-                 CHILD(1)[0].number().isInteger() && CHILD(1)[1].isNumber() &&
-                 CHILD(1)[1].number().isTwo() &&
-                 ((!po.negative_exponents &&
-                   (CHILD(0).countChildren() == 0 || CHILD(0).isFunction())) ||
-                  CHILD(1)[0].isOne())) ||
-                (CHILD(1).isNumber() && CHILD(1).number().denominatorIsTwo() &&
-                 ((!po.negative_exponents &&
-                   (CHILD(0).countChildren() == 0 || CHILD(0).isFunction())) ||
-                  CHILD(1).number().numeratorIsOne())) ||
-                (CHILD(1).isInverse() && CHILD(1)[0].isNumber() &&
-                 CHILD(1)[0].number() == 2))) {
-      if (CHILD(1).isInverse() ||
-          (CHILD(1).isDivision() && CHILD(1)[0].number().isOne()) ||
-          (CHILD(1).isNumber() && CHILD(1).number().numeratorIsOne())) {
-        // f(a)^(1/2)=sqrt(f(a))
-        m_type = STRUCT_FUNCTION;
-        ERASE(1)
-        setFunctionId(FUNCTION_ID_SQRT);
-      } else {
-        // f(a)^(b+1/2)=f(b)^(sqrt(f(a))
-        if (CHILD(1).isNumber()) {
-          // f(a)^b
-          CHILD(1).number() -= nr_half;
-        } else {
-          // f(a)^(b/2)
-          Number nr = CHILD(1)[0].number();
-          nr /= CHILD(1)[1].number();
-          nr.floor();
-          CHILD(1).set(nr);
-        }
-        if (CHILD(1).number().isOne()) {
-          setToChild(1, true);
-          if (parent && parent->isMultiplication()) {
-            parent->insertChild_nocopy(
-                new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_SQRT),
-                                  this, NULL),
-                pindex + 1);
-          } else {
-            multiply_nocopy(new MathStructure(
-                CALCULATOR->getFunctionById(FUNCTION_ID_SQRT), this, NULL));
-          }
-        } else {
-          if (parent && parent->isMultiplication()) {
-            parent->insertChild_nocopy(
-                new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_SQRT),
-                                  &CHILD(0), NULL),
-                pindex + 1);
-          } else {
-            multiply_nocopy(
-                new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_SQRT),
-                                  &CHILD(0), NULL));
-          }
-        }
-      }
-      formatsub(po, parent, pindex, false, top_parent);
-      break;
-    } else if (po.exp_to_root && CHILD(0).representsNonNegative(true) &&
-               ((CHILD(1).isDivision() && CHILD(1)[0].isNumber() &&
-                 CHILD(1)[0].number().isInteger() && CHILD(1)[1].isNumber() &&
-                 CHILD(1)[1].number().isGreaterThan(1) &&
-                 CHILD(1)[1].number().isLessThan(10) &&
-                 ((!po.negative_exponents &&
-                   (CHILD(0).countChildren() == 0 || CHILD(0).isFunction())) ||
-                  CHILD(1)[0].isOne())) ||
-                (CHILD(1).isNumber() && CHILD(1).number().isRational() &&
-                 !CHILD(1).number().isInteger() &&
-                 CHILD(1).number().denominatorIsLessThan(10) &&
-                 ((!po.negative_exponents &&
-                   (CHILD(0).countChildren() == 0 || CHILD(0).isFunction())) ||
-                  CHILD(1).number().numeratorIsOne())) ||
-                (CHILD(1).isInverse() && CHILD(1)[0].isNumber() &&
-                 CHILD(1)[0].number().isInteger() &&
-                 CHILD(1)[0].number().isPositive() &&
-                 CHILD(1)[0].number().isLessThan(10)))) {
-      // f(a)^(b/c)=root(f(a),c)^b
-      Number nr_int, nr_num, nr_den;
-      if (CHILD(1).isNumber()) {
-        nr_num = CHILD(1).number().numerator();
-        nr_den = CHILD(1).number().denominator();
-      } else if (CHILD(1).isDivision()) {
-        nr_num.set(CHILD(1)[0].number());
-        nr_den.set(CHILD(1)[1].number());
-      } else if (CHILD(1).isInverse()) {
-        nr_num.set(1, 1, 0);
-        nr_den.set(CHILD(1)[0].number());
-      }
-      if (!nr_num.isOne() && (nr_num - 1).isIntegerDivisible(nr_den)) {
-        nr_int = nr_num;
-        nr_int--;
-        nr_int.divide(nr_den);
-        nr_num = 1;
-      }
-      MathStructure mbase(CHILD(0));
-      CHILD(1) = nr_den;
-      m_type = STRUCT_FUNCTION;
-      setFunctionId(FUNCTION_ID_ROOT);
-      formatsub(po, parent, pindex, false, top_parent);
-      if (!nr_num.isOne()) {
-        raise(nr_num);
-        formatsub(po, parent, pindex, false, top_parent);
-      }
-      if (!nr_int.isZero()) {
-        if (!nr_int.isOne())
-          mbase.raise(nr_int);
-        multiply(mbase);
-        sort(po);
-        formatsub(po, parent, pindex, false, top_parent);
-      }
-      break;
-    }
-    if (CHILD(0).isUnit_exp() &&
-        (!parent ||
-         (!parent->isPower() && !parent->isMultiplication() &&
-          !parent->isInverse() && !(parent->isDivision() && pindex == 2)))) {
-      multiply(m_one);
-      SWAP_CHILDREN(0, 1);
-    }
-    break;
-  }
-  case STRUCT_FUNCTION: {
-    if (po.preserve_format)
-      break;
-    if (o_function->id() == FUNCTION_ID_ROOT && SIZE == 2 && CHILD(1) == 3) {
-      // root(f(a),3)=cbrt(f(a))
-      ERASE(1)
-      setFunctionId(FUNCTION_ID_CBRT);
-    } else if (o_function->id() == FUNCTION_ID_INTERVAL && SIZE == 2 &&
-               CHILD(0).isAddition() && CHILD(0).size() == 2 &&
-               CHILD(1).isAddition() && CHILD(1).size() == 2) {
-      // interval(f(a)+c,f(a)-c)=uncertainty(f(a),c)
-      MathStructure *mmid = NULL, *munc = NULL;
-      if (CHILD(0)[0].equals(CHILD(1)[0], true, true)) {
-        mmid = &CHILD(0)[0];
-        if (CHILD(0)[1].isNegate() &&
-            CHILD(0)[1][0].equals(CHILD(1)[1], true, true))
-          munc = &CHILD(1)[1];
-        if (CHILD(1)[1].isNegate() &&
-            CHILD(1)[1][0].equals(CHILD(0)[1], true, true))
-          munc = &CHILD(0)[1];
-      } else if (CHILD(0)[1].equals(CHILD(1)[1], true, true)) {
-        mmid = &CHILD(0)[1];
-        if (CHILD(0)[0].isNegate() &&
-            CHILD(0)[0][0].equals(CHILD(1)[0], true, true))
-          munc = &CHILD(1)[0];
-        if (CHILD(1)[0].isNegate() &&
-            CHILD(1)[0][0].equals(CHILD(0)[0], true, true))
-          munc = &CHILD(0)[0];
-      } else if (CHILD(0)[0].equals(CHILD(1)[1], true, true)) {
-        mmid = &CHILD(0)[0];
-        if (CHILD(0)[1].isNegate() &&
-            CHILD(0)[1][0].equals(CHILD(1)[0], true, true))
-          munc = &CHILD(1)[0];
-        if (CHILD(1)[0].isNegate() &&
-            CHILD(1)[0][0].equals(CHILD(0)[1], true, true))
-          munc = &CHILD(0)[1];
-      } else if (CHILD(0)[1].equals(CHILD(1)[0], true, true)) {
-        mmid = &CHILD(0)[0];
-        if (CHILD(0)[0].isNegate() &&
-            CHILD(0)[0][0].equals(CHILD(1)[1], true, true))
-          munc = &CHILD(1)[1];
-        if (CHILD(1)[1].isNegate() &&
-            CHILD(1)[1][0].equals(CHILD(0)[0], true, true))
-          munc = &CHILD(0)[0];
-      }
-      if (mmid && munc) {
-        setFunctionId(FUNCTION_ID_UNCERTAINTY);
-        mmid->ref();
-        munc->ref();
-        CLEAR
-        APPEND_POINTER(mmid)
-        APPEND_POINTER(munc)
-        APPEND(m_zero)
-      }
-    }
-    break;
-  }
-  case STRUCT_VARIABLE: {
-    if (o_variable == CALCULATOR->getVariableById(VARIABLE_ID_PLUS_INFINITY) ||
-        o_variable == CALCULATOR->getVariableById(VARIABLE_ID_MINUS_INFINITY)) {
-      // replace infinity variable with infinity number
-      set(((KnownVariable *)o_variable)->get());
-    }
-    break;
-  }
-  case STRUCT_NUMBER: {
-    bool force_fraction = false;
-    if (parent && parent->isMultiplication() && o_number.isRational()) {
-      // always show fraction format for rational number a in a(f(b)+f(c))
-      for (size_t i = 0; i < parent->size(); i++) {
-        if ((*parent)[i].isAddition()) {
-          force_fraction = true;
-          break;
-        }
-      }
-    }
-    if ((o_number.isNegative() ||
-         ((parent ||
-           po.interval_display != INTERVAL_DISPLAY_SIGNIFICANT_DIGITS) &&
-          o_number.isInterval() && o_number.isNonPositive())) &&
-        (po.base != BASE_CUSTOM ||
-         !CALCULATOR->customOutputBase().isNegative())) {
-      if ((((po.base != 2 || !po.twos_complement) &&
-            (po.base != 16 || !po.hexadecimal_twos_complement)) ||
-           !o_number.isInteger()) &&
-          (!o_number.isMinusInfinity() || (parent && parent->isAddition()))) {
-        // a=-(-a), if a is a negative number (or a is interval from negative
-        // value to 0), and not using two's complement and not using negative
-        // number base
-        o_number.negate();
-        transform(STRUCT_NEGATE);
-        formatsub(po, parent, pindex, true, top_parent);
-      }
-    } else if (po.number_fraction_format == FRACTION_COMBINED &&
-               po.base > BASE_FP16 && po.base != BASE_SEXAGESIMAL &&
-               po.base != BASE_TIME && o_number.isRational() &&
-               !o_number.isInteger() &&
-               (!po.show_ending_zeroes || !po.restrict_to_parent_precision ||
-                po.base == BASE_ROMAN_NUMERALS ||
-                po.base == BASE_BIJECTIVE_26 ||
-                ((!top_parent || !top_parent->isApproximate()) &&
-                 !isApproximate()) ||
-                (o_number.denominatorIsLessThan(10) && o_number < 10 &&
-                 o_number > -10))) {
-      // mixed fraction format (e.g. 5/3=1+2/3); only used is number is
-      // non-integer rational, and current mode does not dictate showing ending
-      // zeroes of approximate number, and number base is not sexagesimal
-      if (o_number.isFraction()) {
-        // split number in numerator and denominator, if numerator < denominator
-        Number num(o_number.numerator());
-        Number den(o_number.denominator());
-        clear(true);
-        if (num.isOne()) {
-          m_type = STRUCT_INVERSE;
-        } else {
-          m_type = STRUCT_DIVISION;
-          APPEND_NEW(num);
-        }
-        APPEND_NEW(den);
-      } else {
-        // split number in integer part, numerator and denominator, if numerator
-        // > denominator
-        Number frac(o_number);
-        frac.frac();
-        MathStructure *num = new MathStructure(frac.numerator());
-        num->transform(STRUCT_DIVISION, frac.denominator());
-        o_number.trunc();
-        add_nocopy(num);
-      }
-    } else if ((force_fraction ||
-                po.number_fraction_format == FRACTION_FRACTIONAL ||
-                po.base == BASE_ROMAN_NUMERALS ||
-                po.number_fraction_format == FRACTION_DECIMAL_EXACT) &&
-               po.base > BASE_FP16 && po.base != BASE_SEXAGESIMAL &&
-               po.base != BASE_TIME && o_number.isRational() &&
-               !o_number.isInteger() &&
-               (force_fraction || !o_number.isApproximate())) {
-      // split rational number in numerator and denominator, if display of
-      // fractions is requested for rational numbers and number base is not
-      // sexagesimal and number is not approximate
+			bool b = false;
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) break;
+				if(CHILD(i).isInverse()) {
+					b = true;
+					break;
+				} else if(CHILD(i).isDivision()) {
+					if(!CHILD(i)[0].isNumber() || !CHILD(i)[1].isNumber() || CHILD(i)[0].number().isOne()) {
+						b = true;
+						break;
+					}
+				}
+			}
 
-      InternalPrintStruct ips_n;
+			if(b) {
+				MathStructure *den = new MathStructure();
+				MathStructure *num = new MathStructure();
+				num->setUndefined();
+				short ds = 0, ns = 0;
+				MathStructure *mnum = NULL, *mden = NULL;
+				for(size_t i = 0; i < SIZE; i++) {
+					if(CHILD(i).isInverse()) {
+						mden = &CHILD(i)[0];
+					} else if(CHILD(i).isDivision()) {
+						mnum = &CHILD(i)[0];
+						mden = &CHILD(i)[1];
+					} else {
+						mnum = &CHILD(i);
+					}
+					if(mnum && !mnum->isOne()) {
+						if(ns > 0) {
+							if(mnum->isMultiplication() && num->isNumber()) {
+								for(size_t i2 = 0; i2 < mnum->size(); i2++) {
+									num->multiply((*mnum)[i2], true);
+								}
+							} else {
+								num->multiply(*mnum, ns > 1);
+							}
+						} else {
+							num->set(*mnum);
+						}
+						ns++;
+						mnum = NULL;
+					}
+					if(mden) {
+						if(ds > 0) {
+							if(mden->isMultiplication() && den->isNumber()) {
+								for(size_t i2 = 0; i2 < mden->size(); i2++) {
+									den->multiply((*mden)[i2], true);
+								}
+							} else {
+								den->multiply(*mden, ds > 1);
+							}
+						} else {
+							den->set(*mden);
+						}
+						ds++;
+						mden = NULL;
+					}
+				}
+				clear(true);
+				m_type = STRUCT_DIVISION;
+				if(num->isUndefined()) num->set(m_one);
+				APPEND_POINTER(num);
+				APPEND_POINTER(den);
+				num->formatsub(po, this, 1, false, top_parent);
+				den->formatsub(po, this, 2, false, top_parent);
+				formatsub(po, parent, pindex, false, top_parent);
+				break;
+			}
 
-      // parent approximate status affects the display of numbers if
-      // force_fraction is not true
-      if (!force_fraction &&
-          (isApproximate() || (top_parent && top_parent->isApproximate())))
-        ips_n.parent_approximate = true;
+			size_t index = 0;
+			if(CHILD(0).isOne()) {
+				index = 1;
+			}
+			switch(CHILD(index).type()) {
+				case STRUCT_POWER: {
+					if(!CHILD(index)[0].isUnit_exp()) {
+						break;
+					}
+				}
+				case STRUCT_UNIT: {
+					if(index == 0) {
+						if(!parent || (!parent->isPower() && !parent->isMultiplication() && !parent->isInverse() && (!parent->isDivision() || pindex != 2))) {
+							PREPEND(m_one);
+							break;
+						}
+					}
+					break;
+				}
+				case STRUCT_FUNCTION: {
+					if(index == 1 && SIZE == 2 && CHILD(index).function()->referenceName() == "cis" && CHILD(index).size() == 1) break;
+				}
+				default: {
+					if(index == 1) {
+						ERASE(0);
+						if(SIZE == 1) {
+							setToChild(1, true);
+						}
+						break;
+					}
+				}
+			}
+			break;
+		}
+		case STRUCT_UNIT: {
+			if(po.preserve_format) break;
+			if(!parent || (!parent->isPower() && !parent->isMultiplication() && !parent->isInverse() && !(parent->isDivision() && pindex == 2))) {
+				// u = 1 u
+				multiply(m_one);
+				SWAP_CHILDREN(0, 1);
+			}
+			break;
+		}
+		case STRUCT_POWER: {
+			if(po.preserve_format) break;
+			if(CHILD(1).isNegate() && ((!po.negative_exponents && parent != NULL) || !CHILD(0).isUnit()) && (!CHILD(0).isVector() || !CHILD(1).isMinusOne())) {
+				if(CHILD(1)[0].isOne()) {
+					// f(a)^-1=1/f(a)
+					m_type = STRUCT_INVERSE;
+					ERASE(1);
+				} else {
+					// f(a)^-b=1/f(a)^b
+					CHILD(1).setToChild(1, true);
+					transform(STRUCT_INVERSE);
+				}
+				formatsub(po, parent, pindex, true, top_parent);
+				break;
+			} else if(po.halfexp_to_sqrt && ((CHILD(1).isDivision() && CHILD(1)[0].isNumber() && CHILD(1)[0].number().isInteger() && CHILD(1)[1].isNumber() && CHILD(1)[1].number().isTwo() && (((!po.negative_exponents || !CHILD(0).isUnit()) && (CHILD(0).countChildren() == 0 || CHILD(0).isFunction())) || CHILD(1)[0].isOne())) || (CHILD(1).isNumber() && CHILD(1).number().denominatorIsTwo() && (((!po.negative_exponents || !CHILD(0).isUnit()) && (CHILD(0).countChildren() == 0 || CHILD(0).isFunction())) || CHILD(1).number().numeratorIsOne())) || (CHILD(1).isInverse() && CHILD(1)[0].isNumber() && CHILD(1)[0].number() == 2))) {
+				if(CHILD(1).isInverse() || (CHILD(1).isDivision() && CHILD(1)[0].number().isOne()) || (CHILD(1).isNumber() && CHILD(1).number().numeratorIsOne())) {
+					// f(a)^(1/2)=sqrt(f(a))
+					m_type = STRUCT_FUNCTION;
+					ERASE(1)
+					setFunctionId(FUNCTION_ID_SQRT);
+				} else {
+					// f(a)^(b+1/2)=f(b)^(sqrt(f(a))
+					if(CHILD(1).isNumber()) {
+						// f(a)^b
+						CHILD(1).number() -= nr_half;
+					} else {
+						// f(a)^(b/2)
+						Number nr = CHILD(1)[0].number();
+						nr /= CHILD(1)[1].number();
+						nr.floor();
+						CHILD(1).set(nr);
+					}
+					if(CHILD(1).number().isOne()) {
+						setToChild(1, true);
+						if(parent && parent->isMultiplication()) {
+							parent->insertChild_nocopy(new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_SQRT), this, NULL), pindex + 1);
+						} else {
+							multiply_nocopy(new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_SQRT), this, NULL));
+						}
+					} else {
+						if(parent && parent->isMultiplication()) {
+							parent->insertChild_nocopy(new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_SQRT), &CHILD(0), NULL), pindex + 1);
+						} else {
+							multiply_nocopy(new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_SQRT), &CHILD(0), NULL));
+						}
+					}
+				}
+				formatsub(po, parent, pindex, false, top_parent);
+				break;
+			} else if(po.exp_to_root && CHILD(0).representsNonNegative(true) && ((CHILD(1).isDivision() && CHILD(1)[0].isNumber() && CHILD(1)[0].number().isInteger() && CHILD(1)[1].isNumber() && CHILD(1)[1].number().isGreaterThan(1) && CHILD(1)[1].number().isLessThan(10) && ((!po.negative_exponents && (CHILD(0).countChildren() == 0 || CHILD(0).isFunction())) || CHILD(1)[0].isOne())) || (CHILD(1).isNumber() && CHILD(1).number().isRational() && !CHILD(1).number().isInteger() && CHILD(1).number().denominatorIsLessThan(10) && ((!po.negative_exponents && (CHILD(0).countChildren() == 0 || CHILD(0).isFunction())) || CHILD(1).number().numeratorIsOne())) || (CHILD(1).isInverse() && CHILD(1)[0].isNumber()  && CHILD(1)[0].number().isInteger() && CHILD(1)[0].number().isPositive() && CHILD(1)[0].number().isLessThan(10)))) {
+				// f(a)^(b/c)=root(f(a),c)^b
+				Number nr_int, nr_num, nr_den;
+				if(CHILD(1).isNumber()) {
+					nr_num = CHILD(1).number().numerator();
+					nr_den = CHILD(1).number().denominator();
+				} else if(CHILD(1).isDivision()) {
+					nr_num.set(CHILD(1)[0].number());
+					nr_den.set(CHILD(1)[1].number());
+				} else if(CHILD(1).isInverse()) {
+					nr_num.set(1, 1, 0);
+					nr_den.set(CHILD(1)[0].number());
+				}
+				if(!nr_num.isOne() && (nr_num - 1).isIntegerDivisible(nr_den)) {
+					nr_int = nr_num;
+					nr_int--;
+					nr_int.divide(nr_den);
+					nr_num = 1;
+				}
+				MathStructure mbase(CHILD(0));
+				CHILD(1) = nr_den;
+				m_type = STRUCT_FUNCTION;
+				setFunctionId(FUNCTION_ID_ROOT);
+				formatsub(po, parent, pindex, false, top_parent);
+				if(!nr_num.isOne()) {
+					raise(nr_num);
+					formatsub(po, parent, pindex, false, top_parent);
+				}
+				if(!nr_int.isZero()) {
+					if(!nr_int.isOne()) mbase.raise(nr_int);
+					multiply(mbase);
+					sort(po);
+					formatsub(po, parent, pindex, false, top_parent);
+				}
+				break;
+			}
+			if(CHILD(0).isUnit_exp() && (!parent || (!parent->isPower() && !parent->isMultiplication() && !parent->isInverse() && !(parent->isDivision() && pindex == 2)))) {
+				multiply(m_one);
+				SWAP_CHILDREN(0, 1);
+			}
+			break;
+		}
+		case STRUCT_FUNCTION: {
+			if(po.preserve_format) break;
+			if(o_function->id() == FUNCTION_ID_ROOT && SIZE == 2 && CHILD(1) == 3) {
+				// root(f(a),3)=cbrt(f(a))
+				ERASE(1)
+				setFunctionId(FUNCTION_ID_CBRT);
+			} else if(o_function->id() == FUNCTION_ID_INTERVAL && SIZE == 2 && CHILD(0).isAddition() && CHILD(0).size() == 2 && CHILD(1).isAddition() && CHILD(1).size() == 2) {
+				// interval(f(a)+c,f(a)-c)=uncertainty(f(a),c)
+				MathStructure *mmid = NULL, *munc = NULL;
+				if(CHILD(0)[0].equals(CHILD(1)[0], true, true)) {
+					mmid = &CHILD(0)[0];
+					if(CHILD(0)[1].isNegate() && CHILD(0)[1][0].equals(CHILD(1)[1], true, true)) munc = &CHILD(1)[1];
+					if(CHILD(1)[1].isNegate() && CHILD(1)[1][0].equals(CHILD(0)[1], true, true)) munc = &CHILD(0)[1];
+				} else if(CHILD(0)[1].equals(CHILD(1)[1], true, true)) {
+					mmid = &CHILD(0)[1];
+					if(CHILD(0)[0].isNegate() && CHILD(0)[0][0].equals(CHILD(1)[0], true, true)) munc = &CHILD(1)[0];
+					if(CHILD(1)[0].isNegate() && CHILD(1)[0][0].equals(CHILD(0)[0], true, true)) munc = &CHILD(0)[0];
+				} else if(CHILD(0)[0].equals(CHILD(1)[1], true, true)) {
+					mmid = &CHILD(0)[0];
+					if(CHILD(0)[1].isNegate() && CHILD(0)[1][0].equals(CHILD(1)[0], true, true)) munc = &CHILD(1)[0];
+					if(CHILD(1)[0].isNegate() && CHILD(1)[0][0].equals(CHILD(0)[1], true, true)) munc = &CHILD(0)[1];
+				} else if(CHILD(0)[1].equals(CHILD(1)[0], true, true)) {
+					mmid = &CHILD(0)[0];
+					if(CHILD(0)[0].isNegate() && CHILD(0)[0][0].equals(CHILD(1)[1], true, true)) munc = &CHILD(1)[1];
+					if(CHILD(1)[1].isNegate() && CHILD(1)[1][0].equals(CHILD(0)[0], true, true)) munc = &CHILD(0)[0];
+				}
+				if(mmid && munc) {
+					setFunctionId(FUNCTION_ID_UNCERTAINTY);
+					mmid->ref();
+					munc->ref();
+					CLEAR
+					APPEND_POINTER(mmid)
+					APPEND_POINTER(munc)
+					APPEND(m_zero)
+				}
+			}
+			break;
+		}
+		case STRUCT_VARIABLE: {
+			if(o_variable == CALCULATOR->getVariableById(VARIABLE_ID_PLUS_INFINITY) || o_variable == CALCULATOR->getVariableById(VARIABLE_ID_MINUS_INFINITY)) {
+				// replace infinity variable with infinity number
+				set(((KnownVariable*) o_variable)->get());
+			}
+			break;
+		}
+		case STRUCT_NUMBER: {
+			bool force_fraction = false;
+			if(!po.preserve_format && parent && parent->isMultiplication() && o_number.isRational()) {
+				// always show fraction format for rational number a in a(f(b)+f(c))
+				for(size_t i = 0; i < parent->size(); i++) {
+					if((*parent)[i].isAddition()) {
+						force_fraction = true;
+						break;
+					}
+				}
+			}
 
-      // if current mode and parent precision dictates showing of ending zeroes,
-      // number is not shown as fraction
-      if (po.show_ending_zeroes && po.restrict_to_parent_precision &&
-          ips_n.parent_approximate && po.base != BASE_ROMAN_NUMERALS &&
-          po.base != BASE_BIJECTIVE_26 &&
-          (o_number.numeratorIsGreaterThan(9) ||
-           o_number.numeratorIsLessThan(-9) ||
-           o_number.denominatorIsGreaterThan(9))) {
-        break;
-      }
-      ips_n.parent_precision = precision();
-      if (top_parent && top_parent->precision() < 0 &&
-          top_parent->precision() < ips_n.parent_precision)
-        ips_n.parent_precision = top_parent->precision();
+			if((o_number.isNegative() || ((parent || po.interval_display != INTERVAL_DISPLAY_SIGNIFICANT_DIGITS) && o_number.isInterval() && o_number.isNonPositive())) && (po.base != BASE_CUSTOM || !CALCULATOR->customOutputBase().isNegative())) {
+				if((((po.base != 2 || !po.twos_complement) && (po.base != 16 || !po.hexadecimal_twos_complement)) || !o_number.isInteger()) && (!o_number.isMinusInfinity() || (parent && parent->isAddition()))) {
+					// a=-(-a), if a is a negative number (or a is interval from negative value to 0), and not using two's complement and not using negative number base
+					o_number.negate();
+					transform(STRUCT_NEGATE);
+					formatsub(po, parent, pindex, true, top_parent);
+				}
+			} else if((force_fraction || po.number_fraction_format >= FRACTION_FRACTIONAL || po.base == BASE_ROMAN_NUMERALS || po.number_fraction_format == FRACTION_DECIMAL_EXACT) && po.base > BASE_FP16 && po.base != BASE_SEXAGESIMAL && po.base != BASE_TIME && o_number.isRational() && !o_number.isInteger() && (force_fraction || !o_number.isApproximate())) {
+				// split rational number in numerator and denominator, if display of fractions is requested for rational numbers and number base is not sexagesimal and number is not approximate
 
-      bool approximately_displayed = false;
-      PrintOptions po2 = po;
-      po2.is_approximate = &approximately_displayed;
-      po2.indicate_infinite_series = false;
-      if (force_fraction &&
-          (po2.number_fraction_format == FRACTION_DECIMAL ||
-           po2.number_fraction_format == FRACTION_DECIMAL_EXACT))
-        po2.number_fraction_format = FRACTION_FRACTIONAL;
-      if (!force_fraction && po.base != BASE_ROMAN_NUMERALS &&
-          po.base != BASE_BIJECTIVE_26 &&
-          po.number_fraction_format == FRACTION_DECIMAL_EXACT) {
-        // if FRACTION_DECIMAL_EXACT is active, numbers is not displayed as
-        // fraction if they can be shown exact using decimals
-        po2.number_fraction_format = FRACTION_DECIMAL;
-        o_number.print(po2, ips_n);
-        if (!approximately_displayed)
-          break;
-        approximately_displayed = false;
-      }
+				InternalPrintStruct ips_n;
 
-      // test if numerator and denominator is displayed exact using current mode
-      Number num(o_number.numerator());
-      Number den(o_number.denominator());
-      if (isApproximate()) {
-        num.setApproximate();
-        den.setApproximate();
-      }
-      num.print(po2, ips_n);
-      if (!approximately_displayed || po.base == BASE_ROMAN_NUMERALS ||
-          po.base == BASE_BIJECTIVE_26) {
-        den.print(po2, ips_n);
-        if (!approximately_displayed || po.base == BASE_ROMAN_NUMERALS ||
-            po.base == BASE_BIJECTIVE_26) {
-          // both numerator and denominator is displayed exact: split up number
-          clear(true);
-          if (num.isOne()) {
-            m_type = STRUCT_INVERSE;
-          } else {
-            m_type = STRUCT_DIVISION;
-            APPEND_NEW(num);
-          }
-          APPEND_NEW(den);
-        }
-      }
-    } else if (o_number.hasImaginaryPart()) {
-      if (o_number.hasRealPart()) {
-        // split up complex number in real and imaginary part (Z=re(Z)+im(Z)*i)
-        Number re(o_number.realPart());
-        Number im(o_number.imaginaryPart());
-        MathStructure *mstruct = new MathStructure(im);
-        if (im.isOne()) {
-          mstruct->set(CALCULATOR->getVariableById(VARIABLE_ID_I));
-        } else {
-          mstruct->multiply_nocopy(
-              new MathStructure(CALCULATOR->getVariableById(VARIABLE_ID_I)));
-          if (CALCULATOR->getVariableById(VARIABLE_ID_I)
-                  ->preferredDisplayName(po.abbreviate_names,
-                                         po.use_unicode_signs, false,
-                                         po.use_reference_names,
-                                         po.can_display_unicode_string_function,
-                                         po.can_display_unicode_string_arg)
-                  .name == "j")
-            mstruct->swapChildren(1, 2);
-        }
-        o_number = re;
-        add_nocopy(mstruct);
-        formatsub(po, parent, pindex, true, top_parent);
-      } else {
-        // transform imaginary number to imaginary part * i (Z=im(Z)*i)
-        Number im(o_number.imaginaryPart());
-        if (im.isOne()) {
-          set(CALCULATOR->getVariableById(VARIABLE_ID_I), true);
-        } else if (im.isMinusOne()) {
-          set(CALCULATOR->getVariableById(VARIABLE_ID_I), true);
-          transform(STRUCT_NEGATE);
-        } else {
-          o_number = im;
-          multiply_nocopy(
-              new MathStructure(CALCULATOR->getVariableById(VARIABLE_ID_I)));
-          if (CALCULATOR->getVariableById(VARIABLE_ID_I)
-                  ->preferredDisplayName(po.abbreviate_names,
-                                         po.use_unicode_signs, false,
-                                         po.use_reference_names,
-                                         po.can_display_unicode_string_function,
-                                         po.can_display_unicode_string_arg)
-                  .name == "j")
-            SWAP_CHILDREN(0, 1);
-        }
-        formatsub(po, parent, pindex, true, top_parent);
-      }
-    }
-    break;
-  }
-  default: {
-  }
-  }
+				// parent approximate status affects the display of numbers if force_fraction is not true
+				if(!force_fraction && (isApproximate() || (top_parent && top_parent->isApproximate()))) ips_n.parent_approximate = true;
+
+				// if current mode and parent precision dictates showing of ending zeroes, number is not shown as fraction
+				if(po.show_ending_zeroes && po.restrict_to_parent_precision && ips_n.parent_approximate && po.base != BASE_ROMAN_NUMERALS && po.base != BASE_BIJECTIVE_26 && (o_number.numeratorIsGreaterThan(9) || o_number.numeratorIsLessThan(-9) || o_number.denominatorIsGreaterThan(9))) {
+					break;
+				}
+				ips_n.parent_precision = precision();
+				if(top_parent && top_parent->precision() < 0 && top_parent->precision() < ips_n.parent_precision) ips_n.parent_precision = top_parent->precision();
+
+				bool approximately_displayed = false;
+				PrintOptions po2 = po;
+				po2.is_approximate = &approximately_displayed;
+				po2.indicate_infinite_series = false;
+				if(force_fraction && (po2.number_fraction_format == FRACTION_DECIMAL || po2.number_fraction_format == FRACTION_DECIMAL_EXACT)) po2.number_fraction_format = FRACTION_FRACTIONAL;
+				if(!force_fraction && po.base != BASE_ROMAN_NUMERALS && po.base != BASE_BIJECTIVE_26 && po.number_fraction_format == FRACTION_DECIMAL_EXACT) {
+					// if FRACTION_DECIMAL_EXACT is active, numbers is not displayed as fraction if they can be shown exact using decimals
+					po2.number_fraction_format = FRACTION_DECIMAL;
+					o_number.print(po2, ips_n);
+					if(!approximately_displayed) break;
+					approximately_displayed = false;
+				}
+
+				// test if numerator and denominator is displayed exact using current mode
+				Number num(o_number.numerator());
+				if(po.number_fraction_format == FRACTION_COMBINED) {
+					num.mod(o_number.denominator());
+				}
+				Number den(o_number.denominator());
+				if(isApproximate()) {
+					num.setApproximate();
+					den.setApproximate();
+				}
+				num.print(po2, ips_n);
+				if(!approximately_displayed || po.base == BASE_ROMAN_NUMERALS || po.base == BASE_BIJECTIVE_26) {
+					den.print(po2, ips_n);
+					if(!approximately_displayed || po.base == BASE_ROMAN_NUMERALS || po.base == BASE_BIJECTIVE_26) {
+						if(po.number_fraction_format == FRACTION_COMBINED && !o_number.isFraction()) {
+							// mixed fraction format (e.g. 5/3=1+2/3)
+							Number nr_int(o_number);
+							nr_int.trunc();
+							if(isApproximate()) nr_int.setApproximate();
+							nr_int.print(po2, ips_n);
+							if(!approximately_displayed || po.base == BASE_ROMAN_NUMERALS || po.base == BASE_BIJECTIVE_26) {
+								set(nr_int);
+								MathStructure *mterm;
+								if(num.isOne()) {
+									mterm = new MathStructure(den);
+									mterm->transform(STRUCT_INVERSE);
+								} else {
+									mterm = new MathStructure(num);
+									mterm->transform(STRUCT_DIVISION, den);
+								}
+								add_nocopy(mterm);
+								break;
+							} else {
+								approximately_displayed = false;
+								num = o_number.numerator();
+								if(isApproximate()) num.setApproximate();
+								num.print(po2, ips_n);
+							}
+						}
+						if(!approximately_displayed || po.base == BASE_ROMAN_NUMERALS || po.base == BASE_BIJECTIVE_26) {
+							// both numerator and denominator is displayed exact: split up number
+							clear(true);
+							if(num.isOne()) {
+								m_type = STRUCT_INVERSE;
+							} else {
+								m_type = STRUCT_DIVISION;
+								APPEND_NEW(num);
+							}
+							APPEND_NEW(den);
+						}
+					}
+				}
+			} else if(o_number.hasImaginaryPart()) {
+				if(o_number.hasRealPart()) {
+					// split up complex number in real and imaginary part (Z=re(Z)+im(Z)*i)
+					Number re(o_number.realPart());
+					Number im(o_number.imaginaryPart());
+					MathStructure *mstruct = new MathStructure(im);
+					if(im.isOne()) {
+						mstruct->set(CALCULATOR->getVariableById(VARIABLE_ID_I));
+					} else {
+						mstruct->multiply_nocopy(new MathStructure(CALCULATOR->getVariableById(VARIABLE_ID_I)));
+						if(CALCULATOR->getVariableById(VARIABLE_ID_I)->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name == "j") mstruct->swapChildren(1, 2);
+					}
+					o_number = re;
+					add_nocopy(mstruct);
+					formatsub(po, parent, pindex, true, top_parent);
+				} else {
+					// transform imaginary number to imaginary part * i (Z=im(Z)*i)
+					Number im(o_number.imaginaryPart());
+					if(im.isOne()) {
+						set(CALCULATOR->getVariableById(VARIABLE_ID_I), true);
+					} else if(im.isMinusOne()) {
+						set(CALCULATOR->getVariableById(VARIABLE_ID_I), true);
+						transform(STRUCT_NEGATE);
+					} else {
+						o_number = im;
+						multiply_nocopy(new MathStructure(CALCULATOR->getVariableById(VARIABLE_ID_I)));
+						if(CALCULATOR->getVariableById(VARIABLE_ID_I)->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name == "j") SWAP_CHILDREN(0, 1);
+					}
+					formatsub(po, parent, pindex, true, top_parent);
+				}
+			}
+			break;
+		}
+		default: {}
+	}
 }
 
 int namelen(const MathStructure &mstruct, const PrintOptions &po,
@@ -3317,8 +3202,8 @@ int MathStructure::neededMultiplicationSign(const PrintOptions &po, const Intern
 		case STRUCT_POWER: {
 			if(m_type == STRUCT_UNIT && parent[index - 2][0].isUnit()) {
 				namelen(parent[index - 2], po, ips, &abbr_prev);
-				if(!flat_power && !po.limit_implicit_multiplication && !abbr_prev && !abbr_this) return MULTIPLICATION_SIGN_SPACE;
 				if(po.place_units_separately) return MULTIPLICATION_SIGN_OPERATOR_SHORT;
+				else if(!flat_power && !po.limit_implicit_multiplication && !abbr_prev && !abbr_this) return MULTIPLICATION_SIGN_SPACE;
 				else return MULTIPLICATION_SIGN_OPERATOR;
 			}
 			break;
@@ -3341,11 +3226,10 @@ int MathStructure::neededMultiplicationSign(const PrintOptions &po, const Intern
 		case STRUCT_SYMBOLIC: {break;}
 		case STRUCT_UNIT: {
 			if(m_type == STRUCT_UNIT) {
-				if(!po.limit_implicit_multiplication && !abbr_prev && !abbr_this) {
-					return MULTIPLICATION_SIGN_SPACE;
-				}
 				if(po.place_units_separately) {
 					return MULTIPLICATION_SIGN_OPERATOR_SHORT;
+				} else if(!po.limit_implicit_multiplication && !abbr_prev && !abbr_this) {
+					return MULTIPLICATION_SIGN_SPACE;
 				} else {
 					return MULTIPLICATION_SIGN_OPERATOR;
 				}
@@ -3404,830 +3288,655 @@ int MathStructure::neededMultiplicationSign(const PrintOptions &po, const Intern
 	}
 }
 
-ostream &operator<<(ostream &os, const MathStructure &mstruct) {
-  os << format_and_print(mstruct);
-  return os;
+ostream& operator << (ostream &os, const MathStructure &mstruct) {
+	os << format_and_print(mstruct);
+	return os;
 }
-string MathStructure::print(const PrintOptions &po,
-                            const InternalPrintStruct &ips) const {
-  if (ips.depth == 0 && po.is_approximate)
-    *po.is_approximate = false;
-  string print_str;
-  InternalPrintStruct ips_n = ips;
-  if (isApproximate())
-    ips_n.parent_approximate = true;
-  if (precision() >= 0 &&
-      (ips_n.parent_precision < 0 || precision() < ips_n.parent_precision))
-    ips_n.parent_precision = precision();
-  switch (m_type) {
-  case STRUCT_NUMBER: {
-    print_str = o_number.print(po, ips_n);
-    break;
-  }
-  case STRUCT_ABORTED: {
-  }
-  case STRUCT_SYMBOLIC: {
-    if (po.allow_non_usable) {
-      print_str = s_sym;
-    } else {
-      if ((text_length_is_one(s_sym) && s_sym.find("\'") == string::npos) ||
-          s_sym.find("\"") != string::npos) {
-        print_str = "\'";
-        print_str += s_sym;
-        print_str += "\'";
-      } else {
-        print_str = "\"";
-        print_str += s_sym;
-        print_str += "\"";
-      }
-    }
-    break;
-  }
-  case STRUCT_DATETIME: {
-    print_str = "\"";
-    print_str += o_datetime->print(po);
-    print_str += "\"";
-    break;
-  }
-  case STRUCT_ADDITION: {
-    ips_n.depth++;
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        if (CHILD(i).type() == STRUCT_NEGATE) {
-          if (po.spacious)
-            print_str += " ";
-          if (po.use_unicode_signs &&
-              (!po.can_display_unicode_string_function ||
-               (*po.can_display_unicode_string_function)(
-                   SIGN_MINUS, po.can_display_unicode_string_arg)))
-            print_str += SIGN_MINUS;
-          else
-            print_str += "-";
-          if (po.spacious)
-            print_str += " ";
-          ips_n.wrap =
-              CHILD(i)[0].needsParenthesis(po, ips_n, *this, i + 1, true, true);
-          print_str += CHILD(i)[0].print(po, ips_n);
-        } else {
-          if (po.spacious)
-            print_str += " ";
-          print_str += "+";
-          if (po.spacious)
-            print_str += " ";
-          ips_n.wrap =
-              CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-          print_str += CHILD(i).print(po, ips_n);
-        }
-      } else {
-        ips_n.wrap =
-            CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-        print_str += CHILD(i).print(po, ips_n);
-      }
-    }
-    break;
-  }
-  case STRUCT_NEGATE: {
-    if (po.use_unicode_signs &&
-        (!po.can_display_unicode_string_function ||
-         (*po.can_display_unicode_string_function)(
-             SIGN_MINUS, po.can_display_unicode_string_arg)))
-      print_str += SIGN_MINUS;
-    else
-      print_str = "-";
-    ips_n.depth++;
-    ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
-    print_str += CHILD(0).print(po, ips_n);
-    break;
-  }
-  case STRUCT_MULTIPLICATION: {
-    ips_n.depth++;
-    if (!po.preserve_format && SIZE == 2 &&
-        (CHILD(0).isNumber() ||
-         (CHILD(0).isNegate() && CHILD(0)[0].isNumber())) &&
-        CHILD(1).isFunction() && CHILD(1).size() == 1 &&
-        CHILD(1).function()->id() == FUNCTION_ID_CIS &&
-        CHILD(1).function()->referenceName() == "cis") {
-      ips_n.wrap = false;
-      print_str += CHILD(0).print(po, ips_n);
-      print_str += " ";
-      print_str += "cis";
-      print_str += " ";
-      ips_n.wrap =
-          (CHILD(1)[0].size() > 0 &&
-           (!CHILD(1)[0].isMultiplication() || CHILD(1)[0].size() != 2 ||
-            CHILD(1)[0][1].neededMultiplicationSign(
-                po, ips_n, CHILD(1)[0], 2, false, false, false, false) !=
-                MULTIPLICATION_SIGN_NONE) &&
-           (!CHILD(1)[0].isNegate() ||
-            (CHILD(1)[0][0].size() > 0 &&
-             (!CHILD(1)[0][0].isMultiplication() ||
-              CHILD(1)[0][0][1].neededMultiplicationSign(
-                  po, ips_n, CHILD(1)[0][0], 2, false, false, false, false) !=
-                  MULTIPLICATION_SIGN_NONE))));
-      print_str += CHILD(1)[0].print(po, ips_n);
-      break;
-    }
-    bool par_prev = false;
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      if (!po.short_multiplication && i > 0) {
-        if (po.spacious)
-          print_str += " ";
-        if (po.use_unicode_signs &&
-            po.multiplication_sign == MULTIPLICATION_SIGN_DOT &&
-            (!po.can_display_unicode_string_function ||
-             (*po.can_display_unicode_string_function)(
-                 SIGN_MULTIDOT, po.can_display_unicode_string_arg)))
-          print_str += SIGN_MULTIDOT;
-        else if (po.use_unicode_signs &&
-                 (po.multiplication_sign == MULTIPLICATION_SIGN_DOT ||
-                  po.multiplication_sign == MULTIPLICATION_SIGN_ALTDOT) &&
-                 (!po.can_display_unicode_string_function ||
-                  (*po.can_display_unicode_string_function)(
-                      SIGN_MIDDLEDOT, po.can_display_unicode_string_arg)))
-          print_str += SIGN_MIDDLEDOT;
-        else if (po.use_unicode_signs &&
-                 po.multiplication_sign == MULTIPLICATION_SIGN_X &&
-                 (!po.can_display_unicode_string_function ||
-                  (*po.can_display_unicode_string_function)(
-                      SIGN_MULTIPLICATION, po.can_display_unicode_string_arg)))
-          print_str += SIGN_MULTIPLICATION;
-        else
-          print_str += "*";
-        if (po.spacious)
-          print_str += " ";
-      } else if (i > 0) {
-        switch (CHILD(i).neededMultiplicationSign(
-            po, ips_n, *this, i + 1,
-            ips_n.wrap ||
-                (CHILD(i).isPower() && CHILD(i)[0].needsParenthesis(
-                                           po, ips_n, CHILD(i), 1, true, true)),
-            par_prev, true, true)) {
-        case MULTIPLICATION_SIGN_SPACE: {
-          print_str += " ";
-          break;
-        }
-        case MULTIPLICATION_SIGN_OPERATOR: {
-          if (po.spacious) {
-            if (po.use_unicode_signs &&
-                po.multiplication_sign == MULTIPLICATION_SIGN_DOT &&
-                (!po.can_display_unicode_string_function ||
-                 (*po.can_display_unicode_string_function)(
-                     SIGN_MULTIDOT, po.can_display_unicode_string_arg)))
-              print_str += " " SIGN_MULTIDOT " ";
-            else if (po.use_unicode_signs &&
-                     (po.multiplication_sign == MULTIPLICATION_SIGN_DOT ||
-                      po.multiplication_sign == MULTIPLICATION_SIGN_ALTDOT) &&
-                     (!po.can_display_unicode_string_function ||
-                      (*po.can_display_unicode_string_function)(
-                          SIGN_MIDDLEDOT, po.can_display_unicode_string_arg)))
-              print_str += " " SIGN_MIDDLEDOT " ";
-            else if (po.use_unicode_signs &&
-                     po.multiplication_sign == MULTIPLICATION_SIGN_X &&
-                     (!po.can_display_unicode_string_function ||
-                      (*po.can_display_unicode_string_function)(
-                          SIGN_MULTIPLICATION,
-                          po.can_display_unicode_string_arg)))
-              print_str += " " SIGN_MULTIPLICATION " ";
-            else
-              print_str += " * ";
-            break;
-          }
-        }
-        case MULTIPLICATION_SIGN_OPERATOR_SHORT: {
-          if (po.use_unicode_signs &&
-              po.multiplication_sign == MULTIPLICATION_SIGN_DOT &&
-              (!po.can_display_unicode_string_function ||
-               (*po.can_display_unicode_string_function)(
-                   SIGN_MULTIDOT, po.can_display_unicode_string_arg)))
-            print_str += SIGN_MULTIDOT;
-          else if (po.use_unicode_signs &&
-                   (po.multiplication_sign == MULTIPLICATION_SIGN_DOT ||
-                    po.multiplication_sign == MULTIPLICATION_SIGN_ALTDOT) &&
-                   (!po.can_display_unicode_string_function ||
-                    (*po.can_display_unicode_string_function)(
-                        SIGN_MIDDLEDOT, po.can_display_unicode_string_arg)))
-            print_str += SIGN_MIDDLEDOT;
-          else if (po.use_unicode_signs &&
-                   po.multiplication_sign == MULTIPLICATION_SIGN_X &&
-                   (!po.can_display_unicode_string_function ||
-                    (*po.can_display_unicode_string_function)(
-                        SIGN_MULTIPLICATION,
-                        po.can_display_unicode_string_arg)))
-            print_str += SIGN_MULTIPLICATION;
-          else
-            print_str += "*";
-          break;
-        }
-        }
-      }
-      print_str += CHILD(i).print(po, ips_n);
-      par_prev = ips_n.wrap;
-    }
-    break;
-  }
-  case STRUCT_INVERSE: {
-    ips_n.depth++;
-    ips_n.division_depth++;
-    ips_n.wrap = false;
-    print_str = m_one.print(po, ips_n);
-    if (po.spacious)
-      print_str += " ";
-    if (po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION &&
-        (!po.can_display_unicode_string_function ||
-         (*po.can_display_unicode_string_function)(
-             SIGN_DIVISION, po.can_display_unicode_string_arg))) {
-      print_str += SIGN_DIVISION;
-    } else if (po.use_unicode_signs &&
-               po.division_sign == DIVISION_SIGN_DIVISION_SLASH &&
-               (!po.can_display_unicode_string_function ||
-                (*po.can_display_unicode_string_function)(
-                    SIGN_DIVISION_SLASH, po.can_display_unicode_string_arg))) {
-      print_str += SIGN_DIVISION_SLASH;
-    } else {
-      print_str += "/";
-    }
-    if (po.spacious)
-      print_str += " ";
-    if (CHILD(0).isNumber() &&
-        (po.number_fraction_format == FRACTION_DECIMAL ||
-         po.number_fraction_format == FRACTION_DECIMAL_EXACT)) {
-      PrintOptions po2 = po;
-      po2.number_fraction_format = FRACTION_FRACTIONAL;
-      ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
-      print_str += CHILD(0).print(po, ips_n);
-    } else {
-      ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
-      print_str += CHILD(0).print(po, ips_n);
-    }
-    break;
-  }
-  case STRUCT_DIVISION: {
-    ips_n.depth++;
-    ips_n.division_depth++;
-    if (CHILD(0).isNumber() && CHILD(1).isNumber() &&
-        (po.number_fraction_format == FRACTION_DECIMAL ||
-         po.number_fraction_format == FRACTION_DECIMAL_EXACT)) {
-      PrintOptions po2 = po;
-      po2.number_fraction_format = FRACTION_FRACTIONAL;
-      ips_n.wrap = CHILD(0).needsParenthesis(po2, ips_n, *this, 1, true, true);
-      print_str = CHILD(0).print(po2, ips_n);
-      if (po.spacious)
-        print_str += " ";
-      if (po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION &&
-          (!po.can_display_unicode_string_function ||
-           (*po.can_display_unicode_string_function)(
-               SIGN_DIVISION, po.can_display_unicode_string_arg))) {
-        print_str += SIGN_DIVISION;
-      } else if (po.use_unicode_signs &&
-                 po.division_sign == DIVISION_SIGN_DIVISION_SLASH &&
-                 (!po.can_display_unicode_string_function ||
-                  (*po.can_display_unicode_string_function)(
-                      SIGN_DIVISION_SLASH,
-                      po.can_display_unicode_string_arg))) {
-        print_str += SIGN_DIVISION_SLASH;
-      } else {
-        print_str += "/";
-      }
-      if (po.spacious)
-        print_str += " ";
-      ips_n.wrap = CHILD(1).needsParenthesis(po2, ips_n, *this, 2, true, true);
-      print_str += CHILD(1).print(po2, ips_n);
-    } else {
-      ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
-      print_str = CHILD(0).print(po, ips_n);
-      if (po.spacious)
-        print_str += " ";
-      if (po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION &&
-          (!po.can_display_unicode_string_function ||
-           (*po.can_display_unicode_string_function)(
-               SIGN_DIVISION, po.can_display_unicode_string_arg))) {
-        print_str += SIGN_DIVISION;
-      } else if (po.use_unicode_signs &&
-                 po.division_sign == DIVISION_SIGN_DIVISION_SLASH &&
-                 (!po.can_display_unicode_string_function ||
-                  (*po.can_display_unicode_string_function)(
-                      SIGN_DIVISION_SLASH,
-                      po.can_display_unicode_string_arg))) {
-        print_str += SIGN_DIVISION_SLASH;
-      } else {
-        print_str += "/";
-      }
-      if (po.spacious)
-        print_str += " ";
-      ips_n.wrap = CHILD(1).needsParenthesis(po, ips_n, *this, 2, true, true);
-      print_str += CHILD(1).print(po, ips_n);
-    }
-    break;
-  }
-  case STRUCT_POWER: {
-    ips_n.depth++;
-    ips_n.power_depth++;
-    ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
-    print_str = CHILD(0).print(po, ips_n);
-    print_str += "^";
-    ips_n.wrap = CHILD(1).needsParenthesis(po, ips_n, *this, 2, true, true);
-    PrintOptions po2 = po;
-    po2.show_ending_zeroes = false;
-    print_str += CHILD(1).print(po2, ips_n);
-    break;
-  }
-  case STRUCT_COMPARISON: {
-    ips_n.depth++;
-    ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
-    print_str = CHILD(0).print(po, ips_n);
-    if (po.spacious)
-      print_str += " ";
-    switch (ct_comp) {
-    case COMPARISON_EQUALS: {
-      if (po.use_unicode_signs &&
-          po.interval_display != INTERVAL_DISPLAY_INTERVAL && isApproximate() &&
-          containsInterval() &&
-          (!po.can_display_unicode_string_function ||
-           (*po.can_display_unicode_string_function)(
-               SIGN_ALMOST_EQUAL, po.can_display_unicode_string_arg)))
-        print_str += SIGN_ALMOST_EQUAL;
-      else
-        print_str += "=";
-      break;
-    }
-    case COMPARISON_NOT_EQUALS: {
-      if (po.use_unicode_signs &&
-          (!po.can_display_unicode_string_function ||
-           (*po.can_display_unicode_string_function)(
-               SIGN_NOT_EQUAL, po.can_display_unicode_string_arg)))
-        print_str += SIGN_NOT_EQUAL;
-      else
-        print_str += "!=";
-      break;
-    }
-    case COMPARISON_GREATER: {
-      print_str += ">";
-      break;
-    }
-    case COMPARISON_LESS: {
-      print_str += "<";
-      break;
-    }
-    case COMPARISON_EQUALS_GREATER: {
-      if (po.use_unicode_signs &&
-          (!po.can_display_unicode_string_function ||
-           (*po.can_display_unicode_string_function)(
-               SIGN_GREATER_OR_EQUAL, po.can_display_unicode_string_arg)))
-        print_str += SIGN_GREATER_OR_EQUAL;
-      else
-        print_str += ">=";
-      break;
-    }
-    case COMPARISON_EQUALS_LESS: {
-      if (po.use_unicode_signs &&
-          (!po.can_display_unicode_string_function ||
-           (*po.can_display_unicode_string_function)(
-               SIGN_LESS_OR_EQUAL, po.can_display_unicode_string_arg)))
-        print_str += SIGN_LESS_OR_EQUAL;
-      else
-        print_str += "<=";
-      break;
-    }
-    }
-    if (po.spacious)
-      print_str += " ";
-    ips_n.wrap = CHILD(1).needsParenthesis(po, ips_n, *this, 2, true, true);
-    print_str += CHILD(1).print(po, ips_n);
-    break;
-  }
-  case STRUCT_BITWISE_AND: {
-    ips_n.depth++;
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        if (po.spacious)
-          print_str += " ";
-        print_str += "&";
-        if (po.spacious)
-          print_str += " ";
-      }
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      print_str += CHILD(i).print(po, ips_n);
-    }
-    break;
-  }
-  case STRUCT_BITWISE_OR: {
-    ips_n.depth++;
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        if (po.spacious)
-          print_str += " ";
-        print_str += "|";
-        if (po.spacious)
-          print_str += " ";
-      }
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      print_str += CHILD(i).print(po, ips_n);
-    }
-    break;
-  }
-  case STRUCT_BITWISE_XOR: {
-    ips_n.depth++;
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        print_str += " ";
-        print_str += "xor";
-        print_str += " ";
-      }
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      print_str += CHILD(i).print(po, ips_n);
-    }
-    break;
-  }
-  case STRUCT_BITWISE_NOT: {
-    print_str = "~";
-    ips_n.depth++;
-    ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
-    print_str += CHILD(0).print(po, ips_n);
-    break;
-  }
-  case STRUCT_LOGICAL_AND: {
-    ips_n.depth++;
-    if (!po.preserve_format && SIZE == 2 && CHILD(0).isComparison() &&
-        CHILD(1).isComparison() &&
-        CHILD(0).comparisonType() != COMPARISON_EQUALS &&
-        CHILD(0).comparisonType() != COMPARISON_NOT_EQUALS &&
-        CHILD(1).comparisonType() != COMPARISON_EQUALS &&
-        CHILD(1).comparisonType() != COMPARISON_NOT_EQUALS &&
-        CHILD(0)[0] == CHILD(1)[0]) {
-      ips_n.wrap =
-          CHILD(0)[1].needsParenthesis(po, ips_n, CHILD(0), 2, true, true);
-      print_str += CHILD(0)[1].print(po, ips_n);
-      if (po.spacious)
-        print_str += " ";
-      switch (CHILD(0).comparisonType()) {
-      case COMPARISON_LESS: {
-        print_str += ">";
-        break;
-      }
-      case COMPARISON_GREATER: {
-        print_str += "<";
-        break;
-      }
-      case COMPARISON_EQUALS_LESS: {
-        if (po.use_unicode_signs &&
-            (!po.can_display_unicode_string_function ||
-             (*po.can_display_unicode_string_function)(
-                 SIGN_GREATER_OR_EQUAL, po.can_display_unicode_string_arg)))
-          print_str += SIGN_GREATER_OR_EQUAL;
-        else
-          print_str += ">=";
-        break;
-      }
-      case COMPARISON_EQUALS_GREATER: {
-        if (po.use_unicode_signs &&
-            (!po.can_display_unicode_string_function ||
-             (*po.can_display_unicode_string_function)(
-                 SIGN_LESS_OR_EQUAL, po.can_display_unicode_string_arg)))
-          print_str += SIGN_LESS_OR_EQUAL;
-        else
-          print_str += "<=";
-        break;
-      }
-      default: {
-      }
-      }
-      if (po.spacious)
-        print_str += " ";
+string MathStructure::print(const PrintOptions &po, const InternalPrintStruct &ips) const {
+	return print(po, false, 0, TAG_TYPE_HTML, ips);
+}
+string MathStructure::print(const PrintOptions &po, bool format, int colorize, int tagtype, const InternalPrintStruct &ips) const {
+	if(ips.depth == 0 && po.is_approximate) *po.is_approximate = false;
+	string print_str;
+	InternalPrintStruct ips_n = ips;
+	if(isApproximate()) ips_n.parent_approximate = true;
+	if(precision() >= 0 && (ips_n.parent_precision < 0 || precision() < ips_n.parent_precision)) ips_n.parent_precision = precision();
+	switch(m_type) {
+		case STRUCT_NUMBER: {
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) print_str = (colorize == 2 ? "\033[0;96m" : "\033[0;36m");
+			print_str += o_number.print(po, ips_n);
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) print_str += "\033[0m";
+			break;
+		}
+		case STRUCT_ABORTED: {}
+		case STRUCT_SYMBOLIC: {
+			if(po.allow_non_usable) {
+				print_str = s_sym;
+			} else {
+				if((text_length_is_one(s_sym) && s_sym.find("\'") == string::npos) || s_sym.find("\"") != string::npos) {
+					print_str = "\'";
+					print_str += s_sym;
+					print_str += "\'";
+				} else {
+					print_str = "\"";
+					print_str += s_sym;
+					print_str += "\"";
+				}
+			}
+			if((format && m_type != STRUCT_ABORTED) || (colorize && tagtype == TAG_TYPE_TERMINAL)) {
+				if(tagtype == TAG_TYPE_TERMINAL) {
+					if(format) print_str.insert(0, "\033[3m");
+					if(colorize && m_type == STRUCT_ABORTED) print_str.insert(0, colorize == 2 ? "\033[0;91m" : "\033[0;31m");
+					else if(colorize) print_str.insert(0, colorize == 2 ? "\033[0;93m" : "\033[0;33m");
+					if(format) print_str += "\033[23m";
+					if(colorize) print_str += "\033[0m";
+				} else {
+					print_str.insert(0, "<i>");
+					print_str += "</i>";
+				}
+			}
+			break;
+		}
+		case STRUCT_DATETIME: {
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) print_str = (colorize == 2 ? "\033[0;96m" : "\033[0;36m");
+			print_str += "\"";
+			print_str += o_datetime->print(po);
+			print_str += "\"";
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) print_str += "\033[0m";
+			break;
+		}
+		case STRUCT_ADDITION: {
+			ips_n.depth++;
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					if(CHILD(i).type() == STRUCT_NEGATE) {
+						if(po.spacious) print_str += " ";
+						if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MINUS, po.can_display_unicode_string_arg))) print_str += SIGN_MINUS;
+						else print_str += "-";
+						if(po.spacious) print_str += " ";
+						ips_n.wrap = CHILD(i)[0].needsParenthesis(po, ips_n, *this, i + 1, true, true);
+						print_str += CHILD(i)[0].print(po, format, colorize, tagtype, ips_n);
+					} else {
+						if(po.spacious) print_str += " ";
+						print_str += "+";
+						if(po.spacious) print_str += " ";
+						ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+						print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+					}
+				} else {
+					ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+					print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+				}
+			}
+			break;
+		}
+		case STRUCT_NEGATE: {
+			ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
+			bool b_num = !po.preserve_format && colorize && tagtype == TAG_TYPE_TERMINAL && !ips_n.wrap && (CHILD(0).isNumber() || (CHILD(0).isDivision() && CHILD(0)[0].isNumber()) || CHILD(0).isInverse() || (CHILD(0).isMultiplication() && CHILD(0).size() > 0 && CHILD(0)[0].isNumber()));
+			if(b_num) print_str += (colorize == 2 ? "\033[0;96m" : "\033[0;36m");
+			if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MINUS, po.can_display_unicode_string_arg))) print_str += SIGN_MINUS;
+			else print_str += "-";
+			if(b_num) print_str += "\033[0m";
+			ips_n.depth++;
+			print_str += CHILD(0).print(po, format, colorize, tagtype, ips_n);
+			break;
+		}
+		case STRUCT_MULTIPLICATION: {
+			ips_n.depth++;
+			if(!po.preserve_format && SIZE == 2 && (CHILD(0).isNumber() || (CHILD(0).isNegate() && CHILD(0)[0].isNumber())) && CHILD(1).isFunction() && CHILD(1).size() == 1 && CHILD(1).function()->id() == FUNCTION_ID_CIS && CHILD(1).function()->referenceName() == "cis") {
+				ips_n.wrap = false;
+				print_str += CHILD(0).print(po, format, colorize, tagtype, ips_n);
+				print_str += " ";
+				print_str += "cis";
+				print_str += " ";
+				ips_n.wrap = (CHILD(1)[0].size() > 0 && (!CHILD(1)[0].isMultiplication() || CHILD(1)[0].size() != 2 || CHILD(1)[0][1].neededMultiplicationSign(po, ips_n, CHILD(1)[0], 2, false, false, false, false) != MULTIPLICATION_SIGN_NONE) && (!CHILD(1)[0].isNegate() || (CHILD(1)[0][0].size() > 0 && (!CHILD(1)[0][0].isMultiplication() || CHILD(1)[0][0][1].neededMultiplicationSign(po, ips_n, CHILD(1)[0][0], 2, false, false, false, false) != MULTIPLICATION_SIGN_NONE))));
+				print_str += CHILD(1)[0].print(po, format, colorize, tagtype, ips_n);
+				break;
+			}
+			bool b_units = false;
+			bool par_prev = false;
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				if(!po.short_multiplication && i > 0) {
+					if(po.spacious) print_str += " ";
+					if(po.use_unicode_signs && po.multiplication_sign == MULTIPLICATION_SIGN_DOT && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MULTIDOT, po.can_display_unicode_string_arg))) print_str += SIGN_MULTIDOT;
+					else if(po.use_unicode_signs && (po.multiplication_sign == MULTIPLICATION_SIGN_DOT || po.multiplication_sign == MULTIPLICATION_SIGN_ALTDOT) && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MIDDLEDOT, po.can_display_unicode_string_arg))) print_str += SIGN_MIDDLEDOT;
+					else if(po.use_unicode_signs && po.multiplication_sign == MULTIPLICATION_SIGN_X && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MULTIPLICATION, po.can_display_unicode_string_arg))) print_str += SIGN_MULTIPLICATION;
+					else print_str += "*";
+					if(po.spacious) print_str += " ";
+				} else if(i > 0) {
+					switch(CHILD(i).neededMultiplicationSign(po, ips_n, *this, i + 1, ips_n.wrap || (CHILD(i).isPower() && CHILD(i)[0].needsParenthesis(po, ips_n, CHILD(i), 1, true, true)), par_prev, true, true)) {
+						case MULTIPLICATION_SIGN_SPACE: {print_str += " "; break;}
+						case MULTIPLICATION_SIGN_OPERATOR: {
+							if(po.spacious) {
+								if(po.use_unicode_signs && po.multiplication_sign == MULTIPLICATION_SIGN_DOT && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MULTIDOT, po.can_display_unicode_string_arg))) print_str += " " SIGN_MULTIDOT " ";
+								else if(po.use_unicode_signs && (po.multiplication_sign == MULTIPLICATION_SIGN_DOT || po.multiplication_sign == MULTIPLICATION_SIGN_ALTDOT) && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MIDDLEDOT, po.can_display_unicode_string_arg))) print_str += " " SIGN_MIDDLEDOT " ";
+								else if(po.use_unicode_signs && po.multiplication_sign == MULTIPLICATION_SIGN_X && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MULTIPLICATION, po.can_display_unicode_string_arg))) print_str += " " SIGN_MULTIPLICATION " ";
+								else print_str += " * ";
+								break;
+							}
+						}
+						case MULTIPLICATION_SIGN_OPERATOR_SHORT: {
+							if(po.use_unicode_signs && po.multiplication_sign == MULTIPLICATION_SIGN_DOT && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MULTIDOT, po.can_display_unicode_string_arg))) print_str += SIGN_MULTIDOT;
+							else if(po.use_unicode_signs && (po.multiplication_sign == MULTIPLICATION_SIGN_DOT || po.multiplication_sign == MULTIPLICATION_SIGN_ALTDOT || (po.place_units_separately && po.multiplication_sign == MULTIPLICATION_SIGN_X && CHILD(i).isUnit_exp() && CHILD(i - 1).isUnit_exp())) && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MIDDLEDOT, po.can_display_unicode_string_arg))) print_str += SIGN_MIDDLEDOT;
+							else if(po.use_unicode_signs && po.multiplication_sign == MULTIPLICATION_SIGN_X && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MULTIPLICATION, po.can_display_unicode_string_arg))) print_str += SIGN_MULTIPLICATION;
+							else print_str += "*";
+							break;
+						}
+					}
+				}
+				if(!b_units && po.place_units_separately && !po.preserve_format && colorize && tagtype == TAG_TYPE_TERMINAL) {
+					b_units = true;
+					for(size_t i2 = i; i2 < SIZE; i2++) {
+						if(!CHILD(i2).isUnit_exp()) {
+							b_units = false;
+							break;
+						}
+					}
+					if(b_units) print_str += (colorize == 2 ? "\033[0;92m" : "\033[0;32m");
+				}
+				print_str += CHILD(i).print(po, format, b_units ? 0 : colorize, tagtype, ips_n);
+				par_prev = ips_n.wrap;
+			}
+			if(b_units) print_str += "\033[0m";
+			break;
+		}
+		case STRUCT_INVERSE: {
+			ips_n.depth++;
+			ips_n.division_depth++;
+			ips_n.wrap = false;
+			bool b_num = !po.preserve_format && po.division_sign == DIVISION_SIGN_SLASH && CHILD(0).isInteger();
+			if(b_num && colorize && tagtype == TAG_TYPE_TERMINAL) print_str += (colorize == 2 ? "\033[0;96m" : "\033[0;36m");
+			print_str += m_one.print(po, !b_num && format, b_num ? 0 : colorize, tagtype, ips_n);
+			if(po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_DIVISION, po.can_display_unicode_string_arg))) {
+				if(po.spacious && !b_num) print_str += " ";
+				print_str += SIGN_DIVISION;
+				if(po.spacious && !b_num) print_str += " ";
+			} else if(po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION_SLASH && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_DIVISION_SLASH, po.can_display_unicode_string_arg))) {
+				print_str += " " SIGN_DIVISION_SLASH " ";
+			} else {
+				if(po.spacious && !b_num) print_str += " ";
+				print_str += "/";
+				if(po.spacious && !b_num) print_str += " ";
+			}
+			if(b_num && (po.number_fraction_format == FRACTION_DECIMAL || po.number_fraction_format == FRACTION_DECIMAL_EXACT)) {
+				PrintOptions po2 = po;
+				po2.number_fraction_format = FRACTION_FRACTIONAL;
+				ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
+				print_str += CHILD(0).print(po, false, 0, tagtype, ips_n);
+			} else {
+				ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
+				print_str += CHILD(0).print(po, !b_num && format, b_num ? 0 : colorize, tagtype, ips_n);
+			}
+			if(b_num && colorize && tagtype == TAG_TYPE_TERMINAL) print_str += "\033[0m";
+			break;
+		}
+		case STRUCT_DIVISION: {
+			ips_n.depth++;
+			ips_n.division_depth++;
+			bool b_num = !po.preserve_format && CHILD(0).isInteger() && CHILD(1).isInteger();
+			bool b_num2 = b_num && po.division_sign == DIVISION_SIGN_SLASH;
+			bool b_units = false;
+			if(!b_num && po.place_units_separately && !po.preserve_format) {
+				b_units = true;
+				if(CHILD(0).isMultiplication()) {
+					for(size_t i2 = 0; i2 < CHILD(0).size(); i2++) {
+						if(!CHILD(0)[i2].isUnit_exp()) {
+							b_units = false;
+							break;
+						}
+					}
+				} else if(!CHILD(0).isUnit_exp()) {
+					b_units = false;
+				}
+				if(b_units) {
+					if(CHILD(1).isMultiplication()) {
+						for(size_t i2 = 0; i2 < CHILD(1).size(); i2++) {
+							if(!CHILD(1)[i2].isUnit_exp()) {
+								b_units = false;
+								break;
+							}
+						}
+					} else if(!CHILD(1).isUnit_exp()) {
+						b_units = false;
+					}
+				}
+			}
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) {
+				if(b_units) print_str += (colorize == 2 ? "\033[0;92m" : "\033[0;32m");
+				else if(b_num2) print_str += (colorize == 2 ? "\033[0;96m" : "\033[0;36m");
+			}
+			if(b_num && (po.number_fraction_format == FRACTION_DECIMAL || po.number_fraction_format == FRACTION_DECIMAL_EXACT)) {
+				PrintOptions po2 = po;
+				po2.number_fraction_format = FRACTION_FRACTIONAL;
+				ips_n.wrap = CHILD(0).needsParenthesis(po2, ips_n, *this, 1, true, true);
+				print_str += CHILD(0).print(po2, !b_units && !b_num2 && format, (b_units || b_num2) ? 0 : colorize, tagtype, ips_n);
+			} else {
+				ips_n.wrap = !b_units && CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
+				print_str += CHILD(0).print(po, !b_units && !b_num2 && format, (b_units || b_num2) ? 0 : colorize, tagtype, ips_n);
+			}
+			if(po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_DIVISION, po.can_display_unicode_string_arg))) {
+				if(po.spacious && !b_units && !b_num2) print_str += " ";
+				print_str += SIGN_DIVISION;
+				if(po.spacious && !b_units && !b_num2) print_str += " ";
+			} else if(po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION_SLASH && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_DIVISION_SLASH, po.can_display_unicode_string_arg))) {
+				print_str += " " SIGN_DIVISION_SLASH " ";
+			} else {
+				if(po.spacious && !b_units && !b_num2) print_str += " ";
+				print_str += "/";
+				if(po.spacious && !b_units && !b_num2) print_str += " ";
+			}
+			if(b_num && (po.number_fraction_format == FRACTION_DECIMAL || po.number_fraction_format == FRACTION_DECIMAL_EXACT)) {
+				PrintOptions po2 = po;
+				po2.number_fraction_format = FRACTION_FRACTIONAL;
+				ips_n.wrap = CHILD(1).needsParenthesis(po2, ips_n, *this, 2, true, true);
+				print_str += CHILD(1).print(po2, !b_units && !b_num2 && format, (b_units || b_num2) ? 0 : colorize, tagtype, ips_n);
+			} else {
+				ips_n.wrap = CHILD(1).needsParenthesis(po, ips_n, *this, 2, true, true);
+				print_str += CHILD(1).print(po, !b_units && !b_num2 && format, (b_units || b_num2) ? 0 : colorize, tagtype, ips_n);
+			}
+			if((b_units || b_num2) && colorize && tagtype == TAG_TYPE_TERMINAL) print_str += "\033[0m";
+			break;
+		}
+		case STRUCT_POWER: {
+			if(!po.negative_exponents && tagtype == TAG_TYPE_TERMINAL && po.use_unicode_signs && po.place_units_separately && !po.preserve_format && CHILD(0).isUnit() && CHILD(1).isInteger() && CHILD(1).number() >= 2 && CHILD(1).number() <= 9) {
+				string s_super;
+				if(CHILD(1).number() == 2) s_super = SIGN_POWER_2;
+				else if(CHILD(1).number() == 3) s_super = SIGN_POWER_3;
+				else if(CHILD(1).number() == 4) s_super = SIGN_POWER_4;
+				else if(CHILD(1).number() == 5) s_super = SIGN_POWER_5;
+				else if(CHILD(1).number() == 6) s_super = SIGN_POWER_6;
+				else if(CHILD(1).number() == 7) s_super = SIGN_POWER_7;
+				else if(CHILD(1).number() == 8) s_super = SIGN_POWER_8;
+				else if(CHILD(1).number() == 9) s_super = SIGN_POWER_9;
+				if(!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (s_super.c_str(), po.can_display_unicode_string_arg)) {
+					if(colorize && tagtype == TAG_TYPE_TERMINAL) print_str = (colorize == 2 ? "\033[0;92m" : "\033[0;32m");
+					ips_n.wrap = false;
+					print_str += CHILD(0).print(po, false, false, tagtype, ips_n);
+					print_str += s_super;
+					if(colorize && tagtype == TAG_TYPE_TERMINAL) print_str += "\033[0m";
+					break;
+				}
+			}
+			ips_n.depth++;
+			ips_n.power_depth++;
+			ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
+			bool b_units = po.place_units_separately && !po.preserve_format && colorize && tagtype == TAG_TYPE_TERMINAL && CHILD(0).isUnit();
+			if(b_units) print_str = colorize == 2 ? "\033[0;92m" : "\033[0;32m";
+			print_str += CHILD(0).print(po, format, b_units ? 0 : colorize, tagtype, ips_n);
+			print_str += "^";
+			ips_n.wrap = CHILD(1).needsParenthesis(po, ips_n, *this, 2, true, true);
+			PrintOptions po2 = po;
+			po2.show_ending_zeroes = false;
+			print_str += CHILD(1).print(po2, format, b_units ? 0 : colorize, tagtype, ips_n);
+			if(b_units) print_str += "\033[0m";
+			break;
+		}
+		case STRUCT_COMPARISON: {
+			ips_n.depth++;
+			ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
+			print_str = CHILD(0).print(po, format, colorize, tagtype, ips_n);
+			if(po.spacious) print_str += " ";
+			switch(ct_comp) {
+				case COMPARISON_EQUALS: {
+					if(po.use_unicode_signs && po.interval_display != INTERVAL_DISPLAY_INTERVAL && isApproximate() && containsInterval() && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_ALMOST_EQUAL, po.can_display_unicode_string_arg))) print_str += SIGN_ALMOST_EQUAL;
+					else print_str += "=";
+					break;
+				}
+				case COMPARISON_NOT_EQUALS: {
+					if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_NOT_EQUAL, po.can_display_unicode_string_arg))) print_str += SIGN_NOT_EQUAL;
+					else print_str += "!=";
+					break;
+				}
+				case COMPARISON_GREATER: {print_str += ">"; break;}
+				case COMPARISON_LESS: {print_str += "<"; break;}
+				case COMPARISON_EQUALS_GREATER: {
+					if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_GREATER_OR_EQUAL, po.can_display_unicode_string_arg))) print_str += SIGN_GREATER_OR_EQUAL;
+					else print_str += ">=";
+					break;
+				}
+				case COMPARISON_EQUALS_LESS: {
+					if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_LESS_OR_EQUAL, po.can_display_unicode_string_arg))) print_str += SIGN_LESS_OR_EQUAL;
+					else print_str += "<=";
+					break;
+				}
+			}
+			if(po.spacious) print_str += " ";
+			ips_n.wrap = CHILD(1).needsParenthesis(po, ips_n, *this, 2, true, true);
+			print_str += CHILD(1).print(po, format, colorize, tagtype, ips_n);
+			break;
+		}
+		case STRUCT_BITWISE_AND: {
+			ips_n.depth++;
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					if(po.spacious) print_str += " ";
+					print_str += "&";
+					if(po.spacious) print_str += " ";
+				}
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+			}
+			break;
+		}
+		case STRUCT_BITWISE_OR: {
+			ips_n.depth++;
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					if(po.spacious) print_str += " ";
+					print_str += "|";
+					if(po.spacious) print_str += " ";
+				}
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+			}
+			break;
+		}
+		case STRUCT_BITWISE_XOR: {
+			ips_n.depth++;
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					print_str += " ";
+					print_str += "xor";
+					print_str += " ";
+				}
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+			}
+			break;
+		}
+		case STRUCT_BITWISE_NOT: {
+			print_str = "~";
+			ips_n.depth++;
+			ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
+			print_str += CHILD(0).print(po, format, colorize, tagtype, ips_n);
+			break;
+		}
+		case STRUCT_LOGICAL_AND: {
+			ips_n.depth++;
+			if(!po.preserve_format && SIZE == 2 && CHILD(0).isComparison() && CHILD(1).isComparison() && CHILD(0).comparisonType() != COMPARISON_EQUALS && CHILD(0).comparisonType() != COMPARISON_NOT_EQUALS && CHILD(1).comparisonType() != COMPARISON_EQUALS && CHILD(1).comparisonType() != COMPARISON_NOT_EQUALS && CHILD(0)[0] == CHILD(1)[0]) {
+				ips_n.wrap = CHILD(0)[1].needsParenthesis(po, ips_n, CHILD(0), 2, true, true);
+				print_str += CHILD(0)[1].print(po, format, colorize, tagtype, ips_n);
+				if(po.spacious) print_str += " ";
+				switch(CHILD(0).comparisonType()) {
+					case COMPARISON_LESS: {print_str += ">"; break;}
+					case COMPARISON_GREATER: {print_str += "<"; break;}
+					case COMPARISON_EQUALS_LESS: {
+						if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_GREATER_OR_EQUAL, po.can_display_unicode_string_arg))) print_str += SIGN_GREATER_OR_EQUAL;
+						else print_str += ">=";
+						break;
+					}
+					case COMPARISON_EQUALS_GREATER: {
+						if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_LESS_OR_EQUAL, po.can_display_unicode_string_arg))) print_str += SIGN_LESS_OR_EQUAL;
+						else print_str += "<=";
+						break;
+					}
+					default: {}
+				}
+				if(po.spacious) print_str += " ";
 
-      ips_n.wrap =
-          CHILD(0)[0].needsParenthesis(po, ips_n, CHILD(0), 1, true, true);
-      print_str += CHILD(0)[0].print(po, ips_n);
+				ips_n.wrap = CHILD(0)[0].needsParenthesis(po, ips_n, CHILD(0), 1, true, true);
+				print_str += CHILD(0)[0].print(po, format, colorize, tagtype, ips_n);
 
-      if (po.spacious)
-        print_str += " ";
-      switch (CHILD(1).comparisonType()) {
-      case COMPARISON_GREATER: {
-        print_str += ">";
-        break;
-      }
-      case COMPARISON_LESS: {
-        print_str += "<";
-        break;
-      }
-      case COMPARISON_EQUALS_GREATER: {
-        if (po.use_unicode_signs &&
-            (!po.can_display_unicode_string_function ||
-             (*po.can_display_unicode_string_function)(
-                 SIGN_GREATER_OR_EQUAL, po.can_display_unicode_string_arg)))
-          print_str += SIGN_GREATER_OR_EQUAL;
-        else
-          print_str += ">=";
-        break;
-      }
-      case COMPARISON_EQUALS_LESS: {
-        if (po.use_unicode_signs &&
-            (!po.can_display_unicode_string_function ||
-             (*po.can_display_unicode_string_function)(
-                 SIGN_LESS_OR_EQUAL, po.can_display_unicode_string_arg)))
-          print_str += SIGN_LESS_OR_EQUAL;
-        else
-          print_str += "<=";
-        break;
-      }
-      default: {
-      }
-      }
-      if (po.spacious)
-        print_str += " ";
+				if(po.spacious) print_str += " ";
+				switch(CHILD(1).comparisonType()) {
+					case COMPARISON_GREATER: {print_str += ">"; break;}
+					case COMPARISON_LESS: {print_str += "<"; break;}
+					case COMPARISON_EQUALS_GREATER: {
+						if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_GREATER_OR_EQUAL, po.can_display_unicode_string_arg))) print_str += SIGN_GREATER_OR_EQUAL;
+						else print_str += ">=";
+						break;
+					}
+					case COMPARISON_EQUALS_LESS: {
+						if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_LESS_OR_EQUAL, po.can_display_unicode_string_arg))) print_str += SIGN_LESS_OR_EQUAL;
+						else print_str += "<=";
+						break;
+					}
+					default: {}
+				}
+				if(po.spacious) print_str += " ";
 
-      ips_n.wrap =
-          CHILD(1)[1].needsParenthesis(po, ips_n, CHILD(1), 2, true, true);
-      print_str += CHILD(1)[1].print(po, ips_n);
+				ips_n.wrap = CHILD(1)[1].needsParenthesis(po, ips_n, CHILD(1), 2, true, true);
+				print_str += CHILD(1)[1].print(po, format, colorize, tagtype, ips_n);
 
-      break;
-    }
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        if (po.spell_out_logical_operators) {
-          print_str += " ";
-          print_str += _("and");
-          print_str += " ";
-        } else {
-          if (po.spacious)
-            print_str += " ";
-          print_str += "&&";
-          if (po.spacious)
-            print_str += " ";
-        }
-      }
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      print_str += CHILD(i).print(po, ips_n);
-    }
-    break;
-  }
-  case STRUCT_LOGICAL_OR: {
-    ips_n.depth++;
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        if (po.spell_out_logical_operators) {
-          print_str += " ";
-          print_str += _("or");
-          print_str += " ";
-        } else {
-          if (po.spacious)
-            print_str += " ";
-          print_str += "||";
-          if (po.spacious)
-            print_str += " ";
-        }
-      }
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      print_str += CHILD(i).print(po, ips_n);
-    }
-    break;
-  }
-  case STRUCT_LOGICAL_XOR: {
-    ips_n.depth++;
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        print_str += " ";
-        print_str += "xor";
-        print_str += " ";
-      }
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      print_str += CHILD(i).print(po, ips_n);
-    }
-    break;
-  }
-  case STRUCT_LOGICAL_NOT: {
-    print_str = "!";
-    ips_n.depth++;
-    ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
-    print_str += CHILD(0).print(po, ips_n);
-    break;
-  }
-  case STRUCT_VECTOR: {
-    ips_n.depth++;
-    print_str = "[";
-    for (size_t i = 0; i < SIZE; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        print_str += po.comma();
-        if (po.spacious)
-          print_str += " ";
-      }
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      print_str += CHILD(i).print(po, ips_n);
-    }
-    print_str += "]";
-    break;
-  }
-  case STRUCT_UNIT: {
-    const ExpressionName *ename = &o_unit->preferredDisplayName(
-        po.abbreviate_names, po.use_unicode_signs, b_plural,
-        po.use_reference_names, po.can_display_unicode_string_function,
-        po.can_display_unicode_string_arg);
-    if (o_prefix)
-      print_str += o_prefix->name(po.abbreviate_names && ename->abbreviation,
-                                  po.use_unicode_signs,
-                                  po.can_display_unicode_string_function,
-                                  po.can_display_unicode_string_arg);
-    print_str += ename->name;
-    if (ename->suffix && !po.preserve_format && !po.use_reference_names) {
-      size_t i = print_str.rfind('_');
-      if (i != string::npos && i + 5 <= print_str.length() &&
-          print_str.substr(print_str.length() - 4, 4) == "unit") {
-        if (i + 5 == print_str.length()) {
-          print_str = print_str.substr(0, i);
-          if (po.hide_underscore_spaces)
-            gsub("_", " ", print_str);
-        } else {
-          print_str = print_str.substr(0, print_str.length() - 4);
-        }
-      }
-    }
-    if (po.hide_underscore_spaces && !ename->suffix) {
-      gsub("_", " ", print_str);
-    }
-    break;
-  }
-  case STRUCT_VARIABLE: {
-    const ExpressionName *ename = &o_variable->preferredDisplayName(
-        po.abbreviate_names, po.use_unicode_signs, false,
-        po.use_reference_names, po.can_display_unicode_string_function,
-        po.can_display_unicode_string_arg);
-    print_str += ename->name;
-    if (ename->suffix && !po.preserve_format && !po.use_reference_names) {
-      size_t i = print_str.rfind('_');
-      if (i != string::npos && i + 9 <= print_str.length() &&
-          print_str.substr(print_str.length() - 8, 8) == "constant") {
-        if (i + 9 == print_str.length()) {
-          print_str = print_str.substr(0, i);
-          if (po.hide_underscore_spaces)
-            gsub("_", " ", print_str);
-        } else {
-          print_str = print_str.substr(0, print_str.length() - 8);
-        }
-      }
-    }
-    if (po.hide_underscore_spaces && !ename->suffix) {
-      gsub("_", " ", print_str);
-    }
-    break;
-  }
-  case STRUCT_FUNCTION: {
-    ips_n.depth++;
-    if (o_function->id() == FUNCTION_ID_UNCERTAINTY && SIZE == 3 &&
-        CHILD(2).isZero()) {
-      MathStructure *mmid = NULL, *munc = NULL;
-      if (o_function->id() == FUNCTION_ID_UNCERTAINTY) {
-        mmid = &CHILD(0);
-        munc = &CHILD(1);
-      } else if (CHILD(0)[0].equals(CHILD(1)[0], true, true)) {
-        mmid = &CHILD(0)[0];
-        if (CHILD(0)[1].isNegate() &&
-            CHILD(0)[1][0].equals(CHILD(1)[1], true, true))
-          munc = &CHILD(1)[1];
-        if (CHILD(1)[1].isNegate() &&
-            CHILD(1)[1][0].equals(CHILD(0)[1], true, true))
-          munc = &CHILD(0)[1];
-      } else if (CHILD(0)[1].equals(CHILD(1)[1], true, true)) {
-        mmid = &CHILD(0)[1];
-        if (CHILD(0)[0].isNegate() &&
-            CHILD(0)[0][0].equals(CHILD(1)[0], true, true))
-          munc = &CHILD(1)[0];
-        if (CHILD(1)[0].isNegate() &&
-            CHILD(1)[0][0].equals(CHILD(0)[0], true, true))
-          munc = &CHILD(0)[0];
-      } else if (CHILD(0)[0].equals(CHILD(1)[1], true, true)) {
-        mmid = &CHILD(0)[0];
-        if (CHILD(0)[1].isNegate() &&
-            CHILD(0)[1][0].equals(CHILD(1)[0], true, true))
-          munc = &CHILD(1)[0];
-        if (CHILD(1)[0].isNegate() &&
-            CHILD(1)[0][0].equals(CHILD(0)[1], true, true))
-          munc = &CHILD(0)[1];
-      } else if (CHILD(0)[1].equals(CHILD(1)[0], true, true)) {
-        mmid = &CHILD(0)[0];
-        if (CHILD(0)[0].isNegate() &&
-            CHILD(0)[0][0].equals(CHILD(1)[1], true, true))
-          munc = &CHILD(1)[1];
-        if (CHILD(1)[1].isNegate() &&
-            CHILD(1)[1][0].equals(CHILD(0)[0], true, true))
-          munc = &CHILD(0)[0];
-      }
-      if (mmid && munc) {
-        PrintOptions po2 = po;
-        po2.show_ending_zeroes = false;
-        po2.number_fraction_format = FRACTION_DECIMAL;
-        ips_n.wrap = !CHILD(0).isNumber();
-        print_str += CHILD(0).print(po2, ips_n);
-        print_str += SIGN_PLUSMINUS;
-        ips_n.wrap = !CHILD(1).isNumber();
-        print_str += CHILD(1).print(po2, ips_n);
-        break;
-      }
-    }
-    const ExpressionName *ename = &o_function->preferredDisplayName(
-        po.abbreviate_names, po.use_unicode_signs, false,
-        po.use_reference_names, po.can_display_unicode_string_function,
-        po.can_display_unicode_string_arg);
-    print_str += ename->name;
-    if (po.hide_underscore_spaces && !ename->suffix) {
-      gsub("_", " ", print_str);
-    }
-    print_str += "(";
-    size_t argcount = SIZE;
-    if (o_function->id() == FUNCTION_ID_SIGNUM && argcount > 1) {
-      argcount = 1;
-    } else if (o_function->maxargs() > 0 &&
-               o_function->minargs() < o_function->maxargs() &&
-               SIZE > (size_t)o_function->minargs()) {
-      while (true) {
-        string defstr = o_function->getDefaultValue(argcount);
-        Argument *arg = o_function->getArgumentDefinition(argcount);
-        remove_blank_ends(defstr);
-        if (defstr.empty())
-          break;
-        if (CHILD(argcount - 1).isUndefined() && defstr == "undefined") {
-          argcount--;
-        } else if (argcount > 1 && arg &&
-                   arg->type() == ARGUMENT_TYPE_SYMBOLIC &&
-                   defstr == "undefined" &&
-                   CHILD(argcount - 1) == CHILD(0).find_x_var()) {
-          argcount--;
-        } else if (CHILD(argcount - 1).isVariable() &&
-                   (!arg || arg->type() != ARGUMENT_TYPE_TEXT) &&
-                   defstr == CHILD(argcount - 1).variable()->referenceName()) {
-          argcount--;
-        } else if (CHILD(argcount - 1).isInteger() &&
-                   (!arg || arg->type() != ARGUMENT_TYPE_TEXT) &&
-                   defstr.find_first_not_of(NUMBERS) == string::npos &&
-                   CHILD(argcount - 1).number() == s2i(defstr)) {
-          argcount--;
-        } else if (CHILD(argcount - 1).isSymbolic() && arg &&
-                   arg->type() == ARGUMENT_TYPE_TEXT &&
-                   CHILD(argcount - 1).symbol() == defstr) {
-          argcount--;
-        } else {
-          break;
-        }
-        if (argcount == 0 || argcount == (size_t)o_function->minargs())
-          break;
-      }
-    }
-    for (size_t i = 0; i < argcount; i++) {
-      if (CALCULATOR->aborted())
-        return CALCULATOR->abortedMessage();
-      if (i > 0) {
-        print_str += po.comma();
-        if (po.spacious)
-          print_str += " ";
-      }
-      ips_n.wrap =
-          CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
-      if (o_function->id() == FUNCTION_ID_INTERVAL) {
-        PrintOptions po2 = po;
-        po2.show_ending_zeroes = false;
-        print_str += CHILD(i).print(po2, ips_n);
-      } else {
-        print_str += CHILD(i).print(po, ips_n);
-      }
-    }
-    print_str += ")";
-    break;
-  }
-  case STRUCT_UNDEFINED: {
-    print_str = _("undefined");
-    break;
-  }
-  }
-  if (CALCULATOR->aborted())
-    print_str = CALCULATOR->abortedMessage();
-  if (ips.wrap) {
-    print_str.insert(0, "(");
-    print_str += ")";
-  }
-  return print_str;
+				break;
+			}
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					if(po.spell_out_logical_operators) {
+						print_str += " ";
+						print_str += _("and");
+						print_str += " ";
+					} else {
+						if(po.spacious) print_str += " ";
+						print_str += "&&";
+						if(po.spacious) print_str += " ";
+					}
+				}
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+			}
+			break;
+		}
+		case STRUCT_LOGICAL_OR: {
+			ips_n.depth++;
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					if(po.spell_out_logical_operators) {
+						print_str += " ";
+						print_str += _("or");
+						print_str += " ";
+					} else {
+						if(po.spacious) print_str += " ";
+						print_str += "||";
+						if(po.spacious) print_str += " ";
+					}
+				}
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+			}
+			break;
+		}
+		case STRUCT_LOGICAL_XOR: {
+			ips_n.depth++;
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					print_str += " ";
+					print_str += "xor";
+					print_str += " ";
+				}
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+			}
+			break;
+		}
+		case STRUCT_LOGICAL_NOT: {
+			print_str = "!";
+			ips_n.depth++;
+			ips_n.wrap = CHILD(0).needsParenthesis(po, ips_n, *this, 1, true, true);
+			print_str += CHILD(0).print(po, format, colorize, tagtype, ips_n);
+			break;
+		}
+		case STRUCT_VECTOR: {
+			ips_n.depth++;
+			print_str = "[";
+			for(size_t i = 0; i < SIZE; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					print_str += po.comma();
+					if(po.spacious) print_str += " ";
+				}
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+			}
+			print_str += "]";
+			break;
+		}
+		case STRUCT_UNIT: {
+			const ExpressionName *ename = &o_unit->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, b_plural, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg);
+			if(o_prefix) print_str += o_prefix->name(po.abbreviate_names && ename->abbreviation, po.use_unicode_signs, po.can_display_unicode_string_function, po.can_display_unicode_string_arg);
+			print_str += ename->name;
+			if(ename->suffix && !po.preserve_format && !po.use_reference_names) {
+				size_t i = print_str.rfind('_');
+				if(i != string::npos && i + 5 <= print_str.length() && print_str.substr(print_str.length() - 4, 4) == "unit") {
+					if(i + 5 == print_str.length()) {
+						print_str = print_str.substr(0, i);
+						if(po.hide_underscore_spaces) gsub("_", " ", print_str);
+					} else {
+						print_str = print_str.substr(0, print_str.length() - 4);
+					}
+				}
+			}
+			if(po.hide_underscore_spaces && !ename->suffix) {
+				gsub("_", " ", print_str);
+			}
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) {
+				print_str.insert(0, colorize == 2 ? "\033[0;92m" : "\033[0;32m");
+				print_str += "\033[0m";
+			}
+			break;
+		}
+		case STRUCT_VARIABLE: {
+			const ExpressionName *ename = &o_variable->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg);
+			print_str += ename->name;
+			if(ename->suffix && !po.preserve_format && !po.use_reference_names) {
+				size_t i = print_str.rfind('_');
+				if(i != string::npos && i + 9 <= print_str.length() && print_str.substr(print_str.length() - 8, 8) == "constant") {
+					if(i + 9 == print_str.length()) {
+						print_str = print_str.substr(0, i);
+						if(po.hide_underscore_spaces) gsub("_", " ", print_str);
+					} else {
+						print_str = print_str.substr(0, print_str.length() - 8);
+					}
+				}
+			}
+			if(po.hide_underscore_spaces && !ename->suffix) {
+				gsub("_", " ", print_str);
+			}
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) {
+				if(o_variable->isKnown()) {
+					print_str.insert(0, colorize == 2 ? "\033[0;93m" : "\033[0;33m");
+				} else {
+					if(format) print_str.insert(0, "\033[3m");
+					print_str.insert(0, colorize == 2 ? "\033[0;93m" : "\033[0;33m");
+					if(format) print_str += "\033[23m";
+				}
+				print_str += "\033[0m";
+			}
+			break;
+		}
+		case STRUCT_FUNCTION: {
+			ips_n.depth++;
+			if(o_function->id() == FUNCTION_ID_UNCERTAINTY && SIZE == 3 && CHILD(2).isZero()) {
+				MathStructure *mmid = NULL, *munc = NULL;
+				if(o_function->id() == FUNCTION_ID_UNCERTAINTY) {
+					mmid = &CHILD(0);
+					munc = &CHILD(1);
+				} else if(CHILD(0)[0].equals(CHILD(1)[0], true, true)) {
+					mmid = &CHILD(0)[0];
+					if(CHILD(0)[1].isNegate() && CHILD(0)[1][0].equals(CHILD(1)[1], true, true)) munc = &CHILD(1)[1];
+					if(CHILD(1)[1].isNegate() && CHILD(1)[1][0].equals(CHILD(0)[1], true, true)) munc = &CHILD(0)[1];
+				} else if(CHILD(0)[1].equals(CHILD(1)[1], true, true)) {
+					mmid = &CHILD(0)[1];
+					if(CHILD(0)[0].isNegate() && CHILD(0)[0][0].equals(CHILD(1)[0], true, true)) munc = &CHILD(1)[0];
+					if(CHILD(1)[0].isNegate() && CHILD(1)[0][0].equals(CHILD(0)[0], true, true)) munc = &CHILD(0)[0];
+				} else if(CHILD(0)[0].equals(CHILD(1)[1], true, true)) {
+					mmid = &CHILD(0)[0];
+					if(CHILD(0)[1].isNegate() && CHILD(0)[1][0].equals(CHILD(1)[0], true, true)) munc = &CHILD(1)[0];
+					if(CHILD(1)[0].isNegate() && CHILD(1)[0][0].equals(CHILD(0)[1], true, true)) munc = &CHILD(0)[1];
+				} else if(CHILD(0)[1].equals(CHILD(1)[0], true, true)) {
+					mmid = &CHILD(0)[0];
+					if(CHILD(0)[0].isNegate() && CHILD(0)[0][0].equals(CHILD(1)[1], true, true)) munc = &CHILD(1)[1];
+					if(CHILD(1)[1].isNegate() && CHILD(1)[1][0].equals(CHILD(0)[0], true, true)) munc = &CHILD(0)[0];
+				}
+				if(mmid && munc) {
+					PrintOptions po2 = po;
+					po2.show_ending_zeroes = false;
+					po2.number_fraction_format = FRACTION_DECIMAL;
+					ips_n.wrap = !CHILD(0).isNumber();
+					print_str += CHILD(0).print(po2, format, colorize, tagtype, ips_n);
+					print_str += SIGN_PLUSMINUS;
+					ips_n.wrap = !CHILD(1).isNumber();
+					print_str += CHILD(1).print(po2, format, colorize, tagtype, ips_n);
+					break;
+				}
+			}
+			const ExpressionName *ename = &o_function->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, false, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg);
+			print_str += ename->name;
+			if(po.hide_underscore_spaces && !ename->suffix) {
+				gsub("_", " ", print_str);
+			}
+			print_str += "(";
+			size_t argcount = SIZE;
+			if(o_function->id() == FUNCTION_ID_SIGNUM && argcount > 1) {
+				argcount = 1;
+			} else if(o_function->maxargs() > 0 && o_function->minargs() < o_function->maxargs() && SIZE > (size_t) o_function->minargs()) {
+				while(true) {
+					string defstr = o_function->getDefaultValue(argcount);
+					Argument *arg = o_function->getArgumentDefinition(argcount);
+					remove_blank_ends(defstr);
+					if(defstr.empty()) break;
+					if(CHILD(argcount - 1).isUndefined() && defstr == "undefined") {
+						argcount--;
+					} else if(argcount > 1 && arg && arg->type() == ARGUMENT_TYPE_SYMBOLIC && defstr == "undefined" && CHILD(argcount - 1) == CHILD(0).find_x_var()) {
+						argcount--;
+					} else if(CHILD(argcount - 1).isVariable() && (!arg || arg->type() != ARGUMENT_TYPE_TEXT) && defstr == CHILD(argcount - 1).variable()->referenceName()) {
+						argcount--;
+					} else if(CHILD(argcount - 1).isInteger() && (!arg || arg->type() != ARGUMENT_TYPE_TEXT) && defstr.find_first_not_of(NUMBERS) == string::npos && CHILD(argcount - 1).number() == s2i(defstr)) {
+						argcount--;
+					} else if(CHILD(argcount - 1).isSymbolic() && arg && arg->type() == ARGUMENT_TYPE_TEXT && CHILD(argcount - 1).symbol() == defstr) {
+						argcount--;
+					} else {
+						break;
+					}
+					if(argcount == 0 || argcount == (size_t) o_function->minargs()) break;
+				}
+			}
+			for(size_t i = 0; i < argcount; i++) {
+				if(CALCULATOR->aborted()) return CALCULATOR->abortedMessage();
+				if(i > 0) {
+					print_str += po.comma();
+					if(po.spacious) print_str += " ";
+				}
+				ips_n.wrap = CHILD(i).needsParenthesis(po, ips_n, *this, i + 1, true, true);
+				if(o_function->id() == FUNCTION_ID_INTERVAL) {
+					PrintOptions po2 = po;
+					po2.show_ending_zeroes = false;
+					print_str += CHILD(i).print(po2, format, colorize, tagtype, ips_n);
+				} else {
+					print_str += CHILD(i).print(po, format, colorize, tagtype, ips_n);
+				}
+			}
+			print_str += ")";
+			break;
+		}
+		case STRUCT_UNDEFINED: {
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) print_str = (colorize == 2 ? "\033[0;91m" : "\033[0;31m");
+			print_str += _("undefined");
+			if(colorize && tagtype == TAG_TYPE_TERMINAL) print_str += "\033[0m";
+			break;
+		}
+	}
+	if(CALCULATOR->aborted()) {
+		if(colorize && tagtype == TAG_TYPE_TERMINAL) {
+			print_str = (colorize == 2 ? "\033[0;91m" : "\033[0;31m");
+			print_str += CALCULATOR->abortedMessage();
+			print_str += "\033[0m";
+		} else {
+			print_str = CALCULATOR->abortedMessage();
+		}
+	}
+	if(ips.wrap) {
+		print_str.insert(0, "(");
+		print_str += ")";
+	}
+	return print_str;
 }

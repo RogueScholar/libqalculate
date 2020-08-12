@@ -187,9 +187,17 @@ void update_message_print_options() {
 }
 
 size_t unicode_length_check(const char *str) {
-  /*if(printops.use_unicode_signs) return unicode_length(str);
-  return strlen(str);*/
-  return unicode_length(str);
+	size_t l = strlen(str), l2 = 0;
+	for(size_t i = 0; i < l; i++) {
+		if(str[i] == '\033') {
+			do {
+				i++;
+			} while(i < l && str[i] != 'm');
+		} else if(str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
+			l2++;
+		}
+	}
+	return l2;
 }
 
 int s2b(const string &str) {
@@ -1900,166 +1908,68 @@ set_option_place:
   }
 }
 
-#define STR_AND_TABS(x)                                                        \
-  str = x;                                                                     \
-  pctl = unicode_length(str);                                                  \
-  if (pctl >= 32) {                                                            \
-    str += "\t";                                                               \
-  } else if (pctl >= 24) {                                                     \
-    str += "\t\t";                                                             \
-  } else if (pctl >= 16) {                                                     \
-    str += "\t\t\t";                                                           \
-  } else if (pctl >= 8) {                                                      \
-    str += "\t\t\t\t";                                                         \
-  } else {                                                                     \
-    str += "\t\t\t\t\t";                                                       \
-  }
-#define STR_AND_TABS_T1(x)                                                     \
-  str = x;                                                                     \
-  pctl = unicode_length(str);                                                  \
-  str += "\t";
-#define STR_AND_TABS_T2(x)                                                     \
-  str = x;                                                                     \
-  pctl = unicode_length(str);                                                  \
-  if (pctl >= 8) {                                                             \
-    str += "\t";                                                               \
-  } else {                                                                     \
-    str += "\t\t";                                                             \
-  }
-#define STR_AND_TABS_T3(x)                                                     \
-  str = x;                                                                     \
-  pctl = unicode_length(str);                                                  \
-  if (pctl >= 16) {                                                            \
-    str += "\t";                                                               \
-  } else if (pctl >= 8) {                                                      \
-    str += "\t\t";                                                             \
-  } else {                                                                     \
-    str += "\t\t\t";                                                           \
-  }
-#define STR_AND_TABS_T4(x)                                                     \
-  str = x;                                                                     \
-  pctl = unicode_length(str);                                                  \
-  if (pctl >= 24) {                                                            \
-    str += "\t";                                                               \
-  } else if (pctl >= 16) {                                                     \
-    str += "\t\t";                                                             \
-  } else if (pctl >= 8) {                                                      \
-    str += "\t\t\t";                                                           \
-  } else {                                                                     \
-    str += "\t\t\t\t";                                                         \
-  }
-#ifdef _WIN32
-#define BEGIN_BOLD(x)
-#define END_BOLD(x)
-#define BEGIN_UNDERLINED(x)
-#define END_UNDERLINED(x)
-#define BEGIN_ITALIC(x)
-#define END_ITALIC(x)
-#define PUTS_BOLD(x) PUTS_UNICODE(x);
-#define PUTS_UNDERLINED(x) PUTS_UNICODE(x);
-#else
-#define BEGIN_BOLD(x)                                                          \
-  if (!cfile) {                                                                \
-    x += "\033[1m";                                                            \
-  }
-#define END_BOLD(x)                                                            \
-  if (!cfile) {                                                                \
-    x += "\033[0m";                                                            \
-  }
-#define BEGIN_UNDERLINED(x)                                                    \
-  if (!cfile) {                                                                \
-    x += "\033[4m";                                                            \
-  }
-#define END_UNDERLINED(x)                                                      \
-  if (!cfile) {                                                                \
-    x += "\033[0m";                                                            \
-  }
-#define BEGIN_ITALIC(x)                                                        \
-  if (!cfile) {                                                                \
-    x += "\033[3m";                                                            \
-  }
-#define END_ITALIC(x)                                                          \
-  if (!cfile) {                                                                \
-    x += "\033[23m";                                                           \
-  }
-#define PUTS_BOLD(x)                                                           \
-  if (cfile) {                                                                 \
-    str = x;                                                                   \
-  } else {                                                                     \
-    str = "\033[1m";                                                           \
-    str += x;                                                                  \
-    str += "\033[0m";                                                          \
-  }                                                                            \
-  PUTS_UNICODE(str.c_str());
-#define PUTS_UNDERLINED(x)                                                     \
-  if (cfile) {                                                                 \
-    str = x;                                                                   \
-  } else {                                                                     \
-    str = "\033[4m";                                                           \
-    str += x;                                                                  \
-    str += "\033[0m";                                                          \
-  }                                                                            \
-  PUTS_UNICODE(str.c_str());
-#endif
+#define STR_AND_TABS(x) str = x; pctl = unicode_length(str); if(pctl >= 32) {str += "\t";} else if(pctl >= 24) {str += "\t\t";} else if(pctl >= 16) {str += "\t\t\t";} else if(pctl >= 8) {str += "\t\t\t\t";} else {str += "\t\t\t\t\t";}
+#define STR_AND_TABS_T1(x) str = x; pctl = unicode_length(str); str += "\t";
+#define STR_AND_TABS_T2(x) str = x; pctl = unicode_length(str); if(pctl >= 8) {str += "\t";} else {str += "\t\t";}
+#define STR_AND_TABS_T3(x) str = x; pctl = unicode_length(str); if(pctl >= 16) {str += "\t";} else if(pctl >= 8) {str += "\t\t";} else {str += "\t\t\t";}
+#define STR_AND_TABS_T4(x) str = x; pctl = unicode_length(str); if(pctl >= 24) {str += "\t";} else if(pctl >= 16) {str += "\t\t";} else if(pctl >= 8) {str += "\t\t\t";} else {str += "\t\t\t\t";}
 
-bool equalsIgnoreCase(const string &str1, const string &str2, size_t i2,
-                      size_t i2_end, size_t minlength) {
-  if (str1.empty() || str2.empty())
-    return false;
-  size_t l = 0;
-  if (i2_end == string::npos)
-    i2_end = str2.length();
-  for (size_t i1 = 0;; i1++, i2++) {
-    if (i2 >= i2_end) {
-      return i1 >= str1.length();
-    }
-    if (i1 >= str1.length())
-      break;
-    if ((str1[i1] < 0 && i1 + 1 < str1.length()) ||
-        (str2[i2] < 0 && i2 + 1 < str2.length())) {
-      size_t iu1 = 1, iu2 = 1;
-      if (str1[i1] < 0) {
-        while (iu1 + i1 < str1.length() && str1[i1 + iu1] < 0) {
-          iu1++;
-        }
-      }
-      if (str2[i2] < 0) {
-        while (iu2 + i2 < str2.length() && str2[i2 + iu2] < 0) {
-          iu2++;
-        }
-      }
-      bool isequal = (iu1 == iu2);
-      if (isequal) {
-        for (size_t i = 0; i < iu1; i++) {
-          if (str1[i1 + i] != str2[i2 + i]) {
-            isequal = false;
-            break;
-          }
-        }
-      }
-      if (!isequal) {
-        char *gstr1 = utf8_strdown(str1.c_str() + (sizeof(char) * i1), iu1);
-        char *gstr2 = utf8_strdown(str2.c_str() + (sizeof(char) * i2), iu2);
-        if (!gstr1 || !gstr2)
-          return false;
-        bool b = strcmp(gstr1, gstr2) == 0;
-        free(gstr1);
-        free(gstr2);
-        if (!b)
-          return false;
-      }
-      i1 += iu1 - 1;
-      i2 += iu2 - 1;
-    } else if (str1[i1] != str2[i2] &&
-               !((str1[i1] >= 'a' && str1[i1] <= 'z') &&
-                 str1[i1] - 32 == str2[i2]) &&
-               !((str1[i1] <= 'Z' && str1[i1] >= 'A') &&
-                 str1[i1] + 32 == str2[i2])) {
-      return false;
-    }
-    l++;
-  }
-  return l >= minlength;
+#define BEGIN_BOLD(x) if(DO_FORMAT) {x += "\033[1m";}
+#define END_BOLD(x) if(DO_FORMAT) {x += "\033[0m";}
+#define BEGIN_UNDERLINED(x) if(DO_FORMAT) {x += "\033[4m";}
+#define END_UNDERLINED(x) if(DO_FORMAT) {x += "\033[0m";}
+#define BEGIN_ITALIC(x) if(DO_FORMAT) {x += "\033[3m";}
+#define END_ITALIC(x) if(DO_FORMAT) {x += "\033[23m";}
+#define PUTS_BOLD(x) if(!DO_FORMAT) {str = x;} else {str = "\033[1m"; str += x; str += "\033[0m";} PUTS_UNICODE(str.c_str());
+#define PUTS_UNDERLINED(x) if(!DO_FORMAT) {str = x;} else {str = "\033[4m"; str += x; str += "\033[0m";} PUTS_UNICODE(str.c_str());
+
+bool equalsIgnoreCase(const string &str1, const string &str2, size_t i2, size_t i2_end, size_t minlength) {
+	if(str1.empty() || str2.empty()) return false;
+	size_t l = 0;
+	if(i2_end == string::npos) i2_end = str2.length();
+	for(size_t i1 = 0;; i1++, i2++) {
+		if(i2 >= i2_end) {
+			return i1 >= str1.length();
+		}
+		if(i1 >= str1.length()) break;
+		if((str1[i1] < 0 && i1 + 1 < str1.length()) || (str2[i2] < 0 && i2 + 1 < str2.length())) {
+			size_t iu1 = 1, iu2 = 1;
+			if(str1[i1] < 0) {
+				while(iu1 + i1 < str1.length() && str1[i1 + iu1] < 0) {
+					iu1++;
+				}
+			}
+			if(str2[i2] < 0) {
+				while(iu2 + i2 < str2.length() && str2[i2 + iu2] < 0) {
+					iu2++;
+				}
+			}
+			bool isequal = (iu1 == iu2);
+			if(isequal) {
+				for(size_t i = 0; i < iu1; i++) {
+					if(str1[i1 + i] != str2[i2 + i]) {
+						isequal = false;
+						break;
+					}
+				}
+			}
+			if(!isequal) {
+				char *gstr1 = utf8_strdown(str1.c_str() + (sizeof(char) * i1), iu1);
+				char *gstr2 = utf8_strdown(str2.c_str() + (sizeof(char) * i2), iu2);
+				if(!gstr1 || !gstr2) return false;
+				bool b = strcmp(gstr1, gstr2) == 0;
+				free(gstr1);
+				free(gstr2);
+				if(!b) return false;
+			}
+			i1 += iu1 - 1;
+			i2 += iu2 - 1;
+		} else if(str1[i1] != str2[i2] && !((str1[i1] >= 'a' && str1[i1] <= 'z') && str1[i1] - 32 == str2[i2]) && !((str1[i1] <= 'Z' && str1[i1] >= 'A') && str1[i1] + 32 == str2[i2])) {
+			return false;
+		}
+		l++;
+	}
+	return l >= minlength;
 }
 
 bool title_matches(ExpressionItem *item, const string &str,
@@ -2687,34 +2597,28 @@ int main(int argc, char *argv[]) {
   }
 #endif
 
-  if (!ignore_locale)
-    setlocale(LC_ALL, "");
+	if(!ignore_locale) setlocale(LC_ALL, "");
 
-  for (int i = 1; i < argc; i++) {
-    string svalue, svar;
-    if (calc_arg_begun) {
-      calc_arg += " ";
-    } else {
-      svar = argv[i];
-      size_t i2 = svar.find_first_of(NUMBERS);
-      if (i2 != string::npos && i2 != 0) {
-        svalue = svar.substr(i2);
-        svar = svar.substr(0, i2);
-      }
-    }
-    if (!calc_arg_begun &&
-        (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0 ||
-         strcmp(argv[i], "--help") == 0)) {
-      PUTS_UNICODE(_("usage: qalc [options] [expression]"));
-      printf("\n");
-      PUTS_UNICODE(_("where options are:"));
-      fputs("\n\t-b, -base", stdout);
-      fputs(" ", stdout);
-      FPUTS_UNICODE(_("BASE"), stdout);
-      fputs("\n", stdout);
-      fputs("\t", stdout);
-      PUTS_UNICODE(
-          _("set the number base for results and, optionally, expressions"));
+	for(int i = 1; i < argc; i++) {
+		string svalue, svar;
+		if(calc_arg_begun) {
+			calc_arg += " ";
+		} else {
+			svar = argv[i];
+			size_t i2 = svar.find_first_of(NUMBERS "=");
+			if(i2 != string::npos && i2 != 0 && svar[0] != '+' && (svar[i2] == '=' || i2 == 2) && (svar[i2] != '=' || i2 != svar.length() - 1)) {
+				svalue = svar.substr(svar[i2] == '=' ? i2 + 1 : i2);
+				svar = svar.substr(0, i2);
+			}
+		}
+		if(!calc_arg_begun && (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0 || strcmp(argv[i], "--help") == 0)) {
+			PUTS_UNICODE(_("usage: qalc [options] [expression]"));
+			printf("\n");
+			PUTS_UNICODE(_("where options are:"));
+			fputs("\n\t-b, -base", stdout); fputs(" ", stdout); FPUTS_UNICODE(_("BASE"), stdout); fputs("\n", stdout);
+			fputs("\t", stdout); PUTS_UNICODE(_("set the number base for results and, optionally, expressions"));
+			fputs("\n\t-c, -color\n", stdout);
+			fputs("\t", stdout); PUTS_UNICODE(_("use colors to hightlight different elements of expressions and results"));
 #ifdef HAVE_LIBCURL
       fputs("\n\t-e, -exrates\n", stdout);
       fputs("\t", stdout);
@@ -3193,311 +3097,297 @@ int main(int argc, char *argv[]) {
         str = buffer;
       }
 #endif
-    }
-    bool explicit_command = (!str.empty() && str[0] == '/');
-    if (explicit_command)
-      str.erase(0, 1);
-    remove_blank_ends(str);
-    if (rpn_mode && explicit_command && str.empty()) {
-      str = "/";
-      explicit_command = false;
-    }
-    slen = str.length();
-    ispace = str.find_first_of(SPACES);
-    if (ispace == string::npos) {
-      scom = "";
-    } else {
-      scom = str.substr(0, ispace);
-    }
-    // The qalc command "set" as in "set precision 10". The original text string
-    // for commands is kept in addition to the translation.
-    if (EQUALS_IGNORECASE_AND_LOCAL(scom, "set", _("set"))) {
-      str = str.substr(ispace + 1, slen - (ispace + 1));
-      set_option(str);
-      // qalc command
-    } else if (EQUALS_IGNORECASE_AND_LOCAL(scom, "save", _("save")) ||
-               EQUALS_IGNORECASE_AND_LOCAL(scom, "store", _("store"))) {
-      str = str.substr(ispace + 1, slen - (ispace + 1));
-      remove_blank_ends(str);
-      if (EQUALS_IGNORECASE_AND_LOCAL(str, "mode", _("mode"))) {
-        if (save_mode()) {
-          PUTS_UNICODE(_("mode saved"));
-        }
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(str, "definitions",
-                                             _("definitions"))) {
-        if (save_defs()) {
-          PUTS_UNICODE(_("definitions saved"));
-        }
-      } else {
-        string name = str, cat, title;
-        if (str[0] == '\"') {
-          size_t i = str.find('\"', 1);
-          if (i != string::npos) {
-            name = str.substr(1, i - 1);
-            str = str.substr(i + 1, str.length() - (i + 1));
-            remove_blank_ends(str);
-          } else {
-            str = "";
-          }
-        } else {
-          size_t i = str.find_first_of(SPACES, 1);
-          if (i != string::npos) {
-            name = str.substr(0, i);
-            str = str.substr(i + 1, str.length() - (i + 1));
-            remove_blank_ends(str);
-          } else {
-            str = "";
-          }
-        }
-        bool catset = false;
-        if (str.empty()) {
-          cat = _("Temporary");
-        } else {
-          if (str[0] == '\"') {
-            size_t i = str.find('\"', 1);
-            if (i != string::npos) {
-              cat = str.substr(1, i - 1);
-              title = str.substr(i + 1, str.length() - (i + 1));
-              remove_blank_ends(title);
-            }
-          } else {
-            size_t i = str.find_first_of(SPACES, 1);
-            if (i != string::npos) {
-              cat = str.substr(0, i);
-              title = str.substr(i + 1, str.length() - (i + 1));
-              remove_blank_ends(title);
-            }
-          }
-          catset = true;
-        }
-        bool b = true;
-        if (!CALCULATOR->variableNameIsValid(name)) {
-          name = CALCULATOR->convertToValidVariableName(name);
-          size_t l =
-              name.length() +
-              strlen(_("Illegal name. Save as %s instead (default: no)?"));
-          char *cstr = (char *)malloc(sizeof(char) * (l + 1));
-          snprintf(cstr, l,
-                   _("Illegal name. Save as %s instead (default: no)?"),
-                   name.c_str());
-          if (!ask_question(cstr)) {
-            b = false;
-          }
-          free(cstr);
-        }
-        if (b && CALCULATOR->variableNameTaken(name)) {
-          if (!ask_question(
-                  _("An unit or variable with the same name already "
-                    "exists.\nDo you want to overwrite it (default: no)?"))) {
-            b = false;
-          }
-        }
-        if (b) {
-          Variable *v = CALCULATOR->getActiveVariable(name);
-          if (v && v->isLocal() && v->isKnown()) {
-            if (catset)
-              v->setCategory(cat);
-            if (!title.empty())
-              v->setTitle(title);
-            ((KnownVariable *)v)->set(*mstruct);
-            if (v->countNames() == 0) {
-              ExpressionName ename(name);
-              ename.reference = true;
-              v->setName(ename, 1);
-            } else {
-              v->setName(name, 1);
-            }
-          } else {
-            CALCULATOR->addVariable(
-                new KnownVariable(cat, name, *mstruct, title));
-          }
-        }
-      }
-      // qalc command
-    } else if (EQUALS_IGNORECASE_AND_LOCAL(scom, "variable", _("variable"))) {
-      str = str.substr(ispace + 1, slen - (ispace + 1));
-      remove_blank_ends(str);
-      string name = str, expr;
-      if (str[0] == '\"') {
-        size_t i = str.find('\"', 1);
-        if (i != string::npos) {
-          name = str.substr(1, i - 1);
-          str = str.substr(i + 1, str.length() - (i + 1));
-          remove_blank_ends(str);
-        } else {
-          str = "";
-        }
-      } else {
-        size_t i = str.find_first_of(SPACES, 1);
-        if (i != string::npos) {
-          name = str.substr(0, i);
-          str = str.substr(i + 1, str.length() - (i + 1));
-          remove_blank_ends(str);
-        } else {
-          str = "";
-        }
-      }
-      if (str.length() >= 2 && str[0] == '\"' && str[str.length() - 1] == '\"')
-        str = str.substr(1, str.length() - 2);
-      expr = str;
-      bool b = true;
-      if (!CALCULATOR->variableNameIsValid(name)) {
-        name = CALCULATOR->convertToValidVariableName(name);
-        size_t l = name.length() +
-                   strlen(_("Illegal name. Save as %s instead (default: no)?"));
-        char *cstr = (char *)malloc(sizeof(char) * (l + 1));
-        snprintf(cstr, l, _("Illegal name. Save as %s instead (default: no)?"),
-                 name.c_str());
-        if (!ask_question(cstr)) {
-          b = false;
-        }
-        free(cstr);
-      }
-      if (b && CALCULATOR->variableNameTaken(name)) {
-        if (!ask_question(
-                _("An unit or variable with the same name already exists.\nDo "
-                  "you want to overwrite it (default: no)?"))) {
-          b = false;
-        }
-      }
-      if (b) {
-        Variable *v = CALCULATOR->getActiveVariable(name);
-        if (v && v->isLocal() && v->isKnown()) {
-          ((KnownVariable *)v)->set(expr);
-          if (v->countNames() == 0) {
-            ExpressionName ename(name);
-            ename.reference = true;
-            v->setName(ename, 1);
-          } else {
-            v->setName(name, 1);
-          }
-        } else {
-          CALCULATOR->addVariable(new KnownVariable("", name, expr));
-        }
-      }
-      // qalc command
-    } else if (EQUALS_IGNORECASE_AND_LOCAL(scom, "function", _("function"))) {
-      str = str.substr(ispace + 1, slen - (ispace + 1));
-      remove_blank_ends(str);
-      string name = str, expr;
-      if (str[0] == '\"') {
-        size_t i = str.find('\"', 1);
-        if (i != string::npos) {
-          name = str.substr(1, i - 1);
-          str = str.substr(i + 1, str.length() - (i + 1));
-          remove_blank_ends(str);
-        } else {
-          str = "";
-        }
-      } else {
-        size_t i = str.find_first_of(SPACES, 1);
-        if (i != string::npos) {
-          name = str.substr(0, i);
-          str = str.substr(i + 1, str.length() - (i + 1));
-          remove_blank_ends(str);
-        } else {
-          str = "";
-        }
-      }
-      if (str.length() >= 2 && str[0] == '\"' && str[str.length() - 1] == '\"')
-        str = str.substr(1, str.length() - 2);
-      expr = str;
-      bool b = true;
-      if (!CALCULATOR->functionNameIsValid(name)) {
-        name = CALCULATOR->convertToValidFunctionName(name);
-        size_t l = name.length() +
-                   strlen(_("Illegal name. Save as %s instead (default: no)?"));
-        char *cstr = (char *)malloc(sizeof(char) * (l + 1));
-        snprintf(cstr, l, _("Illegal name. Save as %s instead (default: no)?"),
-                 name.c_str());
-        if (!ask_question(cstr)) {
-          b = false;
-        }
-        free(cstr);
-      }
-      if (b && CALCULATOR->functionNameTaken(name)) {
-        if (!ask_question(
-                _("An function with the same name already exists.\nDo you want "
-                  "to overwrite it (default: no)?"))) {
-          b = false;
-        }
-      }
-      if (b) {
-        MathFunction *f = CALCULATOR->getActiveFunction(name);
-        if (f && f->isLocal() && f->subtype() == SUBTYPE_USER_FUNCTION) {
-          ((UserFunction *)f)->setFormula(expr);
-          if (f->countNames() == 0) {
-            ExpressionName ename(name);
-            ename.reference = true;
-            f->setName(ename, 1);
-          } else {
-            f->setName(name, 1);
-          }
-        } else {
-          CALCULATOR->addFunction(new UserFunction("", name, expr));
-        }
-      }
-      // qalc command
-    } else if (EQUALS_IGNORECASE_AND_LOCAL(scom, "delete", _("delete"))) {
-      str = str.substr(ispace + 1, slen - (ispace + 1));
-      remove_blank_ends(str);
-      Variable *v = CALCULATOR->getActiveVariable(str);
-      if (v && v->isLocal()) {
-        v->destroy();
-      } else {
-        MathFunction *f = CALCULATOR->getActiveFunction(str);
-        if (f && f->isLocal()) {
-          f->destroy();
-        } else {
-          PUTS_UNICODE(_("No user-defined variable or function with the "
-                         "specified name exist."));
-        }
-      }
-      // qalc command
-    } else if (EQUALS_IGNORECASE_AND_LOCAL(scom, "assume", _("assume"))) {
-      string str2 = "assumptions ";
-      set_option(str2 + str.substr(ispace + 1, slen - (ispace + 1)));
-      // qalc command
-    } else if (EQUALS_IGNORECASE_AND_LOCAL(scom, "base", _("base"))) {
-      set_option(str);
-      // qalc command
-    } else if (EQUALS_IGNORECASE_AND_LOCAL(scom, "rpn", _("rpn"))) {
-      str = str.substr(ispace + 1, slen - (ispace + 1));
-      remove_blank_ends(str);
-      if (EQUALS_IGNORECASE_AND_LOCAL(str, "syntax", _("syntax"))) {
-        if (!evalops.parse_options.rpn) {
-          evalops.parse_options.rpn = true;
-          expression_format_updated(false);
-        }
-        rpn_mode = false;
-        CALCULATOR->clearRPNStack();
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(str, "stack", _("stack"))) {
-        if (evalops.parse_options.rpn) {
-          evalops.parse_options.rpn = false;
-          expression_format_updated(false);
-        }
-        rpn_mode = true;
-      } else {
-        int v = s2b(str);
-        if (v < 0) {
-          PUTS_UNICODE(_("Illegal value"));
-        } else {
-          rpn_mode = v;
-        }
-        if (evalops.parse_options.rpn != rpn_mode) {
-          evalops.parse_options.rpn = rpn_mode;
-          expression_format_updated(false);
-        }
-        if (!rpn_mode)
-          CALCULATOR->clearRPNStack();
-      }
-      // qalc command
-    } else if (canfetch &&
-               EQUALS_IGNORECASE_AND_LOCAL(str, "exrates", _("exrates"))) {
-      CALCULATOR->fetchExchangeRates(15);
-      CALCULATOR->loadExchangeRates();
-      int cols = 0;
-      if (cfile) {
+		}
+		bool explicit_command = (!str.empty() && str[0] == '/');
+		if(explicit_command) str.erase(0, 1);
+		remove_blank_ends(str);
+		if(rpn_mode && explicit_command && str.empty()) {str = "/"; explicit_command = false;}
+		slen = str.length();
+		ispace = str.find_first_of(SPACES);
+		if(ispace == string::npos) {
+			scom = "";
+		} else {
+			scom = str.substr(0, ispace);
+		}
+		//The qalc command "set" as in "set precision 10". The original text string for commands is kept in addition to the translation.
+		if(EQUALS_IGNORECASE_AND_LOCAL(scom, "set", _("set"))) {
+			str = str.substr(ispace + 1, slen - (ispace + 1));
+			set_option(str);
+		//qalc command
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "save", _("save")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "store", _("store"))) {
+			str = str.substr(ispace + 1, slen - (ispace + 1));
+			remove_blank_ends(str);
+			if(EQUALS_IGNORECASE_AND_LOCAL(str, "mode", _("mode"))) {
+				if(save_mode()) {
+					PUTS_UNICODE(_("mode saved"));
+				}
+			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "definitions", _("definitions"))) {
+				if(save_defs()) {
+					PUTS_UNICODE(_("definitions saved"));
+				}
+			} else {
+				string name = str, cat, title;
+				if(str[0] == '\"') {
+					size_t i = str.find('\"', 1);
+					if(i != string::npos) {
+						name = str.substr(1, i - 1);
+						str = str.substr(i + 1, str.length() - (i + 1));
+						remove_blank_ends(str);
+					} else {
+						str = "";
+					}
+				} else {
+					size_t i = str.find_first_of(SPACES, 1);
+					if(i != string::npos) {
+						name = str.substr(0, i);
+						str = str.substr(i + 1, str.length() - (i + 1));
+						remove_blank_ends(str);
+					} else {
+						str = "";
+					}
+				}
+				bool catset = false;
+				if(str.empty()) {
+					cat = _("Temporary");
+				} else {
+					if(str[0] == '\"') {
+						size_t i = str.find('\"', 1);
+						if(i != string::npos) {
+							cat = str.substr(1, i - 1);
+							title = str.substr(i + 1, str.length() - (i + 1));
+							remove_blank_ends(title);
+						}
+					} else {
+						size_t i = str.find_first_of(SPACES, 1);
+						if(i != string::npos) {
+							cat = str.substr(0, i);
+							title = str.substr(i + 1, str.length() - (i + 1));
+							remove_blank_ends(title);
+						}
+					}
+					catset = true;
+				}
+				bool b = true;
+				if(!CALCULATOR->variableNameIsValid(name)) {
+					name = CALCULATOR->convertToValidVariableName(name);
+					if(!CALCULATOR->variableNameIsValid(name)) {
+						PUTS_UNICODE(_("Illegal name."));
+						b = false;
+					} else {
+						size_t l = name.length() + strlen(_("Illegal name. Save as %s instead (default: no)?"));
+						char *cstr = (char*) malloc(sizeof(char) * (l + 1));
+						snprintf(cstr, l, _("Illegal name. Save as %s instead (default: no)?"), name.c_str());
+						if(!ask_question(cstr)) {
+							b = false;
+						}
+						free(cstr);
+					}
+				}
+				if(b && CALCULATOR->variableNameTaken(name)) {
+					if(!ask_question(_("An unit or variable with the same name already exists.\nDo you want to overwrite it (default: no)?"))) {
+						b = false;
+					}
+				}
+				if(b) {
+					Variable *v = CALCULATOR->getActiveVariable(name);
+					if(v && v->isLocal() && v->isKnown()) {
+						if(catset) v->setCategory(cat);
+						if(!title.empty()) v->setTitle(title);
+						((KnownVariable*) v)->set(*mstruct);
+						if(v->countNames() == 0) {
+							ExpressionName ename(name);
+							ename.reference = true;
+							v->setName(ename, 1);
+						} else {
+							v->setName(name, 1);
+						}
+					} else {
+						CALCULATOR->addVariable(new KnownVariable(cat, name, *mstruct, title));
+					}
+				}
+			}
+		//qalc command
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "variable", _("variable"))) {
+			str = str.substr(ispace + 1, slen - (ispace + 1));
+			remove_blank_ends(str);
+			string name = str, expr;
+			if(str[0] == '\"') {
+				size_t i = str.find('\"', 1);
+				if(i != string::npos) {
+					name = str.substr(1, i - 1);
+					str = str.substr(i + 1, str.length() - (i + 1));
+					remove_blank_ends(str);
+				} else {
+					str = "";
+				}
+			} else {
+				size_t i = str.find_first_of(SPACES, 1);
+				if(i != string::npos) {
+					name = str.substr(0, i);
+					str = str.substr(i + 1, str.length() - (i + 1));
+					remove_blank_ends(str);
+				} else {
+					str = "";
+				}
+			}
+			if(str.length() >= 2 && str[0] == '\"' && str[str.length() - 1] == '\"') str = str.substr(1, str.length() - 2);
+			expr = str;
+			bool b = true;
+			if(!CALCULATOR->variableNameIsValid(name)) {
+				name = CALCULATOR->convertToValidVariableName(name);
+				if(!CALCULATOR->variableNameIsValid(name)) {
+					PUTS_UNICODE(_("Illegal name."));
+					b = false;
+				} else {
+					size_t l = name.length() + strlen(_("Illegal name. Save as %s instead (default: no)?"));
+					char *cstr = (char*) malloc(sizeof(char) * (l + 1));
+					snprintf(cstr, l, _("Illegal name. Save as %s instead (default: no)?"), name.c_str());
+					if(!ask_question(cstr)) {
+						b = false;
+					}
+					free(cstr);
+				}
+			}
+			if(b && CALCULATOR->variableNameTaken(name)) {
+				if(!ask_question(_("An unit or variable with the same name already exists.\nDo you want to overwrite it (default: no)?"))) {
+					b = false;
+				}
+			}
+			if(b) {
+				Variable *v = CALCULATOR->getActiveVariable(name);
+				if(v && v->isLocal() && v->isKnown()) {
+					((KnownVariable*) v)->set(expr);
+					if(v->countNames() == 0) {
+						ExpressionName ename(name);
+						ename.reference = true;
+						v->setName(ename, 1);
+					} else {
+						v->setName(name, 1);
+					}
+				} else {
+					CALCULATOR->addVariable(new KnownVariable("", name, expr));
+				}
+			}
+		//qalc command
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "function", _("function"))) {
+			str = str.substr(ispace + 1, slen - (ispace + 1));
+			remove_blank_ends(str);
+			string name = str, expr;
+			if(str[0] == '\"') {
+				size_t i = str.find('\"', 1);
+				if(i != string::npos) {
+					name = str.substr(1, i - 1);
+					str = str.substr(i + 1, str.length() - (i + 1));
+					remove_blank_ends(str);
+				} else {
+					str = "";
+				}
+			} else {
+				size_t i = str.find_first_of(SPACES, 1);
+				if(i != string::npos) {
+					name = str.substr(0, i);
+					str = str.substr(i + 1, str.length() - (i + 1));
+					remove_blank_ends(str);
+				} else {
+					str = "";
+				}
+			}
+			if(str.length() >= 2 && str[0] == '\"' && str[str.length() - 1] == '\"') str = str.substr(1, str.length() - 2);
+			expr = str;
+			bool b = true;
+			if(!CALCULATOR->functionNameIsValid(name)) {
+				name = CALCULATOR->convertToValidFunctionName(name);
+				if(!CALCULATOR->functionNameIsValid(name)) {
+					PUTS_UNICODE(_("Illegal name."));
+					b = false;
+				} else {
+					size_t l = name.length() + strlen(_("Illegal name. Save as %s instead (default: no)?"));
+					char *cstr = (char*) malloc(sizeof(char) * (l + 1));
+					snprintf(cstr, l, _("Illegal name. Save as %s instead (default: no)?"), name.c_str());
+					if(!ask_question(cstr)) {
+						b = false;
+					}
+					free(cstr);
+				}
+			}
+			if(b && CALCULATOR->functionNameTaken(name)) {
+				if(!ask_question(_("An function with the same name already exists.\nDo you want to overwrite it (default: no)?"))) {
+					b = false;
+				}
+			}
+			if(b) {
+				MathFunction *f = CALCULATOR->getActiveFunction(name);
+				if(f && f->isLocal() && f->subtype() == SUBTYPE_USER_FUNCTION) {
+					((UserFunction*) f)->setFormula(expr);
+					if(f->countNames() == 0) {
+						ExpressionName ename(name);
+						ename.reference = true;
+						f->setName(ename, 1);
+					} else {
+						f->setName(name, 1);
+					}
+				} else {
+					CALCULATOR->addFunction(new UserFunction("", name, expr));
+				}
+			}
+		//qalc command
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "delete", _("delete"))) {
+			str = str.substr(ispace + 1, slen - (ispace + 1));
+			remove_blank_ends(str);
+			Variable *v = CALCULATOR->getActiveVariable(str);
+			if(v && v->isLocal()) {
+				v->destroy();
+			} else {
+				MathFunction *f = CALCULATOR->getActiveFunction(str);
+				if(f && f->isLocal()) {
+					f->destroy();
+				} else {
+					PUTS_UNICODE(_("No user-defined variable or function with the specified name exist."));
+				}
+			}
+		//qalc command
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "assume", _("assume"))) {
+			string str2 = "assumptions ";
+			set_option(str2 + str.substr(ispace + 1, slen - (ispace + 1)));
+		//qalc command
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "base", _("base"))) {
+			set_option(str);
+		//qalc command
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "rpn", _("rpn"))) {
+			str = str.substr(ispace + 1, slen - (ispace + 1));
+			remove_blank_ends(str);
+			if(EQUALS_IGNORECASE_AND_LOCAL(str, "syntax", _("syntax"))) {
+				if(!evalops.parse_options.rpn) {
+					evalops.parse_options.rpn = true;
+					expression_format_updated(false);
+				}
+				rpn_mode = false;
+				CALCULATOR->clearRPNStack();
+			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "stack", _("stack"))) {
+				if(evalops.parse_options.rpn) {
+					evalops.parse_options.rpn = false;
+					expression_format_updated(false);
+				}
+				rpn_mode = true;
+			} else {
+				int v = s2b(str);
+				if(v < 0) {
+					PUTS_UNICODE(_("Illegal value"));
+				} else {
+					rpn_mode = v;
+				}
+				if(evalops.parse_options.rpn != rpn_mode) {
+					evalops.parse_options.rpn = rpn_mode;
+					expression_format_updated(false);
+				}
+				if(!rpn_mode) CALCULATOR->clearRPNStack();
+			}
+		//qalc command
+		} else if(canfetch && EQUALS_IGNORECASE_AND_LOCAL(str, "exrates", _("exrates"))) {
+			CALCULATOR->fetchExchangeRates(15);
+			CALCULATOR->loadExchangeRates();
+			int cols = 0;
+			if(cfile) {
 #ifdef HAVE_LIBREADLINE
         int rows = 0;
         rl_get_screen_size(&rows, &cols);
@@ -3689,7 +3579,7 @@ int main(int argc, char *argv[]) {
 				expression_calculation_updated();
 			}
 		//qalc command
-		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "convert", _("convert")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "to", _("to")) || (str.length() > 2 && str[0] == '-' && str[1] == '>') || (str.length() > 3 && (unsigned char) str[0] >= '\xe2' && ((str[1] == '\x86' && str[2] == '\x92') || (str[1] == '\x9e' && (unsigned char) str[2] >= 0x94 && (unsigned char) str[2] <= 0xbf)))) {
+		} else if(EQUALS_IGNORECASE_AND_LOCAL(scom, "convert", _("convert")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "to", _("to")) || (str.length() > 2 && str[0] == '-' && str[1] == '>') || (str.length() > 3 && str[0] == '\xe2' && ((str[1] == '\x86' && str[2] == '\x92') || (str[1] == '\x9e' && (unsigned char) str[2] >= 148 && (unsigned char) str[2] <= 191)))) {
 			if(!scom.empty() && (EQUALS_IGNORECASE_AND_LOCAL(scom, "convert", _("convert")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "to", _("to")))) {
 				str = str.substr(ispace + 1, slen - (ispace + 1));
 			} else if(str[0] == '-') {
@@ -4373,7 +4263,7 @@ int main(int argc, char *argv[]) {
 			PUTS_UNICODE(_("factor")); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("find"), stdout); fputs("/", stdout); FPUTS_UNICODE(_("list"), stdout);  fputs(" [", stdout); FPUTS_UNICODE(_("NAME"), stdout); puts("]"); CHECK_IF_SCREEN_FILLED;
 			FPUTS_UNICODE(_("function"), stdout); fputs(" ", stdout); FPUTS_UNICODE(_("NAME"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("EXPRESSION")); CHECK_IF_SCREEN_FILLED
-			PUTS_UNICODE(_("info")); CHECK_IF_SCREEN_FILLED
+			FPUTS_UNICODE(_("info"), stdout); fputs(" ", stdout); PUTS_UNICODE(_("NAME")); CHECK_IF_SCREEN_FILLED
 			PUTS_UNICODE(_("mode")); CHECK_IF_SCREEN_FILLED
 			PUTS_UNICODE(_("partial fraction")); CHECK_IF_SCREEN_FILLED
 			FPUTS_UNICODE(_("save"), stdout); fputs("/", stdout); FPUTS_UNICODE(_("store"), stdout); fputs(" ", stdout); FPUTS_UNICODE(_("NAME"), stdout); fputs(" [", stdout); FPUTS_UNICODE(_("CATEGORY"), stdout); fputs("] [", stdout); FPUTS_UNICODE(_("TITLE"), stdout); puts("]"); CHECK_IF_SCREEN_FILLED
@@ -4622,12 +4512,17 @@ int main(int argc, char *argv[]) {
 							case SUBTYPE_ALIAS_UNIT: {
 								AliasUnit *au = (AliasUnit*) item;
 								PRINT_AND_COLON_TABS_INFO(_("Base Unit"));
-								FPUTS_UNICODE(au->firstBaseUnit()->preferredDisplayName(printops.abbreviate_names, printops.use_unicode_signs).name.c_str(), stdout);
+								string base_unit = au->firstBaseUnit()->print(false, printops.abbreviate_names, printops.use_unicode_signs);
 								if(au->firstBaseExponent() != 1) {
-									fputs(POWER, stdout);
-									printf("%i", au->firstBaseExponent());
+									if(au->firstBaseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {base_unit.insert(0, 1, '('); base_unit += ")";}
+									if(printops.use_unicode_signs && au->firstBaseExponent() == 2) base_unit += SIGN_POWER_2;
+									else if(printops.use_unicode_signs && au->firstBaseExponent() == 3) base_unit += SIGN_POWER_3;
+									else {
+										base_unit += POWER;
+										base_unit += i2s(au->firstBaseExponent());
+									}
 								}
-								puts("");
+								PUTS_UNICODE(base_unit.c_str());
 								PRINT_AND_COLON_TABS_INFO(_("Relation"));
 								FPUTS_UNICODE(CALCULATOR->localizeExpression(au->expression()).c_str(), stdout);
 								bool is_relative = false;
@@ -5264,20 +5159,35 @@ int main(int argc, char *argv[]) {
         free(rlbuffer);
       }
 #endif
-      break;
-    } else if (explicit_command) {
-      PUTS_UNICODE(_("Unknown command."));
-      puts("");
-    } else {
-      size_t index = str.find_first_of(ID_WRAPS);
-      if (index != string::npos) {
-        printf(_("Illegal character, \'%c\', in expression."), str[index]);
-        puts("");
-      } else {
-        expression_str = str;
-        execute_expression();
-      }
-    }
+			break;
+		} else if(explicit_command) {
+			if(!scom.empty() && ((canfetch && EQUALS_IGNORECASE_AND_LOCAL(scom, "exrates", _("exrates"))) || EQUALS_IGNORECASE_AND_LOCAL(scom, "stack", _("stack")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "exact", _("exact")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "approximate", _("approximate")) || str == "approx" || EQUALS_IGNORECASE_AND_LOCAL(scom, "factor", _("factor")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "simplify", _("simplify")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "expand", _("expand")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "mode", _("mode")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "quit", _("quit")) || EQUALS_IGNORECASE_AND_LOCAL(scom, "exit", _("exit")))) {
+				str = "";
+				BEGIN_BOLD(str)
+				str += scom;
+				END_BOLD(str)
+				snprintf(buffer, 1000, _("%s does not accept any arguments."), str.c_str());
+				PUTS_UNICODE(buffer)
+			} else if(scom.empty() && (EQUALS_IGNORECASE_AND_LOCAL(str, "set", _("set")) || EQUALS_IGNORECASE_AND_LOCAL(str, "save", _("save")) || EQUALS_IGNORECASE_AND_LOCAL(str, "store", _("store")) || EQUALS_IGNORECASE_AND_LOCAL(str, "variable", _("variable")) || EQUALS_IGNORECASE_AND_LOCAL(str, "function", _("function")) || EQUALS_IGNORECASE_AND_LOCAL(str, "delete", _("delete")) || EQUALS_IGNORECASE_AND_LOCAL(str, "assume", _("assume")) || EQUALS_IGNORECASE_AND_LOCAL(str, "base", _("base")) || EQUALS_IGNORECASE_AND_LOCAL(str, "rpn", _("rpn")) || EQUALS_IGNORECASE_AND_LOCAL(str, "move", _("move")) || EQUALS_IGNORECASE_AND_LOCAL(str, "convert", _("convert")) || EQUALS_IGNORECASE_AND_LOCAL(str, "to", _("to")) || EQUALS_IGNORECASE_AND_LOCAL(str, "find", _("find")) || EQUALS_IGNORECASE_AND_LOCAL(str, "info", _("info")))) {
+				BEGIN_BOLD(scom)
+				scom += str;
+				END_BOLD(scom)
+				snprintf(buffer, 1000, _("%s requires at least one argument."), scom.c_str());
+				PUTS_UNICODE(buffer)
+			} else {
+				PUTS_UNICODE(_("Unknown command."));
+			}
+			puts("");
+		} else {
+			size_t index = str.find_first_of(ID_WRAPS);
+			if(index != string::npos) {
+				printf(_("Illegal character, \'%c\', in expression."), str[index]);
+				puts("");
+			} else {
+				expression_str = str;
+				execute_expression();
+			}
+		}
 #ifdef HAVE_LIBREADLINE
     if (!cfile) {
       for (int i = history_length - 1; i >= 0; i--) {
@@ -5308,32 +5218,32 @@ void RPNRegisterRemoved(int) {}
 void RPNRegisterChanged(string, int) {}
 
 bool display_errors(bool goto_input, int cols) {
-  if (!CALCULATOR->message())
-    return false;
-  while (true) {
-    if (!hide_parse_errors ||
-        (CALCULATOR->message()->stage() != MESSAGE_STAGE_PARSING &&
-         CALCULATOR->message()->stage() != MESSAGE_STAGE_CONVERSION_PARSING)) {
-      MessageType mtype = CALCULATOR->message()->type();
-      string str;
-      if (goto_input)
-        str += "  ";
-      if (mtype == MESSAGE_ERROR) {
-        str += _("error");
-        str += ": ";
-      } else if (mtype == MESSAGE_WARNING) {
-        str += _("warning");
-        str += ": ";
-      }
-      str += CALCULATOR->message()->message();
-      if (cols)
-        addLineBreaks(str, cols, true, goto_input ? 2 : 0, str.length());
-      PUTS_UNICODE(str.c_str())
-    }
-    if (!CALCULATOR->nextMessage())
-      break;
-  }
-  return true;
+	if(!CALCULATOR->message()) return false;
+	while(true) {
+		if(!hide_parse_errors || (CALCULATOR->message()->stage() != MESSAGE_STAGE_PARSING && CALCULATOR->message()->stage() != MESSAGE_STAGE_CONVERSION_PARSING)) {
+			MessageType mtype = CALCULATOR->message()->type();
+			string str;
+			if(goto_input) str += "  ";
+			if(DO_COLOR && mtype == MESSAGE_ERROR) str += (DO_COLOR == 2 ? "\033[0;91m" : "\033[0;31m");
+			if(DO_COLOR && mtype == MESSAGE_WARNING) str += (DO_COLOR == 2 ? "\033[0;94m" : "\033[0;34m");
+			if(mtype == MESSAGE_ERROR) {
+				str += _("error"); str += ": ";
+			} else if(mtype == MESSAGE_WARNING) {
+				str += _("warning"); str += ": ";
+			}
+			size_t indent = 0;
+			if(!str.empty()) indent = unicode_length_check(str.c_str());
+			else if(goto_input) indent = 2;
+			if(DO_COLOR && (mtype == MESSAGE_ERROR || mtype == MESSAGE_WARNING)) str += "\033[0m";
+			BEGIN_ITALIC(str)
+			str += CALCULATOR->message()->message();
+			END_ITALIC(str)
+			if(cols) addLineBreaks(str, cols, true, indent, str.length());
+			PUTS_UNICODE(str.c_str())
+		}
+		if(!CALCULATOR->nextMessage()) break;
+	}
+	return true;
 }
 
 void on_abort_display() { CALCULATOR->abort(); }
@@ -5381,87 +5291,100 @@ void replace_quotation_marks(string &str) {
 }
 
 void ViewThread::run() {
-  while (true) {
+	while(true) {
 
-    void *x = NULL;
-    if (!read(&x) || !x)
-      break;
-    MathStructure m(*((MathStructure *)x));
-    x = NULL;
-    if (!read(&x))
-      break;
-    CALCULATOR->startControl();
-    if (x) {
-      PrintOptions po;
-      po.preserve_format = true;
-      po.show_ending_zeroes = false;
-      po.lower_case_e = printops.lower_case_e;
-      po.lower_case_numbers = printops.lower_case_numbers;
-      po.base_display = printops.base_display;
-      po.twos_complement = printops.twos_complement;
-      po.hexadecimal_twos_complement = printops.hexadecimal_twos_complement;
-      po.base = evalops.parse_options.base;
-      Number nr_base;
-      if (po.base == BASE_CUSTOM &&
-          (CALCULATOR->usesIntervalArithmetic() ||
-           CALCULATOR->customInputBase().isRational()) &&
-          (CALCULATOR->customInputBase().isInteger() ||
-           !CALCULATOR->customInputBase().isNegative()) &&
-          (CALCULATOR->customInputBase() > 1 ||
-           CALCULATOR->customInputBase() < -1) &&
-          CALCULATOR->customInputBase() >= -1114112L &&
-          CALCULATOR->customInputBase() <= 1114112L) {
-        nr_base = CALCULATOR->customOutputBase();
-        CALCULATOR->setCustomOutputBase(CALCULATOR->customInputBase());
-      } else if (po.base == BASE_CUSTOM ||
-                 (po.base < BASE_CUSTOM &&
-                  !CALCULATOR->usesIntervalArithmetic() &&
-                  po.base != BASE_UNICODE)) {
-        po.base = 10;
-        po.min_exp = 6;
-        po.use_max_decimals = true;
-        po.max_decimals = 5;
-        po.preserve_format = false;
-      }
-      po.abbreviate_names = false;
-      po.digit_grouping = printops.digit_grouping;
-      po.use_unicode_signs = printops.use_unicode_signs;
-      po.multiplication_sign = printops.multiplication_sign;
-      po.division_sign = printops.division_sign;
-      po.short_multiplication = false;
-      po.excessive_parenthesis = true;
-      po.improve_division_multipliers = false;
-      po.restrict_to_parent_precision = false;
-      po.spell_out_logical_operators = printops.spell_out_logical_operators;
-      po.interval_display = INTERVAL_DISPLAY_PLUSMINUS;
-      MathStructure mp(*((MathStructure *)x));
-      read(&po.is_approximate);
-      mp.format(po);
-      parsed_text = mp.print(po);
-      if (po.base == BASE_CUSTOM) {
-        CALCULATOR->setCustomOutputBase(nr_base);
-      }
-    }
-    printops.allow_non_usable = false;
+		void *x = NULL;
+		if(!read(&x) || !x) break;
+		MathStructure m(*((MathStructure*) x));
+		x = NULL;
+		if(!read(&x)) break;
+		CALCULATOR->startControl();
+		if(x) {
+			PrintOptions po;
+			po.preserve_format = true;
+			po.show_ending_zeroes = false;
+			po.lower_case_e = printops.lower_case_e;
+			po.lower_case_numbers = printops.lower_case_numbers;
+			po.base_display = printops.base_display;
+			po.twos_complement = printops.twos_complement;
+			po.hexadecimal_twos_complement = printops.hexadecimal_twos_complement;
+			po.base = evalops.parse_options.base;
+			po.allow_non_usable = DO_FORMAT;
+			Number nr_base;
+			if(po.base == BASE_CUSTOM && (CALCULATOR->usesIntervalArithmetic() || CALCULATOR->customInputBase().isRational()) && (CALCULATOR->customInputBase().isInteger() || !CALCULATOR->customInputBase().isNegative()) && (CALCULATOR->customInputBase() > 1 || CALCULATOR->customInputBase() < -1) && CALCULATOR->customInputBase() >= -1114112L && CALCULATOR->customInputBase() <= 1114112L) {
+				nr_base = CALCULATOR->customOutputBase();
+				CALCULATOR->setCustomOutputBase(CALCULATOR->customInputBase());
+			} else if(po.base == BASE_CUSTOM || (po.base < BASE_CUSTOM && !CALCULATOR->usesIntervalArithmetic() && po.base != BASE_UNICODE)) {
+				po.base = 10;
+				po.min_exp = 6;
+				po.use_max_decimals = true;
+				po.max_decimals = 5;
+				po.preserve_format = false;
+			}
+			po.abbreviate_names = false;
+			po.digit_grouping = printops.digit_grouping;
+			po.use_unicode_signs = printops.use_unicode_signs;
+			po.multiplication_sign = printops.multiplication_sign;
+			po.division_sign = printops.division_sign;
+			po.short_multiplication = false;
+			po.excessive_parenthesis = true;
+			po.improve_division_multipliers = false;
+			po.restrict_to_parent_precision = false;
+			po.spell_out_logical_operators = printops.spell_out_logical_operators;
+			po.interval_display = INTERVAL_DISPLAY_PLUSMINUS;
+			MathStructure mp(*((MathStructure*) x));
+			read(&po.is_approximate);
+			mp.format(po);
+			parsed_text = mp.print(po, DO_FORMAT, DO_COLOR, TAG_TYPE_TERMINAL);
+			if(printops.use_unicode_signs) gsub(" ", " ", parsed_text);
+			if(po.base == BASE_CUSTOM) {
+				CALCULATOR->setCustomOutputBase(nr_base);
+			}
+		}
+		
+		printops.allow_non_usable = DO_FORMAT;
 
-    m.removeDefaultAngleUnit(evalops);
-    m.format(printops);
-    result_text = m.print(printops);
-    if (complex_angle_form)
-      replace_result_cis(result_text);
+		// convert time units to hours when using time format
+		if(printops.base == BASE_TIME) {
+			bool b = false;
+			if(m.isUnit() && m.unit()->baseUnit()->referenceName() == "s") {
+				b = true;
+			} else if(m.isMultiplication() && m.size() == 2 && m[0].isNumber() && m[1].isUnit() && m[1].unit()->baseUnit()->referenceName() == "s") {
+				b = true;
+			} else if(m.isAddition() && m.size() > 0) {
+				b = true;
+				for(size_t i = 0; i < m.size(); i++) {
+					if(m[i].isUnit() && m[i].unit()->baseUnit()->referenceName() == "s") {}
+					else if(m[i].isMultiplication() && m[i].size() == 2 && m[i][0].isNumber() && m[i][1].isUnit() && m[i][1].unit()->baseUnit()->referenceName() == "s") {}
+					else {b = false; break;}
+				}
+			}
+			if(b) {
+				Unit *u = CALCULATOR->getActiveUnit("h");
+				if(u) {
+					m.divide(u);
+					m.eval(evalops);
+				}
+			}
+		}
 
-    if (result_text == _("aborted")) {
-      *printops.is_approximate = false;
-    }
-    b_busy = false;
-    CALCULATOR->stopControl();
-  }
+		m.removeDefaultAngleUnit(evalops);
+		m.format(printops);
+		result_text = m.print(printops, DO_FORMAT, DO_COLOR, TAG_TYPE_TERMINAL);
+		if(complex_angle_form) replace_result_cis(result_text);
+		if(printops.use_unicode_signs) gsub(" ", " ", result_text);
+
+		if(result_text == _("aborted")) {
+			*printops.is_approximate = false;
+		}
+		b_busy = false;
+		CALCULATOR->stopControl();
+	}
 }
 
 static bool wait_for_key_press(int timeout_ms) {
 #ifdef _WIN32
-  return WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), timeout_ms) ==
-         WAIT_OBJECT_0;
+	return WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), timeout_ms) == WAIT_OBJECT_0;
 #else
   fd_set in_set;
   struct timeval timeout;
@@ -5934,749 +5857,400 @@ void execute_command(int command_type, bool show_result) {
           if (read(STDIN_FILENO, &c, 1) == -1)
             c = 0;
 #endif
-          if (c == '\n') {
-            on_abort_command();
-          }
-        } else {
-          if (!result_only) {
-            printf(".");
-            fflush(stdout);
-          }
-          sleep_ms(100);
-        }
-      }
-    }
+					if(c == '\n') {
+						on_abort_command();
+					}
+				} else {
+					if(!result_only) {
+						printf(".");
+						fflush(stdout);
+					}
+					sleep_ms(100);
+				}
+			}
+		}
 
-    if (has_printed)
-      printf("\n");
-  }
+		if(has_printed) printf("\n");
 
-  b_busy = false;
+	}
 
-  if (!command_aborted) {
-    mstruct->unref();
-    mstruct = mfactor;
-    switch (command_type) {
-    case COMMAND_FACTORIZE: {
-      printops.allow_factorization = true;
-      break;
-    }
-    case COMMAND_EXPAND: {
-      printops.allow_factorization = false;
-      break;
-    }
-    default: {
-      printops.allow_factorization =
-          (evalops.structuring == STRUCTURING_FACTORIZE);
-    }
-    }
-    if (show_result)
-      setResult(NULL, false);
-  }
+	b_busy = false;
+
+	if(!command_aborted) {
+		mstruct->unref();
+		mstruct = mfactor;
+		switch(command_type) {
+			case COMMAND_FACTORIZE: {
+				printops.allow_factorization = true;
+				break;
+			}
+			case COMMAND_EXPAND: {
+				printops.allow_factorization = false;
+				break;
+			}
+			default: {
+				printops.allow_factorization = (evalops.structuring == STRUCTURING_FACTORIZE);
+			}
+		}
+		if(show_result) setResult(NULL, false);
+	}
+
 }
 
-void execute_expression(bool goto_input, bool do_mathoperation,
-                        MathOperation op, MathFunction *f, bool do_stack,
-                        size_t stack_index, bool check_exrates) {
+void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op, MathFunction *f, bool do_stack, size_t stack_index, bool check_exrates) {
 
-  if (i_maxtime < 0)
-    return;
+	if(i_maxtime < 0) return;
 
-  string str;
-  bool do_bases = programmers_mode, do_factors = false, do_expand = false,
-       do_fraction = false, do_pfe = false, do_calendars = false,
-       do_binary_prefixes = false;
-  avoid_recalculation = false;
-  if (!interactive_mode)
-    goto_input = false;
-  if (do_stack) {
-  } else {
-    str = expression_str;
-    string to_str = CALCULATOR->parseComments(str, evalops.parse_options);
-    if (!to_str.empty() && str.empty())
-      return;
-    string from_str = str;
-    if (CALCULATOR->separateToExpression(from_str, to_str, evalops, true)) {
-      remove_duplicate_blanks(to_str);
-      string to_str1, to_str2;
-      size_t ispace = to_str.find_first_of(SPACES);
-      if (ispace != string::npos) {
-        to_str1 = to_str.substr(0, ispace);
-        remove_blank_ends(to_str1);
-        to_str2 = to_str.substr(ispace + 1);
-        remove_blank_ends(to_str2);
-      }
-      if (equalsIgnoreCase(to_str, "hex") ||
-          EQUALS_IGNORECASE_AND_LOCAL(to_str, "hexadecimal",
-                                      _("hexadecimal"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_HEXADECIMAL;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "bin") ||
-                 EQUALS_IGNORECASE_AND_LOCAL(to_str, "binary", _("binary"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_BINARY;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "dec") ||
-                 EQUALS_IGNORECASE_AND_LOCAL(to_str, "decimal", _("decimal"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_DECIMAL;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "oct") ||
-                 EQUALS_IGNORECASE_AND_LOCAL(to_str, "octal", _("octal"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_OCTAL;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "duo") ||
-                 EQUALS_IGNORECASE_AND_LOCAL(to_str, "duodecimal",
-                                             _("duodecimal"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_DUODECIMAL;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "roman") ||
-                 equalsIgnoreCase(to_str, _("roman"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_ROMAN_NUMERALS;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "bijective") ||
-                 equalsIgnoreCase(to_str, _("bijective"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_BIJECTIVE_26;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "sexa") ||
-                 equalsIgnoreCase(to_str, "sexagesimal") ||
-                 equalsIgnoreCase(to_str, _("sexagesimal"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_SEXAGESIMAL;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "fp32") ||
-                 equalsIgnoreCase(to_str, "binary32") ||
-                 equalsIgnoreCase(to_str, "float")) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_FP32;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "fp64") ||
-                 equalsIgnoreCase(to_str, "binary64") ||
-                 equalsIgnoreCase(to_str, "double")) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_FP64;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "fp16") ||
-                 equalsIgnoreCase(to_str, "binary16")) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_FP16;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "fp80")) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_FP80;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "fp128") ||
-                 equalsIgnoreCase(to_str, "binary128")) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_FP128;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "time") ||
-                 equalsIgnoreCase(to_str, _("time"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_TIME;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(str, "unicode")) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        printops.base = BASE_UNICODE;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (equalsIgnoreCase(to_str, "utc") ||
-                 equalsIgnoreCase(to_str, "gmt")) {
-        expression_str = from_str;
-        printops.time_zone = TIME_ZONE_UTC;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.time_zone = TIME_ZONE_LOCAL;
-        expression_str = str;
-        return;
-      } else if (to_str.length() > 3 &&
-                 equalsIgnoreCase(to_str.substr(0, 3), "bin") &&
-                 is_in(NUMBERS, to_str[3])) {
-        expression_str = from_str;
-        int save_base = printops.base;
-        printops.base = BASE_BINARY;
-        printops.binary_bits = s2i(to_str.substr(3));
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.base = save_base;
-        printops.binary_bits = 0;
-        expression_str = str;
-        return;
-      } else if (to_str.length() > 3 &&
-                 (equalsIgnoreCase(to_str.substr(0, 3), "utc") ||
-                  equalsIgnoreCase(to_str.substr(0, 3), "gmt"))) {
-        to_str = to_str.substr(3);
-        remove_blanks(to_str);
-        bool b_minus = false;
-        if (to_str[0] == '+') {
-          to_str.erase(0, 1);
-        } else if (to_str[0] == '-') {
-          b_minus = true;
-          to_str.erase(0, 1);
-        } else if (to_str.find(SIGN_MINUS) == 0) {
-          b_minus = true;
-          to_str.erase(0, strlen(SIGN_MINUS));
-        }
-        unsigned int tzh = 0, tzm = 0;
-        int itz = 0;
-        if (!to_str.empty() &&
-            sscanf(to_str.c_str(), "%2u:%2u", &tzh, &tzm) > 0) {
-          itz = tzh * 60 + tzm;
-          if (b_minus)
-            itz = -itz;
-        } else {
-          CALCULATOR->error(true, _("Time zone parsing failed."), NULL);
-        }
-        expression_str = from_str;
-        printops.time_zone = TIME_ZONE_CUSTOM;
-        printops.custom_time_zone = itz;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.custom_time_zone = 0;
-        printops.time_zone = TIME_ZONE_LOCAL;
-        expression_str = str;
-        return;
-      } else if (to_str == "CET") {
-        expression_str = from_str;
-        printops.time_zone = TIME_ZONE_CUSTOM;
-        printops.custom_time_zone = 60;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        printops.custom_time_zone = 0;
-        printops.time_zone = TIME_ZONE_LOCAL;
-        expression_str = str;
-        return;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "fraction",
-                                             _("fraction")) ||
-                 to_str == "frac") {
-        str = from_str;
-        do_fraction = true;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "factors", _("factors")) ||
-                 to_str == "factor") {
-        str = from_str;
-        do_factors = true;
-      } else if (equalsIgnoreCase(to_str, "partial fraction") ||
-                 equalsIgnoreCase(to_str, _("partial fraction")) ||
-                 to_str == "partial") {
-        str = from_str;
-        do_pfe = true;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "bases", _("bases"))) {
-        do_bases = true;
-        str = from_str;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "calendars",
-                                             _("calendars"))) {
-        do_calendars = true;
-        str = from_str;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "rectangular",
-                                             _("rectangular")) ||
-                 EQUALS_IGNORECASE_AND_LOCAL(to_str, "cartesian",
-                                             _("cartesian")) ||
-                 to_str == "rect") {
-        expression_str = from_str;
-        ComplexNumberForm save_complex_number_form =
-            evalops.complex_number_form;
-        bool caf_bak = complex_angle_form;
-        complex_angle_form = false;
-        evalops.complex_number_form = COMPLEX_NUMBER_FORM_RECTANGULAR;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.complex_number_form = save_complex_number_form;
-        complex_angle_form = caf_bak;
-        expression_str = str;
-        return;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "exponential",
-                                             _("exponential")) ||
-                 to_str == "exp") {
-        expression_str = from_str;
-        ComplexNumberForm save_complex_number_form =
-            evalops.complex_number_form;
-        bool caf_bak = complex_angle_form;
-        complex_angle_form = false;
-        evalops.complex_number_form = COMPLEX_NUMBER_FORM_EXPONENTIAL;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.complex_number_form = save_complex_number_form;
-        complex_angle_form = caf_bak;
-        expression_str = str;
-        return;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "polar", _("polar"))) {
-        expression_str = from_str;
-        ComplexNumberForm save_complex_number_form =
-            evalops.complex_number_form;
-        bool caf_bak = complex_angle_form;
-        complex_angle_form = false;
-        evalops.complex_number_form = COMPLEX_NUMBER_FORM_POLAR;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.complex_number_form = save_complex_number_form;
-        complex_angle_form = caf_bak;
-        expression_str = str;
-        return;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "angle", _("angle")) ||
-                 EQUALS_IGNORECASE_AND_LOCAL(to_str, "phasor", _("phasor"))) {
-        expression_str = from_str;
-        ComplexNumberForm save_complex_number_form =
-            evalops.complex_number_form;
-        bool caf_bak = complex_angle_form;
-        complex_angle_form = true;
-        evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.complex_number_form = save_complex_number_form;
-        complex_angle_form = caf_bak;
-        expression_str = str;
-        return;
-      } else if (to_str == "cis") {
-        expression_str = from_str;
-        ComplexNumberForm save_complex_number_form =
-            evalops.complex_number_form;
-        bool caf_bak = complex_angle_form;
-        complex_angle_form = false;
-        evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.complex_number_form = save_complex_number_form;
-        complex_angle_form = caf_bak;
-        expression_str = str;
-        return;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "optimal", _("optimal"))) {
-        expression_str = from_str;
-        bool b_units_saved = evalops.parse_options.units_enabled;
-        evalops.parse_options.units_enabled = true;
-        AutoPostConversion save_auto_post_conversion =
-            evalops.auto_post_conversion;
-        evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL_SI;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.auto_post_conversion = save_auto_post_conversion;
-        expression_str = str;
-        evalops.parse_options.units_enabled = b_units_saved;
-        return;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "base", _("base"))) {
-        expression_str = from_str;
-        bool b_units_saved = evalops.parse_options.units_enabled;
-        evalops.parse_options.units_enabled = true;
-        AutoPostConversion save_auto_post_conversion =
-            evalops.auto_post_conversion;
-        evalops.auto_post_conversion = POST_CONVERSION_BASE;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.auto_post_conversion = save_auto_post_conversion;
-        expression_str = str;
-        evalops.parse_options.units_enabled = b_units_saved;
-        return;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str1, "base", _("base"))) {
-        int save_base = printops.base;
-        expression_str = from_str;
-        Number save_nr = CALCULATOR->customOutputBase();
-        if (to_str2 == "b26" || to_str2 == "B26")
-          printops.base = BASE_BIJECTIVE_26;
-        else if (equalsIgnoreCase(to_str2, "golden") ||
-                 equalsIgnoreCase(to_str2, "golden ratio") || to_str2 == "φ")
-          printops.base = BASE_GOLDEN_RATIO;
-        else if (equalsIgnoreCase(to_str2, "unicode"))
-          printops.base = BASE_UNICODE;
-        else if (equalsIgnoreCase(to_str2, "supergolden") ||
-                 equalsIgnoreCase(to_str2, "supergolden ratio") ||
-                 to_str2 == "ψ")
-          printops.base = BASE_SUPER_GOLDEN_RATIO;
-        else if (equalsIgnoreCase(to_str2, "pi") || to_str2 == "π")
-          printops.base = BASE_PI;
-        else if (to_str2 == "e")
-          printops.base = BASE_E;
-        else if (to_str2 == "sqrt(2)" || to_str2 == "sqrt 2" ||
-                 to_str2 == "sqrt2" || to_str2 == "√2")
-          printops.base = BASE_SQRT2;
-        else {
-          EvaluationOptions eo = evalops;
-          eo.parse_options.base = 10;
-          MathStructure m;
-          eo.approximation = APPROXIMATION_TRY_EXACT;
-          CALCULATOR->beginTemporaryStopMessages();
-          CALCULATOR->calculate(
-              &m, CALCULATOR->unlocalizeExpression(to_str2, eo.parse_options),
-              500, eo);
-          if (CALCULATOR->endTemporaryStopMessages()) {
-            printops.base = BASE_CUSTOM;
-            CALCULATOR->setCustomOutputBase(nr_zero);
-          } else if (m.isInteger() && m.number() >= 2 && m.number() <= 36) {
-            printops.base = m.number().intValue();
-          } else {
-            printops.base = BASE_CUSTOM;
-            CALCULATOR->setCustomOutputBase(m.number());
-          }
-        }
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        CALCULATOR->setCustomOutputBase(save_nr);
-        printops.base = save_base;
-        expression_str = str;
-        return;
-      } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "mixed", _("mixed"))) {
-        expression_str = from_str;
-        bool b_units_saved = evalops.parse_options.units_enabled;
-        evalops.parse_options.units_enabled = true;
-        AutoPostConversion save_auto_post_conversion =
-            evalops.auto_post_conversion;
-        MixedUnitsConversion save_mixed_units_conversion =
-            evalops.mixed_units_conversion;
-        evalops.auto_post_conversion = POST_CONVERSION_NONE;
-        evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_FORCE_INTEGER;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.auto_post_conversion = save_auto_post_conversion;
-        evalops.mixed_units_conversion = save_mixed_units_conversion;
-        expression_str = str;
-        evalops.parse_options.units_enabled = b_units_saved;
-        return;
-      } else if (!evalops.parse_options.units_enabled) {
-        evalops.parse_options.units_enabled = true;
-        execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                           stack_index);
-        evalops.parse_options.units_enabled = false;
-        return;
-      } else {
-        if ((to_str[0] == '?' && (!printops.use_unit_prefixes ||
-                                  !printops.use_prefixes_for_currencies ||
-                                  !printops.use_prefixes_for_all_units)) ||
-            (to_str.length() > 1 && to_str[1] == '?' && to_str[0] == 'a' &&
-             (!printops.use_unit_prefixes ||
-              !printops.use_prefixes_for_currencies ||
-              !printops.use_all_prefixes ||
-              !printops.use_prefixes_for_all_units)) ||
-            (to_str.length() > 1 && to_str[1] == '?' && to_str[0] == 'd' &&
-             (!printops.use_unit_prefixes ||
-              !printops.use_prefixes_for_currencies ||
-              !printops.use_prefixes_for_all_units ||
-              CALCULATOR->usesBinaryPrefixes() > 0))) {
-          bool save_pre = printops.use_unit_prefixes;
-          bool save_all = printops.use_all_prefixes;
-          bool save_cur = printops.use_prefixes_for_currencies;
-          bool save_allu = printops.use_prefixes_for_all_units;
-          int save_bin = CALCULATOR->usesBinaryPrefixes();
-          printops.use_unit_prefixes = true;
-          printops.use_prefixes_for_currencies = true;
-          printops.use_prefixes_for_all_units = true;
-          if (to_str[0] == 'a')
-            printops.use_all_prefixes = true;
-          else if (to_str[0] == 'd')
-            CALCULATOR->useBinaryPrefixes(0);
-          execute_expression(goto_input, do_mathoperation, op, f, do_stack,
-                             stack_index);
-          printops.use_unit_prefixes = save_pre;
-          printops.use_all_prefixes = save_all;
-          printops.use_prefixes_for_currencies = save_cur;
-          printops.use_prefixes_for_all_units = save_allu;
-          CALCULATOR->useBinaryPrefixes(save_bin);
-          return;
-        } else if (to_str.length() > 1 && to_str[1] == '?' &&
-                   to_str[0] == 'b') {
-          do_binary_prefixes = true;
-        }
-      }
-    } else {
-      size_t i = str.find_first_of(SPACES LEFT_PARENTHESIS);
-      if (i != string::npos) {
-        to_str = str.substr(0, i);
-        if (to_str == "factor" ||
-            EQUALS_IGNORECASE_AND_LOCAL(to_str, "factorize", _("factorize"))) {
-          str = str.substr(i + 1);
-          do_factors = true;
-        } else if (EQUALS_IGNORECASE_AND_LOCAL(to_str, "expand", _("expand"))) {
-          str = str.substr(i + 1);
-          do_expand = true;
-        }
-      }
-    }
-  }
+	string str, str_conv;
+	bool do_bases = programmers_mode, do_factors = false, do_expand = false, do_pfe = false, do_calendars = false, do_binary_prefixes = false;
+	avoid_recalculation = false;
+	if(!interactive_mode) goto_input = false;
 
-  if (caret_as_xor)
-    gsub("^", "⊻", str);
+	int save_base = printops.base;
+	bool save_pre = printops.use_unit_prefixes;
+	bool save_cur = printops.use_prefixes_for_currencies;
+	bool save_den = printops.use_denominator_prefix;
+	bool save_allu = printops.use_prefixes_for_all_units;
+	bool save_all = printops.use_all_prefixes;
+	int save_bin = CALCULATOR->usesBinaryPrefixes();
+	ComplexNumberForm save_complex_number_form = evalops.complex_number_form;
+	bool caf_bak = complex_angle_form;
+	bool b_units_saved = evalops.parse_options.units_enabled;
+	AutoPostConversion save_auto_post_conversion = evalops.auto_post_conversion;
+	MixedUnitsConversion save_mixed_units_conversion = evalops.mixed_units_conversion;
+	NumberFractionFormat save_format = printops.number_fraction_format;
+	bool save_rfl = printops.restrict_fraction_length;
+	Number save_cbase;
+	bool custom_base_set = false;
 
-  expression_executed = true;
+	if(do_stack) {
+	} else {
+		str = expression_str;
+		string to_str = CALCULATOR->parseComments(str, evalops.parse_options);
+		if(!to_str.empty() && str.empty()) return;
+		string from_str = str;
+		if(CALCULATOR->separateToExpression(from_str, to_str, evalops, true)) {
+			remove_duplicate_blanks(to_str);
+			string str_left;
+			string to_str1, to_str2;
+			while(true) {
+				CALCULATOR->separateToExpression(to_str, str_left, evalops, true);
+				remove_blank_ends(to_str);
+				size_t ispace = to_str.find_first_of(SPACES);
+				if(ispace != string::npos) {
+					to_str1 = to_str.substr(0, ispace);
+					remove_blank_ends(to_str1);
+					to_str2 = to_str.substr(ispace + 1);
+					remove_blank_ends(to_str2);
+				}
+				if(equalsIgnoreCase(to_str, "hex") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "hexadecimal", _("hexadecimal"))) {
+					printops.base = BASE_HEXADECIMAL;
+				} else if(equalsIgnoreCase(to_str, "bin") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "binary", _("binary"))) {
+					printops.base = BASE_BINARY;
+				} else if(equalsIgnoreCase(to_str, "dec") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "decimal", _("decimal"))) {
+					printops.base = BASE_DECIMAL;
+				} else if(equalsIgnoreCase(to_str, "oct") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "octal", _("octal"))) {
+					printops.base = BASE_OCTAL;
+				} else if(equalsIgnoreCase(to_str, "duo") || EQUALS_IGNORECASE_AND_LOCAL(to_str, "duodecimal", _("duodecimal"))) {
+					printops.base = BASE_DUODECIMAL;
+				} else if(equalsIgnoreCase(to_str, "roman") || equalsIgnoreCase(to_str, _("roman"))) {
+					printops.base = BASE_ROMAN_NUMERALS;
+				} else if(equalsIgnoreCase(to_str, "bijective") || equalsIgnoreCase(to_str, _("bijective"))) {
+					printops.base = BASE_BIJECTIVE_26;
+				} else if(equalsIgnoreCase(to_str, "sexa") || equalsIgnoreCase(to_str, "sexagesimal") || equalsIgnoreCase(to_str, _("sexagesimal"))) {
+					printops.base = BASE_SEXAGESIMAL;
+				} else if(equalsIgnoreCase(to_str, "fp32") || equalsIgnoreCase(to_str, "binary32") || equalsIgnoreCase(to_str, "float")) {
+					printops.base = BASE_FP32;
+				} else if(equalsIgnoreCase(to_str, "fp64") || equalsIgnoreCase(to_str, "binary64") || equalsIgnoreCase(to_str, "double")) {
+					printops.base = BASE_FP64;
+				} else if(equalsIgnoreCase(to_str, "fp16") || equalsIgnoreCase(to_str, "binary16")) {
+					printops.base = BASE_FP16;
+				} else if(equalsIgnoreCase(to_str, "fp80")) {
+					printops.base = BASE_FP80;
+				} else if(equalsIgnoreCase(to_str, "fp128") || equalsIgnoreCase(to_str, "binary128")) {
+					printops.base = BASE_FP128;
+				} else if(equalsIgnoreCase(to_str, "time") || equalsIgnoreCase(to_str, _("time"))) {
+					printops.base = BASE_TIME;
+				} else if(equalsIgnoreCase(str, "unicode")) {
+					printops.base = BASE_UNICODE;
+				} else if(equalsIgnoreCase(to_str, "utc") || equalsIgnoreCase(to_str, "gmt")) {
+					printops.time_zone = TIME_ZONE_UTC;
+				} else if(to_str.length() > 3 && equalsIgnoreCase(to_str.substr(0, 3), "bin") && is_in(NUMBERS, to_str[3])) {
+					printops.base = BASE_BINARY;
+					printops.binary_bits = s2i(to_str.substr(3));
+				} else if(to_str.length() > 3 && equalsIgnoreCase(to_str.substr(0, 3), "hex") && is_in(NUMBERS, to_str[3])) {
+					printops.base = BASE_HEXADECIMAL;
+					printops.binary_bits = s2i(to_str.substr(3));
+				} else if(to_str.length() > 3 && (equalsIgnoreCase(to_str.substr(0, 3), "utc") || equalsIgnoreCase(to_str.substr(0, 3), "gmt"))) {
+					to_str = to_str.substr(3);
+					remove_blanks(to_str);
+					bool b_minus = false;
+					if(to_str[0] == '+') {
+						to_str.erase(0, 1);
+					} else if(to_str[0] == '-') {
+						b_minus = true;
+						to_str.erase(0, 1);
+					} else if(to_str.find(SIGN_MINUS) == 0) {
+						b_minus = true;
+						to_str.erase(0, strlen(SIGN_MINUS));
+					}
+					unsigned int tzh = 0, tzm = 0;
+					int itz = 0;
+					if(!to_str.empty() && sscanf(to_str.c_str(), "%2u:%2u", &tzh, &tzm) > 0) {
+						itz = tzh * 60 + tzm;
+						if(b_minus) itz = -itz;
+					} else {
+						CALCULATOR->error(true, _("Time zone parsing failed."), NULL);
+					}
+					printops.time_zone = TIME_ZONE_CUSTOM;
+					printops.custom_time_zone = itz;
+				} else if(to_str == "CET") {
+					printops.time_zone = TIME_ZONE_CUSTOM;
+					printops.custom_time_zone = 60;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "fraction", _("fraction")) || to_str == "frac") {
+					printops.restrict_fraction_length = false;
+					printops.number_fraction_format = FRACTION_COMBINED;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "factors", _("factors")) || to_str == "factor") {
+					do_factors = true;
+				}  else if(equalsIgnoreCase(to_str, "partial fraction") || equalsIgnoreCase(to_str, _("partial fraction")) || to_str == "partial") {
+					do_pfe = true;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "bases", _("bases"))) {
+					do_bases = true;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "calendars", _("calendars"))) {
+					do_calendars = true;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "rectangular", _("rectangular")) || EQUALS_IGNORECASE_AND_LOCAL(to_str, "cartesian", _("cartesian")) || to_str == "rect") {
+					complex_angle_form = false;
+					evalops.complex_number_form = COMPLEX_NUMBER_FORM_RECTANGULAR;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "exponential", _("exponential")) || to_str == "exp") {
+					complex_angle_form = false;
+					evalops.complex_number_form = COMPLEX_NUMBER_FORM_EXPONENTIAL;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "polar", _("polar"))) {
+					complex_angle_form = false;
+					evalops.complex_number_form = COMPLEX_NUMBER_FORM_POLAR;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "angle", _("angle")) || EQUALS_IGNORECASE_AND_LOCAL(to_str, "phasor", _("phasor"))) {
+					complex_angle_form = true;
+					evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
+				} else if(to_str == "cis") {
+					complex_angle_form = false;
+					evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "optimal", _("optimal"))) {
+					evalops.parse_options.units_enabled = true;
+					evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL_SI;
+					str_conv = "";
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "base", _("base"))) {
+					evalops.parse_options.units_enabled = true;
+					evalops.auto_post_conversion = POST_CONVERSION_BASE;
+					str_conv = "";
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str1, "base", _("base"))) {
+					if(to_str2 == "b26" || to_str2 == "B26") printops.base = BASE_BIJECTIVE_26;
+					else if(equalsIgnoreCase(to_str2, "golden") || equalsIgnoreCase(to_str2, "golden ratio") || to_str2 == "φ") printops.base = BASE_GOLDEN_RATIO;
+					else if(equalsIgnoreCase(to_str2, "unicode")) printops.base = BASE_UNICODE;
+					else if(equalsIgnoreCase(to_str2, "supergolden") || equalsIgnoreCase(to_str2, "supergolden ratio") || to_str2 == "ψ") printops.base = BASE_SUPER_GOLDEN_RATIO;
+					else if(equalsIgnoreCase(to_str2, "pi") || to_str2 == "π") printops.base = BASE_PI;
+					else if(to_str2 == "e") printops.base = BASE_E;
+					else if(to_str2 == "sqrt(2)" || to_str2 == "sqrt 2" || to_str2 == "sqrt2" || to_str2 == "√2") printops.base = BASE_SQRT2;
+					else {
+						EvaluationOptions eo = evalops;
+						eo.parse_options.base = 10;
+						MathStructure m;
+						eo.approximation = APPROXIMATION_TRY_EXACT;
+						CALCULATOR->beginTemporaryStopMessages();
+						CALCULATOR->calculate(&m, CALCULATOR->unlocalizeExpression(to_str2, eo.parse_options), 500, eo);
+						if(CALCULATOR->endTemporaryStopMessages()) {
+							printops.base = BASE_CUSTOM;
+							custom_base_set = true;
+							save_cbase = CALCULATOR->customOutputBase();
+							CALCULATOR->setCustomOutputBase(nr_zero);
+						} else if(m.isInteger() && m.number() >= 2 && m.number() <= 36) {
+							printops.base = m.number().intValue();
+						} else {
+							printops.base = BASE_CUSTOM;
+							custom_base_set = true;
+							save_cbase = CALCULATOR->customOutputBase();
+							CALCULATOR->setCustomOutputBase(m.number());
+						}
+					}
+				} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "mixed", _("mixed"))) {
+					evalops.auto_post_conversion = POST_CONVERSION_NONE;
+					evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_FORCE_INTEGER;
+				} else {
+					evalops.parse_options.units_enabled = true;
+					if((to_str[0] == '?' && (!printops.use_unit_prefixes || !printops.use_prefixes_for_currencies || !printops.use_prefixes_for_all_units)) || (to_str.length() > 1 && to_str[1] == '?' && to_str[0] == 'a' && (!printops.use_unit_prefixes || !printops.use_prefixes_for_currencies || !printops.use_all_prefixes || !printops.use_prefixes_for_all_units)) || (to_str.length() > 1 && to_str[1] == '?' && to_str[0] == 'd' && (!printops.use_unit_prefixes || !printops.use_prefixes_for_currencies || !printops.use_prefixes_for_all_units || CALCULATOR->usesBinaryPrefixes() > 0))) {
+						printops.use_unit_prefixes = true;
+						printops.use_prefixes_for_currencies = true;
+						printops.use_prefixes_for_all_units = true;
+						if(to_str[0] == 'a') printops.use_all_prefixes = true;
+						else if(to_str[0] == 'd') CALCULATOR->useBinaryPrefixes(0);
+					} else if(to_str.length() > 1 && to_str[1] == '?' && to_str[0] == 'b') {
+						do_binary_prefixes = true;
+					}
+					if(!str_conv.empty()) str_conv += " to ";
+					str_conv += to_str;
+				}
+				if(str_left.empty()) break;
+				to_str = str_left;
+			}
+			str = from_str;
+			if(!str_conv.empty()) {
+				str += " to ";
+				str += str_conv;
+			}
+		}
+		size_t i = str.find_first_of(SPACES LEFT_PARENTHESIS);
+		if(i != string::npos) {
+			to_str = str.substr(0, i);
+			if(to_str == "factor" || EQUALS_IGNORECASE_AND_LOCAL(to_str, "factorize", _("factorize"))) {
+				str = str.substr(i + 1);
+				do_factors = true;
+			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "expand", _("expand"))) {
+				str = str.substr(i + 1);
+				do_expand = true;
+			}
+		}
+	}
 
-  b_busy = true;
+	if(caret_as_xor) gsub("^", "⊻", str);
 
-  size_t stack_size = 0;
+	expression_executed = true;
 
-  CALCULATOR->resetExchangeRatesUsed();
+	b_busy = true;
 
-  MathStructure to_struct;
+	size_t stack_size = 0;
 
-  if (do_stack) {
-    stack_size = CALCULATOR->RPNStackSize();
-    CALCULATOR->setRPNRegister(
-        stack_index + 1,
-        CALCULATOR->unlocalizeExpression(str, evalops.parse_options), 0,
-        evalops, parsed_mstruct, NULL);
-  } else if (rpn_mode) {
-    stack_size = CALCULATOR->RPNStackSize();
-    if (do_mathoperation) {
-      if (f)
-        CALCULATOR->calculateRPN(f, 0, evalops, parsed_mstruct);
-      else
-        CALCULATOR->calculateRPN(op, 0, evalops, parsed_mstruct);
-    } else {
-      string str2 =
-          CALCULATOR->unlocalizeExpression(str, evalops.parse_options);
-      CALCULATOR->parseSigns(str2);
-      remove_blank_ends(str2);
-      if (str2.length() == 1) {
-        do_mathoperation = true;
-        switch (str2[0]) {
-        case '^': {
-          CALCULATOR->calculateRPN(OPERATION_RAISE, 0, evalops, parsed_mstruct);
-          break;
-        }
-        case '+': {
-          CALCULATOR->calculateRPN(OPERATION_ADD, 0, evalops, parsed_mstruct);
-          break;
-        }
-        case '-': {
-          CALCULATOR->calculateRPN(OPERATION_SUBTRACT, 0, evalops,
-                                   parsed_mstruct);
-          break;
-        }
-        case '*': {
-          CALCULATOR->calculateRPN(OPERATION_MULTIPLY, 0, evalops,
-                                   parsed_mstruct);
-          break;
-        }
-        case '/': {
-          CALCULATOR->calculateRPN(OPERATION_DIVIDE, 0, evalops,
-                                   parsed_mstruct);
-          break;
-        }
-        case '&': {
-          CALCULATOR->calculateRPN(OPERATION_BITWISE_AND, 0, evalops,
-                                   parsed_mstruct);
-          break;
-        }
-        case '|': {
-          CALCULATOR->calculateRPN(OPERATION_BITWISE_OR, 0, evalops,
-                                   parsed_mstruct);
-          break;
-        }
-        case '~': {
-          CALCULATOR->calculateRPNBitwiseNot(0, evalops, parsed_mstruct);
-          break;
-        }
-        case '!': {
-          CALCULATOR->calculateRPN(
-              CALCULATOR->getFunctionById(FUNCTION_ID_FACTORIAL), 0, evalops,
-              parsed_mstruct);
-          break;
-        }
-        case '>': {
-          CALCULATOR->calculateRPN(OPERATION_GREATER, 0, evalops,
-                                   parsed_mstruct);
-          break;
-        }
-        case '<': {
-          CALCULATOR->calculateRPN(OPERATION_LESS, 0, evalops, parsed_mstruct);
-          break;
-        }
-        case '=': {
-          CALCULATOR->calculateRPN(OPERATION_EQUALS, 0, evalops,
-                                   parsed_mstruct);
-          break;
-        }
-        case '\\': {
-          MathFunction *fdiv = CALCULATOR->getActiveFunction("div");
-          if (fdiv) {
-            CALCULATOR->calculateRPN(fdiv, 0, evalops, parsed_mstruct);
-            break;
-          }
-        }
-        default: {
-          do_mathoperation = false;
-        }
-        }
-      } else if (str2.length() == 2) {
-        if (str2 == "**") {
-          CALCULATOR->calculateRPN(OPERATION_RAISE, 0, evalops, parsed_mstruct);
-          do_mathoperation = true;
-        } else if (str2 == "!!") {
-          CALCULATOR->calculateRPN(
-              CALCULATOR->getFunctionById(FUNCTION_ID_DOUBLE_FACTORIAL), 0,
-              evalops, parsed_mstruct);
-          do_mathoperation = true;
-        } else if (str2 == "!=" || str == "=!" || str == "<>") {
-          CALCULATOR->calculateRPN(OPERATION_NOT_EQUALS, 0, evalops,
-                                   parsed_mstruct);
-          do_mathoperation = true;
-        } else if (str2 == "<=" || str == "=<") {
-          CALCULATOR->calculateRPN(OPERATION_EQUALS_LESS, 0, evalops,
-                                   parsed_mstruct);
-          do_mathoperation = true;
-        } else if (str2 == ">=" || str == "=>") {
-          CALCULATOR->calculateRPN(OPERATION_EQUALS_GREATER, 0, evalops,
-                                   parsed_mstruct);
-          do_mathoperation = true;
-        } else if (str2 == "==") {
-          CALCULATOR->calculateRPN(OPERATION_EQUALS, 0, evalops,
-                                   parsed_mstruct);
-          do_mathoperation = true;
-        } else if (str2 == "//") {
-          MathFunction *fdiv = CALCULATOR->getActiveFunction("div");
-          if (fdiv) {
-            CALCULATOR->calculateRPN(fdiv, 0, evalops, parsed_mstruct);
-            do_mathoperation = true;
-          }
-        }
-      } else if (str2.length() == 3) {
-        if (str2 == "⊻") {
-          CALCULATOR->calculateRPN(OPERATION_BITWISE_XOR, 0, evalops,
-                                   parsed_mstruct);
-          do_mathoperation = true;
-        }
-      }
-      if (!do_mathoperation) {
-        bool had_nonnum = false, test_function = true;
-        int in_par = 0;
-        for (size_t i = 0; i < str2.length(); i++) {
-          if (is_in(NUMBERS, str2[i])) {
-            if (!had_nonnum || in_par) {
-              test_function = false;
-              break;
-            }
-          } else if (str2[i] == '(') {
-            if (in_par || !had_nonnum) {
-              test_function = false;
-              break;
-            }
-            in_par = i;
-          } else if (str2[i] == ')') {
-            if (i != str2.length() - 1) {
-              test_function = false;
-              break;
-            }
-          } else if (str2[i] == ' ') {
-            if (!in_par) {
-              test_function = false;
-              break;
-            }
-          } else if (is_in(NOT_IN_NAMES, str2[i])) {
-            test_function = false;
-            break;
-          } else {
-            if (in_par) {
-              test_function = false;
-              break;
-            }
-            had_nonnum = true;
-          }
-        }
-        f = NULL;
-        if (test_function) {
-          if (in_par)
-            f = CALCULATOR->getActiveFunction(str2.substr(0, in_par));
-          else
-            f = CALCULATOR->getActiveFunction(str2);
-        }
-        if (f && f->minargs() > 0) {
-          do_mathoperation = true;
-          CALCULATOR->calculateRPN(f, 0, evalops, parsed_mstruct);
-        } else {
-          CALCULATOR->RPNStackEnter(str2, 0, evalops, parsed_mstruct, NULL);
-        }
-      }
-    }
-  } else {
-    CALCULATOR->calculate(
-        mstruct, CALCULATOR->unlocalizeExpression(str, evalops.parse_options),
-        0, evalops, parsed_mstruct, &to_struct);
-  }
+	CALCULATOR->resetExchangeRatesUsed();
 
-calculation_wait:
+	MathStructure to_struct;
 
-  bool has_printed = false;
+	if(do_stack) {
+		stack_size = CALCULATOR->RPNStackSize();
+		CALCULATOR->setRPNRegister(stack_index + 1, CALCULATOR->unlocalizeExpression(str, evalops.parse_options), 0, evalops, parsed_mstruct, NULL);
+	} else if(rpn_mode) {
+		stack_size = CALCULATOR->RPNStackSize();
+		if(do_mathoperation) {
+			if(f) CALCULATOR->calculateRPN(f, 0, evalops, parsed_mstruct);
+			else CALCULATOR->calculateRPN(op, 0, evalops, parsed_mstruct);
+		} else {
+			string str2 = CALCULATOR->unlocalizeExpression(str, evalops.parse_options);
+			CALCULATOR->parseSigns(str2);
+			remove_blank_ends(str2);
+			if(str2.length() == 1) {
+				do_mathoperation = true;
+				switch(str2[0]) {
+					case '^': {CALCULATOR->calculateRPN(OPERATION_RAISE, 0, evalops, parsed_mstruct); break;}
+					case '+': {CALCULATOR->calculateRPN(OPERATION_ADD, 0, evalops, parsed_mstruct); break;}
+					case '-': {CALCULATOR->calculateRPN(OPERATION_SUBTRACT, 0, evalops, parsed_mstruct); break;}
+					case '*': {CALCULATOR->calculateRPN(OPERATION_MULTIPLY, 0, evalops, parsed_mstruct); break;}
+					case '/': {CALCULATOR->calculateRPN(OPERATION_DIVIDE, 0, evalops, parsed_mstruct); break;}
+					case '&': {CALCULATOR->calculateRPN(OPERATION_BITWISE_AND, 0, evalops, parsed_mstruct); break;}
+					case '|': {CALCULATOR->calculateRPN(OPERATION_BITWISE_OR, 0, evalops, parsed_mstruct); break;}
+					case '~': {CALCULATOR->calculateRPNBitwiseNot(0, evalops, parsed_mstruct); break;}
+					case '!': {CALCULATOR->calculateRPN(CALCULATOR->getFunctionById(FUNCTION_ID_FACTORIAL), 0, evalops, parsed_mstruct); break;}
+					case '>': {CALCULATOR->calculateRPN(OPERATION_GREATER, 0, evalops, parsed_mstruct); break;}
+					case '<': {CALCULATOR->calculateRPN(OPERATION_LESS, 0, evalops, parsed_mstruct); break;}
+					case '=': {CALCULATOR->calculateRPN(OPERATION_EQUALS, 0, evalops, parsed_mstruct); break;}
+					case '\\': {
+						MathFunction *fdiv = CALCULATOR->getActiveFunction("div");
+						if(fdiv) {
+							CALCULATOR->calculateRPN(fdiv, 0, evalops, parsed_mstruct);
+							break;
+						}
+					}
+					default: {do_mathoperation = false;}
+				}
+			} else if(str2.length() == 2) {
+				if(str2 == "**") {
+					CALCULATOR->calculateRPN(OPERATION_RAISE, 0, evalops, parsed_mstruct);
+					do_mathoperation = true;
+				} else if(str2 == "!!") {
+					CALCULATOR->calculateRPN(CALCULATOR->getFunctionById(FUNCTION_ID_DOUBLE_FACTORIAL), 0, evalops, parsed_mstruct);
+					do_mathoperation = true;
+				} else if(str2 == "!=" || str == "=!" || str == "<>") {
+					CALCULATOR->calculateRPN(OPERATION_NOT_EQUALS, 0, evalops, parsed_mstruct);
+					do_mathoperation = true;
+				} else if(str2 == "<=" || str == "=<") {
+					CALCULATOR->calculateRPN(OPERATION_EQUALS_LESS, 0, evalops, parsed_mstruct);
+					do_mathoperation = true;
+				} else if(str2 == ">=" || str == "=>") {
+					CALCULATOR->calculateRPN(OPERATION_EQUALS_GREATER, 0, evalops, parsed_mstruct);
+					do_mathoperation = true;
+				} else if(str2 == "==") {
+					CALCULATOR->calculateRPN(OPERATION_EQUALS, 0, evalops, parsed_mstruct);
+					do_mathoperation = true;
+				} else if(str2 == "//") {
+					MathFunction *fdiv = CALCULATOR->getActiveFunction("div");
+					if(fdiv) {
+						CALCULATOR->calculateRPN(fdiv, 0, evalops, parsed_mstruct);
+						do_mathoperation = true;
+					}
+				}
+			} else if(str2.length() == 3) {
+				if(str2 == "⊻") {
+					CALCULATOR->calculateRPN(OPERATION_BITWISE_XOR, 0, evalops, parsed_mstruct);
+					do_mathoperation = true;
+				}
+			}
+			if(!do_mathoperation) {
+				bool had_nonnum = false, test_function = true;
+				int in_par = 0;
+				for(size_t i = 0; i < str2.length(); i++) {
+					if(is_in(NUMBERS, str2[i])) {
+						if(!had_nonnum || in_par) {
+							test_function = false;
+							break;
+						}
+					} else if(str2[i] == '(') {
+						if(in_par || !had_nonnum) {
+							test_function = false;
+							break;
+						}
+						in_par = i;
+					} else if(str2[i] == ')') {
+						if(i != str2.length() - 1) {
+							test_function = false;
+							break;
+						}
+					} else if(str2[i] == ' ') {
+						if(!in_par) {
+							test_function = false;
+							break;
+						}
+					} else if(is_in(NOT_IN_NAMES, str2[i])) {
+						test_function = false;
+						break;
+					} else {
+						if(in_par) {
+							test_function = false;
+							break;
+						}
+						had_nonnum = true;
+					}
+				}
+				f = NULL;
+				if(test_function) {
+					if(in_par) f = CALCULATOR->getActiveFunction(str2.substr(0, in_par));
+					else f = CALCULATOR->getActiveFunction(str2);
+				}
+				if(f && f->minargs() > 0) {
+					do_mathoperation = true;
+					CALCULATOR->calculateRPN(f, 0, evalops, parsed_mstruct);
+				} else {
+					CALCULATOR->RPNStackEnter(str2, 0, evalops, parsed_mstruct, NULL);
+				}
+			}
+		}
+	} else {
+		CALCULATOR->calculate(mstruct, CALCULATOR->unlocalizeExpression(str, evalops.parse_options), 0, evalops, parsed_mstruct, &to_struct);
+	}
 
-  if (i_maxtime != 0) {
+	calculation_wait:
+
+	bool has_printed = false;
+
+	if(i_maxtime != 0) {
 #ifndef CLOCK_MONOTONIC
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    long int i_timeleft = ((long int)t_end.tv_sec - tv.tv_sec) * 1000 +
-                          (t_end.tv_usec - tv.tv_usec) / 1000;
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		long int i_timeleft = ((long int) t_end.tv_sec - tv.tv_sec) * 1000 + (t_end.tv_usec - tv.tv_usec) / 1000;
 #else
     struct timespec tv;
     clock_gettime(CLOCK_MONOTONIC, &tv);
@@ -6900,61 +6474,51 @@ calculation_wait:
 #else
       cols = 80;
 #endif
-      addLineBreaks(base_str, cols, false, 2, base_str.length());
-      replace_quotation_marks(base_str);
-    }
-    PUTS_UNICODE(base_str.c_str());
-    printops.base = save_base;
-    if (goto_input)
-      printf("\n");
-  } else if (do_fraction) {
-    NumberFractionFormat save_format = printops.number_fraction_format;
-    bool save_rfl = printops.restrict_fraction_length;
-    printops.restrict_fraction_length = false;
-    if (((!do_stack || stack_index == 0) && mstruct->isNumber()) ||
-        (do_stack && stack_index != 0 &&
-         CALCULATOR->getRPNRegister(stack_index + 1)->isNumber()))
-      printops.number_fraction_format = FRACTION_COMBINED;
-    else
-      printops.number_fraction_format = FRACTION_FRACTIONAL;
-    setResult(NULL, (!do_stack || stack_index == 0), goto_input,
-              do_stack ? stack_index : 0);
-    printops.restrict_fraction_length = save_rfl;
-    printops.number_fraction_format = save_format;
-  } else if (do_binary_prefixes) {
-    bool save_pre = printops.use_unit_prefixes;
-    bool save_cur = printops.use_prefixes_for_currencies;
-    bool save_allu = printops.use_prefixes_for_all_units;
-    bool save_den = printops.use_denominator_prefix;
-    int save_bin = CALCULATOR->usesBinaryPrefixes();
-    int i = 0;
-    if (!do_stack || stack_index == 0)
-      i = has_information_unit(*mstruct);
-    CALCULATOR->useBinaryPrefixes(i > 0 ? 1 : 2);
-    printops.use_unit_prefixes = true;
-    if (i == 1) {
-      printops.use_denominator_prefix = false;
-    } else if (i > 1) {
-      printops.use_denominator_prefix = true;
-    } else {
-      printops.use_prefixes_for_currencies = true;
-      printops.use_prefixes_for_all_units = true;
-    }
-    setResult(NULL, (!do_stack || stack_index == 0), goto_input,
-              do_stack ? stack_index : 0);
-    printops.use_unit_prefixes = save_pre;
-    printops.use_prefixes_for_currencies = save_cur;
-    printops.use_prefixes_for_all_units = save_allu;
-    printops.use_denominator_prefix = save_den;
-    CALCULATOR->useBinaryPrefixes(save_bin);
-  } else {
-    setResult(NULL, (!do_stack || stack_index == 0), goto_input,
-              do_stack ? stack_index : 0);
-  }
+			addLineBreaks(base_str, cols, false, 2, base_str.length());
+		}
+		PUTS_UNICODE(base_str.c_str());
+		if(goto_input) printf("\n");
+	} else {
+		if(do_binary_prefixes) {
+			int i = 0;
+			if(!do_stack || stack_index == 0) i = has_information_unit(*mstruct);
+			CALCULATOR->useBinaryPrefixes(i > 0 ? 1 : 2);
+			printops.use_unit_prefixes = true;
+			if(i == 1) {
+				printops.use_denominator_prefix = false;
+			} else if(i > 1) {
+				printops.use_denominator_prefix = true;
+			} else {
+				printops.use_prefixes_for_currencies = true;
+				printops.use_prefixes_for_all_units = true;
+			}
+		}
+		setResult(NULL, (!do_stack || stack_index == 0), goto_input, do_stack ? stack_index : 0);
+	}
+	
+	evalops.auto_post_conversion = save_auto_post_conversion;
+	evalops.mixed_units_conversion = save_mixed_units_conversion;
+	evalops.parse_options.units_enabled = b_units_saved;
+	if(custom_base_set) CALCULATOR->setCustomOutputBase(save_cbase);
+	evalops.complex_number_form = save_complex_number_form;
+	complex_angle_form = caf_bak;
+	printops.custom_time_zone = 0;
+	printops.time_zone = TIME_ZONE_LOCAL;
+	printops.binary_bits = 0;
+	printops.base = save_base;
+	printops.use_unit_prefixes = save_pre;
+	printops.use_prefixes_for_currencies = save_cur;
+	printops.use_prefixes_for_all_units = save_allu;
+	printops.use_all_prefixes = save_all;
+	printops.use_denominator_prefix = save_den;
+	printops.restrict_fraction_length = save_rfl;
+	printops.number_fraction_format = save_format;
+	CALCULATOR->useBinaryPrefixes(save_bin);
+
 }
 
 /*
-        save mode to file
+	save mode to file
 */
 bool save_mode() { return save_preferences(true); }
 
@@ -6982,85 +6546,95 @@ void set_saved_mode() {
 
 void load_preferences() {
 
-  printops.is_approximate = new bool(false);
-  printops.prefix = NULL;
-  printops.use_min_decimals = false;
-  printops.use_denominator_prefix = true;
-  printops.min_decimals = 0;
-  printops.use_max_decimals = false;
-  printops.max_decimals = 2;
-  printops.base = 10;
-  printops.min_exp = EXP_PRECISION;
-  printops.negative_exponents = false;
-  printops.sort_options.minus_last = true;
-  printops.indicate_infinite_series = false;
-  printops.show_ending_zeroes = true;
-  printops.digit_grouping = DIGIT_GROUPING_NONE;
-  printops.round_halfway_to_even = false;
-  printops.number_fraction_format = FRACTION_DECIMAL;
-  printops.restrict_fraction_length = false;
-  printops.abbreviate_names = true;
-  printops.use_unicode_signs = false;
-  printops.use_unit_prefixes = true;
-  printops.spacious = true;
-  printops.short_multiplication = true;
-  printops.limit_implicit_multiplication = false;
-  printops.place_units_separately = true;
-  printops.use_all_prefixes = false;
-  printops.excessive_parenthesis = false;
-  printops.allow_non_usable = false;
-  printops.lower_case_numbers = false;
-  printops.lower_case_e = false;
-  printops.base_display = BASE_DISPLAY_NORMAL;
-  printops.twos_complement = true;
-  printops.hexadecimal_twos_complement = false;
-  printops.division_sign = DIVISION_SIGN_SLASH;
-  printops.multiplication_sign = MULTIPLICATION_SIGN_ASTERISK;
-  printops.allow_factorization = false;
-  printops.spell_out_logical_operators = true;
-  printops.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
+	printops.is_approximate = new bool(false);
+	printops.prefix = NULL;
+	printops.use_min_decimals = false;
+	printops.use_denominator_prefix = true;
+	printops.min_decimals = 0;
+	printops.use_max_decimals = false;
+	printops.max_decimals = 2;
+	printops.base = 10;
+	printops.min_exp = EXP_PRECISION;
+	printops.negative_exponents = false;
+	printops.sort_options.minus_last = true;
+	printops.indicate_infinite_series = false;
+	printops.show_ending_zeroes = true;
+	printops.digit_grouping = DIGIT_GROUPING_NONE;
+	printops.round_halfway_to_even = false;
+	printops.number_fraction_format = FRACTION_DECIMAL;
+	printops.restrict_fraction_length = false;
+	printops.abbreviate_names = true;
+#ifdef _WIN32
+	printops.use_unicode_signs = false;
+#else
+	printops.use_unicode_signs = true;
+#endif
+	printops.use_unit_prefixes = true;
+	printops.spacious = true;
+	printops.short_multiplication = true;
+	printops.limit_implicit_multiplication = false;
+	printops.place_units_separately = true;
+	printops.use_all_prefixes = false;
+	printops.excessive_parenthesis = false;
+	printops.allow_non_usable = DO_FORMAT;
+	printops.lower_case_numbers = false;
+	printops.lower_case_e = false;
+	printops.base_display = BASE_DISPLAY_NORMAL;
+	printops.twos_complement = true;
+	printops.hexadecimal_twos_complement = false;
+	printops.division_sign = DIVISION_SIGN_SLASH;
+	printops.multiplication_sign = MULTIPLICATION_SIGN_X;
+	printops.allow_factorization = false;
+	printops.spell_out_logical_operators = true;
+	printops.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
 
-  evalops.parse_options.parsing_mode = PARSING_MODE_ADAPTIVE;
-  evalops.approximation = APPROXIMATION_TRY_EXACT;
-  evalops.sync_units = true;
-  evalops.structuring = STRUCTURING_SIMPLIFY;
-  evalops.parse_options.unknowns_enabled = false;
-  evalops.parse_options.read_precision = DONT_READ_PRECISION;
-  evalops.parse_options.base = BASE_DECIMAL;
-  evalops.allow_complex = true;
-  evalops.allow_infinite = true;
-  evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL;
-  evalops.assume_denominators_nonzero = true;
-  evalops.warn_about_denominators_assumed_nonzero = true;
-  evalops.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
-  evalops.parse_options.dot_as_separator = CALCULATOR->default_dot_as_separator;
-  evalops.parse_options.comma_as_separator = false;
-  evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_DEFAULT;
-  evalops.complex_number_form = COMPLEX_NUMBER_FORM_RECTANGULAR;
-  evalops.local_currency_conversion = true;
-  evalops.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
-  b_decimal_comma = -1;
+	evalops.parse_options.parsing_mode = PARSING_MODE_ADAPTIVE;
+	evalops.approximation = APPROXIMATION_TRY_EXACT;
+	evalops.sync_units = true;
+	evalops.structuring = STRUCTURING_SIMPLIFY;
+	evalops.parse_options.unknowns_enabled = false;
+	evalops.parse_options.read_precision = DONT_READ_PRECISION;
+	evalops.parse_options.base = BASE_DECIMAL;
+	evalops.allow_complex = true;
+	evalops.allow_infinite = true;
+	evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL;
+	evalops.assume_denominators_nonzero = true;
+	evalops.warn_about_denominators_assumed_nonzero = true;
+	evalops.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
+	evalops.parse_options.dot_as_separator = CALCULATOR->default_dot_as_separator;
+	evalops.parse_options.comma_as_separator = false;
+	evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_DEFAULT;
+	evalops.complex_number_form = COMPLEX_NUMBER_FORM_RECTANGULAR;
+	evalops.local_currency_conversion = true;
+	evalops.interval_calculation = INTERVAL_CALCULATION_VARIANCE_FORMULA;
+	b_decimal_comma = -1;
 
-  complex_angle_form = false;
+	complex_angle_form = false;
 
-  ignore_locale = false;
+	ignore_locale = false;
 
-  automatic_fraction = false;
+	automatic_fraction = false;
 
-  adaptive_interval_display = true;
+	adaptive_interval_display = true;
 
-  CALCULATOR->useIntervalArithmetic(true);
+	CALCULATOR->useIntervalArithmetic(true);
 
-  CALCULATOR->useBinaryPrefixes(0);
+	CALCULATOR->useBinaryPrefixes(0);
 
-  rpn_mode = false;
+	rpn_mode = false;
 
-  save_mode_on_exit = true;
-  save_defs_on_exit = true;
-  auto_update_exchange_rates = -1;
-  first_time = false;
+	save_mode_on_exit = true;
+	save_defs_on_exit = true;
+	auto_update_exchange_rates = -1;
+	first_time = false;
+	
+#ifdef _WIN32
+	colorize = 0;
+#else
+	colorize = 1;
+#endif
 
-  FILE *file = NULL;
+	FILE *file = NULL;
 #ifdef HAVE_LIBREADLINE
   string historyfile = buildPath(getLocalDir(), "qalc.history");
   string oldhistoryfile;
@@ -7097,296 +6671,280 @@ void load_preferences() {
   }
 #endif
 
-  int version_numbers[] = {3, 9, 0};
 
-  if (file) {
-    char line[10000];
-    string stmp, svalue, svar;
-    size_t i;
-    int v;
-    while (true) {
-      if (fgets(line, 10000, file) == NULL)
-        break;
-      stmp = line;
-      remove_blank_ends(stmp);
-      if ((i = stmp.find_first_of("=")) != string::npos) {
-        svar = stmp.substr(0, i);
-        remove_blank_ends(svar);
-        svalue = stmp.substr(i + 1, stmp.length() - (i + 1));
-        remove_blank_ends(svalue);
-        v = s2i(svalue);
-        if (svar == "version") {
-          parse_qalculate_version(svalue, version_numbers);
-        } else if (svar == "save_mode_on_exit") {
-          save_mode_on_exit = v;
-        } else if (svar == "save_definitions_on_exit") {
-          save_defs_on_exit = v;
-        } else if (svar == "ignore_locale") {
-          ignore_locale = v;
-        } else if (svar == "fetch_exchange_rates_at_startup") {
-          if (auto_update_exchange_rates < 0 && v)
-            auto_update_exchange_rates = 1;
-        } else if (svar == "auto_update_exchange_rates") {
-          auto_update_exchange_rates = v;
-        } else if (svar == "min_deci") {
-          printops.min_decimals = v;
-        } else if (svar == "use_min_deci") {
-          printops.use_min_decimals = v;
-        } else if (svar == "max_deci") {
-          printops.max_decimals = v;
-        } else if (svar == "use_max_deci") {
-          printops.use_max_decimals = v;
-        } else if (svar == "precision") {
-          CALCULATOR->setPrecision(v);
-        } else if (svar == "interval_arithmetic") {
-          if (version_numbers[0] >= 3)
-            CALCULATOR->useIntervalArithmetic(v);
-        } else if (svar == "interval_display") {
-          if (v == 0) {
-            adaptive_interval_display = true;
-            printops.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
-          } else {
-            v--;
-            if (v >= INTERVAL_DISPLAY_SIGNIFICANT_DIGITS &&
-                v <= INTERVAL_DISPLAY_UPPER) {
-              printops.interval_display = (IntervalDisplay)v;
-              adaptive_interval_display = false;
-            }
-          }
-        } else if (svar == "min_exp") {
-          printops.min_exp = v;
-        } else if (svar == "negative_exponents") {
-          printops.negative_exponents = v;
-        } else if (svar == "sort_minus_last") {
-          printops.sort_options.minus_last = v;
-        } else if (svar == "spacious") {
-          printops.spacious = v;
-        } else if (svar == "excessive_parenthesis") {
-          printops.excessive_parenthesis = v;
-        } else if (svar == "short_multiplication") {
-          printops.short_multiplication = v;
-        } else if (svar == "limit_implicit_multiplication") {
-          evalops.parse_options.limit_implicit_multiplication = v;
-          printops.limit_implicit_multiplication = v;
-        } else if (svar == "parsing_mode") {
-          if (v >= PARSING_MODE_ADAPTIVE && v <= PARSING_MODE_CONVENTIONAL) {
-            evalops.parse_options.parsing_mode = (ParsingMode)v;
-          }
-        } else if (svar == "place_units_separately") {
-          printops.place_units_separately = v;
-        } else if (svar == "variable_units_enabled") {
-          CALCULATOR->setVariableUnitsEnabled(v);
-        } else if (svar == "use_prefixes") {
-          printops.use_unit_prefixes = v;
-        } else if (svar == "use_prefixes_for_all_units") {
-          printops.use_prefixes_for_all_units = v;
-        } else if (svar == "use_prefixes_for_currencies") {
-          printops.use_prefixes_for_currencies = v;
-        } else if (svar == "number_fraction_format") {
-          if (v >= FRACTION_DECIMAL && v <= FRACTION_COMBINED) {
-            printops.number_fraction_format = (NumberFractionFormat)v;
-            printops.restrict_fraction_length = (v == FRACTION_FRACTIONAL);
-          } else if (v == FRACTION_COMBINED + 1) {
-            printops.number_fraction_format = FRACTION_FRACTIONAL;
-            printops.restrict_fraction_length = false;
-          }
-        } else if (svar == "automatic_number_fraction_format") {
-          automatic_fraction = v;
-        } else if (svar == "complex_number_form") {
-          if (v == COMPLEX_NUMBER_FORM_CIS + 1) {
-            evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
-            complex_angle_form = true;
-          } else if (v >= COMPLEX_NUMBER_FORM_RECTANGULAR &&
-                     v <= COMPLEX_NUMBER_FORM_CIS) {
-            evalops.complex_number_form = (ComplexNumberForm)v;
-            complex_angle_form = false;
-          }
-        } else if (svar == "number_base") {
-          printops.base = v;
-        } else if (svar == "custom_number_base") {
-          CALCULATOR->beginTemporaryStopMessages();
-          MathStructure m;
-          CALCULATOR->calculate(&m, svalue, 500);
-          CALCULATOR->endTemporaryStopMessages();
-          CALCULATOR->setCustomOutputBase(m.number());
-        } else if (svar == "number_base_expression") {
-          evalops.parse_options.base = v;
-        } else if (svar == "custom_number_base_expression") {
-          CALCULATOR->beginTemporaryStopMessages();
-          MathStructure m;
-          CALCULATOR->calculate(&m, svalue, 500);
-          CALCULATOR->endTemporaryStopMessages();
-          CALCULATOR->setCustomInputBase(m.number());
-        } else if (svar == "read_precision") {
-          if (v >= DONT_READ_PRECISION && v <= READ_PRECISION_WHEN_DECIMALS) {
-            evalops.parse_options.read_precision = (ReadPrecisionMode)v;
-          }
-        } else if (svar == "assume_denominators_nonzero") {
-          if (version_numbers[0] == 0 &&
-              (version_numbers[1] < 9 ||
-               (version_numbers[1] == 9 && version_numbers[2] == 0))) {
-            v = true;
-          }
-          evalops.assume_denominators_nonzero = v;
-        } else if (svar == "warn_about_denominators_assumed_nonzero") {
-          evalops.warn_about_denominators_assumed_nonzero = v;
-        } else if (svar == "structuring") {
-          if (v >= STRUCTURING_NONE && v <= STRUCTURING_FACTORIZE) {
-            evalops.structuring = (StructuringMode)v;
-            printops.allow_factorization =
-                (evalops.structuring == STRUCTURING_FACTORIZE);
-          }
-        } else if (svar == "angle_unit") {
-          if (version_numbers[0] == 0 &&
-              (version_numbers[1] < 7 ||
-               (version_numbers[1] == 7 && version_numbers[2] == 0))) {
-            v++;
-          }
-          if (v >= ANGLE_UNIT_NONE && v <= ANGLE_UNIT_GRADIANS) {
-            evalops.parse_options.angle_unit = (AngleUnit)v;
-          }
-        } else if (svar == "caret_as_xor") {
-          caret_as_xor = v;
-        } else if (svar == "functions_enabled") {
-          evalops.parse_options.functions_enabled = v;
-        } else if (svar == "variables_enabled") {
-          evalops.parse_options.variables_enabled = v;
-        } else if (svar == "calculate_variables") {
-          evalops.calculate_variables = v;
-        } else if (svar == "calculate_functions") {
-          evalops.calculate_functions = v;
-        } else if (svar == "sync_units") {
-          evalops.sync_units = v;
-        } else if (svar == "unknownvariables_enabled") {
-          evalops.parse_options.unknowns_enabled = v;
-        } else if (svar == "units_enabled") {
-          evalops.parse_options.units_enabled = v;
-        } else if (svar == "allow_complex") {
-          evalops.allow_complex = v;
-        } else if (svar == "allow_infinite") {
-          evalops.allow_infinite = v;
-        } else if (svar == "use_short_units") {
-          printops.abbreviate_names = v;
-        } else if (svar == "abbreviate_names") {
-          printops.abbreviate_names = v;
-        } else if (svar == "all_prefixes_enabled") {
-          printops.use_all_prefixes = v;
-        } else if (svar == "denominator_prefix_enabled") {
-          printops.use_denominator_prefix = v;
-        } else if (svar == "use_binary_prefixes") {
-          CALCULATOR->useBinaryPrefixes(v);
-        } else if (svar == "auto_post_conversion") {
-          if (v >= POST_CONVERSION_NONE && v <= POST_CONVERSION_OPTIMAL) {
-            evalops.auto_post_conversion = (AutoPostConversion)v;
-          }
-          if (v == POST_CONVERSION_NONE && version_numbers[0] == 0 &&
-              (version_numbers[1] < 9 ||
-               (version_numbers[1] == 9 && version_numbers[2] <= 12))) {
-            evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL;
-          }
-        } else if (svar == "mixed_units_conversion") {
-          if (v >= MIXED_UNITS_CONVERSION_NONE &&
-              v <= MIXED_UNITS_CONVERSION_FORCE_ALL) {
-            evalops.mixed_units_conversion = (MixedUnitsConversion)v;
-          }
-        } else if (svar == "local_currency_conversion") {
-          evalops.local_currency_conversion = v;
-        } else if (svar == "use_unicode_signs") {
-          printops.use_unicode_signs = v;
-        } else if (svar == "lower_case_numbers") {
-          printops.lower_case_numbers = v;
-        } else if (svar == "lower_case_e") {
-          printops.lower_case_e = v;
-        } else if (svar == "imaginary_j") {
-          do_imaginary_j = v;
-        } else if (svar == "base_display") {
-          if (v >= BASE_DISPLAY_NONE && v <= BASE_DISPLAY_ALTERNATIVE)
-            printops.base_display = (BaseDisplay)v;
-        } else if (svar == "twos_complement") {
-          printops.twos_complement = v;
-        } else if (svar == "hexadecimal_twos_complement") {
-          printops.hexadecimal_twos_complement = v;
-        } else if (svar == "spell_out_logical_operators") {
-          printops.spell_out_logical_operators = v;
-        } else if (svar == "decimal_comma") {
-          b_decimal_comma = v;
-          if (v == 0)
-            CALCULATOR->useDecimalPoint(
-                evalops.parse_options.comma_as_separator);
-          else if (v > 0)
-            CALCULATOR->useDecimalComma();
-        } else if (svar == "dot_as_separator") {
-          evalops.parse_options.dot_as_separator = v;
-        } else if (svar == "comma_as_separator") {
-          evalops.parse_options.comma_as_separator = v;
-          if (CALCULATOR->getDecimalPoint() != COMMA) {
-            CALCULATOR->useDecimalPoint(
-                evalops.parse_options.comma_as_separator);
-          }
-        } else if (svar == "multiplication_sign") {
-          if (v >= MULTIPLICATION_SIGN_ASTERISK && v <= MULTIPLICATION_SIGN_X)
-            printops.multiplication_sign = (MultiplicationSign)v;
-        } else if (svar == "division_sign") {
-          if (v >= DIVISION_SIGN_SLASH && v <= DIVISION_SIGN_DIVISION)
-            printops.division_sign = (DivisionSign)v;
-        } else if (svar == "indicate_infinite_series") {
-          printops.indicate_infinite_series = v;
-        } else if (svar == "show_ending_zeroes") {
-          if (version_numbers[0] > 2 ||
-              (version_numbers[0] == 2 && version_numbers[1] >= 9))
-            printops.show_ending_zeroes = v;
-        } else if (svar == "digit_grouping") {
-          if (v >= DIGIT_GROUPING_NONE && v <= DIGIT_GROUPING_LOCALE) {
-            printops.digit_grouping = (DigitGrouping)v;
-          }
-        } else if (svar == "round_halfway_to_even") {
-          printops.round_halfway_to_even = v;
-        } else if (svar == "approximation") {
-          if (v >= APPROXIMATION_EXACT && v <= APPROXIMATION_APPROXIMATE) {
-            evalops.approximation = (ApproximationMode)v;
-          }
-        } else if (svar == "interval_calculation") {
-          if (v >= INTERVAL_CALCULATION_NONE &&
-              v <= INTERVAL_CALCULATION_SIMPLE_INTERVAL_ARITHMETIC) {
-            evalops.interval_calculation = (IntervalCalculation)v;
-          }
-        } else if (svar == "in_rpn_mode") {
-          rpn_mode = v;
-        } else if (svar == "rpn_syntax") {
-          evalops.parse_options.rpn = v;
-        } else if (svar == "default_assumption_type") {
-          if (v >= ASSUMPTION_TYPE_NONE && v <= ASSUMPTION_TYPE_INTEGER) {
-            if (v < ASSUMPTION_TYPE_NUMBER && version_numbers[0] < 1)
-              v = ASSUMPTION_TYPE_NUMBER;
-            if (v == ASSUMPTION_TYPE_COMPLEX && version_numbers[0] < 2)
-              v = ASSUMPTION_TYPE_NUMBER;
-            CALCULATOR->defaultAssumptions()->setType((AssumptionType)v);
-          }
-        } else if (svar == "default_assumption_sign") {
-          if (v >= ASSUMPTION_SIGN_UNKNOWN && v <= ASSUMPTION_SIGN_NONZERO) {
-            if (v == ASSUMPTION_SIGN_NONZERO && version_numbers[0] == 0 &&
-                (version_numbers[1] < 9 ||
-                 (version_numbers[1] == 9 && version_numbers[2] == 0))) {
-              v = ASSUMPTION_SIGN_UNKNOWN;
-            }
-            CALCULATOR->defaultAssumptions()->setSign((AssumptionSign)v);
-          }
-        }
-      }
-    }
-    fclose(file);
-    if (!oldfilename.empty()) {
-      move_file(oldfilename.c_str(), filename.c_str());
-    }
-    update_message_print_options();
-  } else {
-    first_time = true;
-    save_preferences(true);
-    update_message_print_options();
-    return;
-  }
-  // remember start mode for when we save preferences
-  set_saved_mode();
+	int version_numbers[] = {3, 12, 1};
+
+	if(file) {
+		char line[10000];
+		string stmp, svalue, svar;
+		size_t i;
+		int v;
+		while(true) {
+			if(fgets(line, 10000, file) == NULL) break;
+			stmp = line;
+			remove_blank_ends(stmp);
+			if((i = stmp.find_first_of("=")) != string::npos) {
+				svar = stmp.substr(0, i);
+				remove_blank_ends(svar);
+				svalue = stmp.substr(i + 1, stmp.length() - (i + 1));
+				remove_blank_ends(svalue);
+				v = s2i(svalue);
+				if(svar == "version") {
+					parse_qalculate_version(svalue, version_numbers);
+				} else if(svar == "save_mode_on_exit") {
+					save_mode_on_exit = v;
+				} else if(svar == "save_definitions_on_exit") {
+					save_defs_on_exit = v;
+				} else if(svar == "ignore_locale") {
+					ignore_locale = v;
+				} else if(svar == "colorize") {
+					colorize = v;
+				} else if(svar == "fetch_exchange_rates_at_startup") {
+					if(auto_update_exchange_rates < 0 && v) auto_update_exchange_rates = 1;
+				} else if(svar == "auto_update_exchange_rates") {
+					auto_update_exchange_rates = v;
+				} else if(svar == "min_deci") {
+					printops.min_decimals = v;
+				} else if(svar == "use_min_deci") {
+					printops.use_min_decimals = v;
+				} else if(svar == "max_deci") {
+					printops.max_decimals = v;
+				} else if(svar == "use_max_deci") {
+					printops.use_max_decimals = v;
+				} else if(svar == "precision") {
+					CALCULATOR->setPrecision(v);
+				} else if(svar == "interval_arithmetic") {
+					if(version_numbers[0] >= 3) CALCULATOR->useIntervalArithmetic(v);
+				} else if(svar == "interval_display") {
+					if(v == 0) {
+						adaptive_interval_display = true;
+						printops.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
+					} else {
+						v--;
+						if(v >= INTERVAL_DISPLAY_SIGNIFICANT_DIGITS && v <= INTERVAL_DISPLAY_UPPER) {
+							printops.interval_display = (IntervalDisplay) v;
+							adaptive_interval_display = false;
+						}
+					}
+				} else if(svar == "min_exp") {
+					printops.min_exp = v;
+				} else if(svar == "negative_exponents") {
+					printops.negative_exponents = v;
+				} else if(svar == "sort_minus_last") {
+					printops.sort_options.minus_last = v;
+				} else if(svar == "spacious") {
+					printops.spacious = v;
+				} else if(svar == "excessive_parenthesis") {
+					printops.excessive_parenthesis = v;
+				} else if(svar == "short_multiplication") {
+					printops.short_multiplication = v;
+				} else if(svar == "limit_implicit_multiplication") {
+					evalops.parse_options.limit_implicit_multiplication = v;
+					printops.limit_implicit_multiplication = v;
+				} else if(svar == "parsing_mode") {
+					if(v >= PARSING_MODE_ADAPTIVE && v <= PARSING_MODE_CONVENTIONAL) {
+						evalops.parse_options.parsing_mode = (ParsingMode) v;
+					}
+				} else if(svar == "place_units_separately") {
+					printops.place_units_separately = v;
+				} else if(svar == "variable_units_enabled") {
+					CALCULATOR->setVariableUnitsEnabled(v);
+				} else if(svar == "use_prefixes") {
+					printops.use_unit_prefixes = v;
+				} else if(svar == "use_prefixes_for_all_units") {
+					printops.use_prefixes_for_all_units = v;
+				} else if(svar == "use_prefixes_for_currencies") {
+					printops.use_prefixes_for_currencies = v;
+				} else if(svar == "number_fraction_format") {
+					if(v >= FRACTION_DECIMAL && v <= FRACTION_COMBINED) {
+						printops.number_fraction_format = (NumberFractionFormat) v;
+						printops.restrict_fraction_length = (v >= FRACTION_FRACTIONAL);
+					} else if(v == FRACTION_COMBINED + 1) {
+						printops.number_fraction_format = FRACTION_FRACTIONAL;
+						printops.restrict_fraction_length = false;
+					}
+				} else if(svar == "automatic_number_fraction_format") {
+					automatic_fraction = v;
+				} else if(svar == "complex_number_form") {
+					if(v == COMPLEX_NUMBER_FORM_CIS + 1) {
+						evalops.complex_number_form = COMPLEX_NUMBER_FORM_CIS;
+						complex_angle_form = true;
+					} else if(v >= COMPLEX_NUMBER_FORM_RECTANGULAR && v <= COMPLEX_NUMBER_FORM_CIS) {
+						evalops.complex_number_form = (ComplexNumberForm) v;
+						complex_angle_form = false;
+					}
+				} else if(svar == "number_base") {
+					printops.base = v;
+				} else if(svar == "custom_number_base") {
+					CALCULATOR->beginTemporaryStopMessages();
+					MathStructure m;
+					CALCULATOR->calculate(&m, svalue, 500);
+					CALCULATOR->endTemporaryStopMessages();
+					CALCULATOR->setCustomOutputBase(m.number());
+				} else if(svar == "number_base_expression") {
+					evalops.parse_options.base = v;
+				} else if(svar == "custom_number_base_expression") {
+					CALCULATOR->beginTemporaryStopMessages();
+					MathStructure m;
+					CALCULATOR->calculate(&m, svalue, 500);
+					CALCULATOR->endTemporaryStopMessages();
+					CALCULATOR->setCustomInputBase(m.number());
+				} else if(svar == "read_precision") {
+					if(v >= DONT_READ_PRECISION && v <= READ_PRECISION_WHEN_DECIMALS) {
+						evalops.parse_options.read_precision = (ReadPrecisionMode) v;
+					}
+				} else if(svar == "assume_denominators_nonzero") {
+					if(version_numbers[0] == 0 && (version_numbers[1] < 9 || (version_numbers[1] == 9 && version_numbers[2] == 0))) {
+						v = true;
+					}
+					evalops.assume_denominators_nonzero = v;
+				} else if(svar == "warn_about_denominators_assumed_nonzero") {
+					evalops.warn_about_denominators_assumed_nonzero = v;
+				} else if(svar == "structuring") {
+					if(v >= STRUCTURING_NONE && v <= STRUCTURING_FACTORIZE) {
+						evalops.structuring = (StructuringMode) v;
+						printops.allow_factorization = (evalops.structuring == STRUCTURING_FACTORIZE);
+					}
+				} else if(svar == "angle_unit") {
+					if(version_numbers[0] == 0 && (version_numbers[1] < 7 || (version_numbers[1] == 7 && version_numbers[2] == 0))) {
+						v++;
+					}
+					if(v >= ANGLE_UNIT_NONE && v <= ANGLE_UNIT_GRADIANS) {
+						evalops.parse_options.angle_unit = (AngleUnit) v;
+					}
+				} else if(svar == "caret_as_xor") {
+					caret_as_xor = v;
+				} else if(svar == "functions_enabled") {
+					evalops.parse_options.functions_enabled = v;
+				} else if(svar == "variables_enabled") {
+					evalops.parse_options.variables_enabled = v;
+				} else if(svar == "calculate_variables") {
+					evalops.calculate_variables = v;
+				} else if(svar == "calculate_functions") {
+					evalops.calculate_functions = v;
+				} else if(svar == "sync_units") {
+					evalops.sync_units = v;
+				} else if(svar == "unknownvariables_enabled") {
+					evalops.parse_options.unknowns_enabled = v;
+				} else if(svar == "units_enabled") {
+					evalops.parse_options.units_enabled = v;
+				} else if(svar == "allow_complex") {
+					evalops.allow_complex = v;
+				} else if(svar == "allow_infinite") {
+					evalops.allow_infinite = v;
+				} else if(svar == "use_short_units") {
+					printops.abbreviate_names = v;
+				} else if(svar == "abbreviate_names") {
+					printops.abbreviate_names = v;
+				} else if(svar == "all_prefixes_enabled") {
+				 	printops.use_all_prefixes = v;
+				} else if(svar == "denominator_prefix_enabled") {
+					printops.use_denominator_prefix = v;
+				} else if(svar == "use_binary_prefixes") {
+					CALCULATOR->useBinaryPrefixes(v);
+				} else if(svar == "auto_post_conversion") {
+					if(v >= POST_CONVERSION_NONE && v <= POST_CONVERSION_OPTIMAL) {
+						evalops.auto_post_conversion = (AutoPostConversion) v;
+					}
+					if(v == POST_CONVERSION_NONE && version_numbers[0] == 0 && (version_numbers[1] < 9 || (version_numbers[1] == 9 && version_numbers[2] <= 12))) {
+						evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL;
+					}
+				} else if(svar == "mixed_units_conversion") {
+					if(v >= MIXED_UNITS_CONVERSION_NONE && v <= MIXED_UNITS_CONVERSION_FORCE_ALL) {
+						evalops.mixed_units_conversion = (MixedUnitsConversion) v;
+					}
+				} else if(svar == "local_currency_conversion") {
+					evalops.local_currency_conversion = v;
+				} else if(svar == "use_unicode_signs") {
+#ifdef _WIN32
+					printops.use_unicode_signs = v;
+#else
+					if(version_numbers[0] > 3 || (version_numbers[0] == 3 && version_numbers[1] > 10)) {
+						printops.use_unicode_signs = v;
+					}
+#endif
+				} else if(svar == "lower_case_numbers") {
+					printops.lower_case_numbers = v;
+				} else if(svar == "lower_case_e") {
+					printops.lower_case_e = v;
+				} else if(svar == "imaginary_j") {
+					do_imaginary_j = v;
+				} else if(svar == "base_display") {
+					if(v >= BASE_DISPLAY_NONE && v <= BASE_DISPLAY_ALTERNATIVE) printops.base_display = (BaseDisplay) v;
+				} else if(svar == "twos_complement") {
+					printops.twos_complement = v;
+				} else if(svar == "hexadecimal_twos_complement") {
+					printops.hexadecimal_twos_complement = v;
+				} else if(svar == "spell_out_logical_operators") {
+						printops.spell_out_logical_operators = v;
+				} else if(svar == "decimal_comma") {
+					b_decimal_comma = v;
+					if(v == 0) CALCULATOR->useDecimalPoint(evalops.parse_options.comma_as_separator);
+					else if(v > 0) CALCULATOR->useDecimalComma();
+				} else if(svar == "dot_as_separator") {
+					evalops.parse_options.dot_as_separator = v;
+				} else if(svar == "comma_as_separator") {
+					evalops.parse_options.comma_as_separator = v;
+					if(CALCULATOR->getDecimalPoint() != COMMA) {
+						CALCULATOR->useDecimalPoint(evalops.parse_options.comma_as_separator);
+					}
+				} else if(svar == "multiplication_sign") {
+					if(version_numbers[0] > 3 || (version_numbers[0] == 3 && version_numbers[1] > 10)) {
+						if(v >= MULTIPLICATION_SIGN_ASTERISK && v <= MULTIPLICATION_SIGN_ALTDOT) printops.multiplication_sign = (MultiplicationSign) v;
+					}
+				} else if(svar == "division_sign") {
+					if(v >= DIVISION_SIGN_SLASH && v <= DIVISION_SIGN_DIVISION) printops.division_sign = (DivisionSign) v;
+				} else if(svar == "indicate_infinite_series") {
+					printops.indicate_infinite_series = v;
+				} else if(svar == "show_ending_zeroes") {
+					if(version_numbers[0] > 2 || (version_numbers[0] == 2 && version_numbers[1] >= 9)) printops.show_ending_zeroes = v;
+				} else if(svar == "digit_grouping") {
+					if(v >= DIGIT_GROUPING_NONE && v <= DIGIT_GROUPING_LOCALE) {
+						printops.digit_grouping = (DigitGrouping) v;
+					}
+				} else if(svar == "round_halfway_to_even") {
+					printops.round_halfway_to_even = v;
+				} else if(svar == "approximation") {
+					if(v >= APPROXIMATION_EXACT && v <= APPROXIMATION_APPROXIMATE) {
+						evalops.approximation = (ApproximationMode) v;
+					}
+				} else if(svar == "interval_calculation") {
+					if(v >= INTERVAL_CALCULATION_NONE && v <= INTERVAL_CALCULATION_SIMPLE_INTERVAL_ARITHMETIC) {
+						evalops.interval_calculation = (IntervalCalculation) v;
+					}
+				} else if(svar == "in_rpn_mode") {
+					rpn_mode = v;
+				} else if(svar == "rpn_syntax") {
+					evalops.parse_options.rpn = v;
+				} else if(svar == "default_assumption_type") {
+					if(v >= ASSUMPTION_TYPE_NONE && v <= ASSUMPTION_TYPE_INTEGER) {
+						if(v < ASSUMPTION_TYPE_NUMBER && version_numbers[0] < 1) v = ASSUMPTION_TYPE_NUMBER;
+						if(v == ASSUMPTION_TYPE_COMPLEX && version_numbers[0] < 2) v = ASSUMPTION_TYPE_NUMBER;
+						CALCULATOR->defaultAssumptions()->setType((AssumptionType) v);
+					}
+				} else if(svar == "default_assumption_sign") {
+					if(v >= ASSUMPTION_SIGN_UNKNOWN && v <= ASSUMPTION_SIGN_NONZERO) {
+						if(v == ASSUMPTION_SIGN_NONZERO && version_numbers[0] == 0 && (version_numbers[1] < 9 || (version_numbers[1] == 9 && version_numbers[2] == 0))) {
+							v = ASSUMPTION_SIGN_UNKNOWN;
+						}
+						CALCULATOR->defaultAssumptions()->setSign((AssumptionSign) v);
+					}
+				}
+			}
+		}
+		fclose(file);
+		if(!oldfilename.empty()) {
+			move_file(oldfilename.c_str(), filename.c_str());
+		}
+		update_message_print_options();
+	} else {
+		first_time = true;
+		save_preferences(true);
+		update_message_print_options();
+		return;
+	}
+	//remember start mode for when we save preferences
+	set_saved_mode();
 }
 
 /*
@@ -7399,151 +6957,109 @@ bool save_preferences(bool mode) {
 #ifdef HAVE_LIBREADLINE
   write_history(buildPath(getLocalDir(), "qalc.history").c_str());
 #endif
-  string filename = buildPath(getLocalDir(), "qalc.cfg");
-  file = fopen(filename.c_str(), "w+");
-  if (file == NULL) {
-    fprintf(stderr, _("Couldn't write preferences to\n%s"), filename.c_str());
-    return false;
-  }
-  fprintf(file, "\n[General]\n");
-  fprintf(file, "version=%s\n", VERSION);
-  fprintf(file, "save_mode_on_exit=%i\n", save_mode_on_exit);
-  fprintf(file, "save_definitions_on_exit=%i\n", save_defs_on_exit);
-  fprintf(file, "ignore_locale=%i\n", ignore_locale);
-  fprintf(file, "auto_update_exchange_rates=%i\n", auto_update_exchange_rates);
-  fprintf(file, "spacious=%i\n", printops.spacious);
-  fprintf(file, "excessive_parenthesis=%i\n", printops.excessive_parenthesis);
-  fprintf(file, "short_multiplication=%i\n", printops.short_multiplication);
-  fprintf(file, "use_unicode_signs=%i\n", printops.use_unicode_signs);
-  fprintf(file, "lower_case_numbers=%i\n", printops.lower_case_numbers);
-  fprintf(file, "lower_case_e=%i\n", printops.lower_case_e);
-  fprintf(file, "imaginary_j=%i\n",
-          CALCULATOR->getVariableById(VARIABLE_ID_I)->hasName("j") > 0);
-  fprintf(file, "base_display=%i\n", printops.base_display);
-  fprintf(file, "twos_complement=%i\n", printops.twos_complement);
-  fprintf(file, "hexadecimal_twos_complement=%i\n",
-          printops.hexadecimal_twos_complement);
-  fprintf(file, "spell_out_logical_operators=%i\n",
-          printops.spell_out_logical_operators);
-  fprintf(file, "digit_grouping=%i\n", printops.digit_grouping);
-  fprintf(file, "decimal_comma=%i\n", b_decimal_comma);
-  fprintf(file, "dot_as_separator=%i\n",
-          evalops.parse_options.dot_as_separator);
-  fprintf(file, "comma_as_separator=%i\n",
-          evalops.parse_options.comma_as_separator);
-  fprintf(file, "multiplication_sign=%i\n", printops.multiplication_sign);
-  fprintf(file, "division_sign=%i\n", printops.division_sign);
-  if (mode) {
-    if (programmers_mode) {
-      int saved_inbase = saved_evalops.parse_options.base;
-      int saved_outbase = saved_printops.base;
-      bool saved_caret = saved_caret_as_xor;
-      set_saved_mode();
-      saved_evalops.parse_options.base = saved_inbase;
-      saved_printops.base = saved_outbase;
-      saved_caret_as_xor = saved_caret;
-    } else {
-      set_saved_mode();
-    }
-  }
-  fprintf(file, "\n[Mode]\n");
-  fprintf(file, "min_deci=%i\n", saved_printops.min_decimals);
-  fprintf(file, "use_min_deci=%i\n", saved_printops.use_min_decimals);
-  fprintf(file, "max_deci=%i\n", saved_printops.max_decimals);
-  fprintf(file, "use_max_deci=%i\n", saved_printops.use_max_decimals);
-  fprintf(file, "precision=%i\n", saved_precision);
-  fprintf(file, "interval_arithmetic=%i\n", saved_interval);
-  if (saved_adaptive_interval_display)
-    fprintf(file, "interval_display=%i\n", 0);
-  else
-    fprintf(file, "interval_display=%i\n", saved_printops.interval_display + 1);
-  fprintf(file, "min_exp=%i\n", saved_printops.min_exp);
-  fprintf(file, "negative_exponents=%i\n", saved_printops.negative_exponents);
-  fprintf(file, "sort_minus_last=%i\n", saved_printops.sort_options.minus_last);
-  fprintf(file, "number_fraction_format=%i\n",
-          !saved_printops.restrict_fraction_length &&
-                  saved_printops.number_fraction_format == FRACTION_FRACTIONAL
-              ? FRACTION_COMBINED + 1
-              : saved_printops.number_fraction_format);
-  if (automatic_fraction)
-    fprintf(file, "automatic_number_fraction_format=%i\n", automatic_fraction);
-  fprintf(file, "complex_number_form=%i\n",
-          (saved_caf &&
-           saved_evalops.complex_number_form == COMPLEX_NUMBER_FORM_CIS)
-              ? saved_evalops.complex_number_form + 1
-              : saved_evalops.complex_number_form);
-  fprintf(file, "use_prefixes=%i\n", saved_printops.use_unit_prefixes);
-  fprintf(file, "use_prefixes_for_all_units=%i\n",
-          saved_printops.use_prefixes_for_all_units);
-  fprintf(file, "use_prefixes_for_currencies=%i\n",
-          saved_printops.use_prefixes_for_currencies);
-  fprintf(file, "use_binary_prefixes=%i\n", saved_binary_prefixes);
-  fprintf(file, "abbreviate_names=%i\n", saved_printops.abbreviate_names);
-  fprintf(file, "all_prefixes_enabled=%i\n", saved_printops.use_all_prefixes);
-  fprintf(file, "denominator_prefix_enabled=%i\n",
-          saved_printops.use_denominator_prefix);
-  fprintf(file, "place_units_separately=%i\n",
-          saved_printops.place_units_separately);
-  fprintf(file, "auto_post_conversion=%i\n",
-          saved_evalops.auto_post_conversion);
-  fprintf(file, "mixed_units_conversion=%i\n",
-          saved_evalops.mixed_units_conversion);
-  fprintf(file, "local_currency_conversion=%i\n",
-          saved_evalops.local_currency_conversion);
-  fprintf(file, "number_base=%i\n", saved_printops.base);
-  if (saved_printops.base == BASE_CUSTOM)
-    fprintf(
-        file, "custom_number_base=%s\n",
-        saved_custom_output_base.print(CALCULATOR->save_printoptions).c_str());
-  fprintf(file, "number_base_expression=%i\n",
-          saved_evalops.parse_options.base);
-  if (saved_evalops.parse_options.base == BASE_CUSTOM)
-    fprintf(
-        file, "custom_number_base_expression=%s\n",
-        saved_custom_input_base.print(CALCULATOR->save_printoptions).c_str());
-  fprintf(file, "read_precision=%i\n",
-          saved_evalops.parse_options.read_precision);
-  fprintf(file, "assume_denominators_nonzero=%i\n",
-          saved_evalops.assume_denominators_nonzero);
-  fprintf(file, "warn_about_denominators_assumed_nonzero=%i\n",
-          saved_evalops.warn_about_denominators_assumed_nonzero);
-  fprintf(file, "structuring=%i\n", saved_evalops.structuring);
-  fprintf(file, "angle_unit=%i\n", saved_evalops.parse_options.angle_unit);
-  fprintf(file, "caret_as_xor=%i\n", saved_caret_as_xor);
-  fprintf(file, "functions_enabled=%i\n",
-          saved_evalops.parse_options.functions_enabled);
-  fprintf(file, "variables_enabled=%i\n",
-          saved_evalops.parse_options.variables_enabled);
-  fprintf(file, "calculate_variables=%i\n", saved_evalops.calculate_variables);
-  fprintf(file, "calculate_functions=%i\n", saved_evalops.calculate_functions);
-  fprintf(file, "variable_units_enabled=%i\n", saved_variable_units_enabled);
-  fprintf(file, "sync_units=%i\n", saved_evalops.sync_units);
-  fprintf(file, "unknownvariables_enabled=%i\n",
-          saved_evalops.parse_options.unknowns_enabled);
-  fprintf(file, "units_enabled=%i\n",
-          saved_evalops.parse_options.units_enabled);
-  fprintf(file, "allow_complex=%i\n", saved_evalops.allow_complex);
-  fprintf(file, "allow_infinite=%i\n", saved_evalops.allow_infinite);
-  fprintf(file, "indicate_infinite_series=%i\n",
-          saved_printops.indicate_infinite_series);
-  fprintf(file, "show_ending_zeroes=%i\n", saved_printops.show_ending_zeroes);
-  fprintf(file, "round_halfway_to_even=%i\n",
-          saved_printops.round_halfway_to_even);
-  fprintf(file, "approximation=%i\n", saved_evalops.approximation);
-  fprintf(file, "interval_calculation=%i\n",
-          saved_evalops.interval_calculation);
-  fprintf(file, "in_rpn_mode=%i\n", saved_rpn_mode);
-  fprintf(file, "rpn_syntax=%i\n", saved_evalops.parse_options.rpn);
-  fprintf(file, "limit_implicit_multiplication=%i\n",
-          saved_evalops.parse_options.limit_implicit_multiplication);
-  fprintf(file, "parsing_mode=%i\n", saved_evalops.parse_options.parsing_mode);
-  fprintf(file, "default_assumption_type=%i\n",
-          CALCULATOR->defaultAssumptions()->type());
-  fprintf(file, "default_assumption_sign=%i\n",
-          CALCULATOR->defaultAssumptions()->sign());
+	string filename = buildPath(getLocalDir(), "qalc.cfg");
+	file = fopen(filename.c_str(), "w+");
+	if(file == NULL) {
+		fprintf(stderr, _("Couldn't write preferences to\n%s"), filename.c_str());
+		return false;
+	}
+	fprintf(file, "\n[General]\n");
+	fprintf(file, "version=%s\n", VERSION);
+	fprintf(file, "save_mode_on_exit=%i\n", save_mode_on_exit);
+	fprintf(file, "save_definitions_on_exit=%i\n", save_defs_on_exit);
+	fprintf(file, "ignore_locale=%i\n", ignore_locale);
+	fprintf(file, "colorize=%i\n", colorize);
+	fprintf(file, "auto_update_exchange_rates=%i\n", auto_update_exchange_rates);
+	fprintf(file, "spacious=%i\n", printops.spacious);
+	fprintf(file, "excessive_parenthesis=%i\n", printops.excessive_parenthesis);
+	fprintf(file, "short_multiplication=%i\n", printops.short_multiplication);
+	fprintf(file, "use_unicode_signs=%i\n", printops.use_unicode_signs);
+	fprintf(file, "lower_case_numbers=%i\n", printops.lower_case_numbers);
+	fprintf(file, "lower_case_e=%i\n", printops.lower_case_e);
+	fprintf(file, "imaginary_j=%i\n", CALCULATOR->getVariableById(VARIABLE_ID_I)->hasName("j") > 0);
+	fprintf(file, "base_display=%i\n", printops.base_display);
+	fprintf(file, "twos_complement=%i\n", printops.twos_complement);
+	fprintf(file, "hexadecimal_twos_complement=%i\n", printops.hexadecimal_twos_complement);
+	fprintf(file, "spell_out_logical_operators=%i\n", printops.spell_out_logical_operators);
+	fprintf(file, "digit_grouping=%i\n", printops.digit_grouping);
+	fprintf(file, "decimal_comma=%i\n", b_decimal_comma);
+	fprintf(file, "dot_as_separator=%i\n", evalops.parse_options.dot_as_separator);
+	fprintf(file, "comma_as_separator=%i\n", evalops.parse_options.comma_as_separator);
+	fprintf(file, "multiplication_sign=%i\n", printops.multiplication_sign);
+	fprintf(file, "division_sign=%i\n", printops.division_sign);
+	if(mode) {
+		if(programmers_mode) {
+			int saved_inbase = saved_evalops.parse_options.base;
+			int saved_outbase = saved_printops.base;
+			bool saved_caret = saved_caret_as_xor;
+			set_saved_mode();
+			saved_evalops.parse_options.base = saved_inbase;
+			saved_printops.base = saved_outbase;
+			saved_caret_as_xor = saved_caret;
+		} else {
+			set_saved_mode();
+		}
+	}
+	fprintf(file, "\n[Mode]\n");
+	fprintf(file, "min_deci=%i\n", saved_printops.min_decimals);
+	fprintf(file, "use_min_deci=%i\n", saved_printops.use_min_decimals);
+	fprintf(file, "max_deci=%i\n", saved_printops.max_decimals);
+	fprintf(file, "use_max_deci=%i\n", saved_printops.use_max_decimals);
+	fprintf(file, "precision=%i\n", saved_precision);
+	fprintf(file, "interval_arithmetic=%i\n", saved_interval);
+	if(saved_adaptive_interval_display) fprintf(file, "interval_display=%i\n", 0);
+	else fprintf(file, "interval_display=%i\n", saved_printops.interval_display + 1);
+	fprintf(file, "min_exp=%i\n", saved_printops.min_exp);
+	fprintf(file, "negative_exponents=%i\n", saved_printops.negative_exponents);
+	fprintf(file, "sort_minus_last=%i\n", saved_printops.sort_options.minus_last);
+	fprintf(file, "number_fraction_format=%i\n", !saved_printops.restrict_fraction_length && saved_printops.number_fraction_format == FRACTION_FRACTIONAL ? FRACTION_COMBINED + 1 : saved_printops.number_fraction_format);
+	if(automatic_fraction) fprintf(file, "automatic_number_fraction_format=%i\n", automatic_fraction);
+	fprintf(file, "complex_number_form=%i\n", (saved_caf && saved_evalops.complex_number_form == COMPLEX_NUMBER_FORM_CIS) ? saved_evalops.complex_number_form + 1 : saved_evalops.complex_number_form);
+	fprintf(file, "use_prefixes=%i\n", saved_printops.use_unit_prefixes);
+	fprintf(file, "use_prefixes_for_all_units=%i\n", saved_printops.use_prefixes_for_all_units);
+	fprintf(file, "use_prefixes_for_currencies=%i\n", saved_printops.use_prefixes_for_currencies);
+	fprintf(file, "use_binary_prefixes=%i\n", saved_binary_prefixes);
+	fprintf(file, "abbreviate_names=%i\n", saved_printops.abbreviate_names);
+	fprintf(file, "all_prefixes_enabled=%i\n", saved_printops.use_all_prefixes);
+	fprintf(file, "denominator_prefix_enabled=%i\n", saved_printops.use_denominator_prefix);
+	fprintf(file, "place_units_separately=%i\n", saved_printops.place_units_separately);
+	fprintf(file, "auto_post_conversion=%i\n", saved_evalops.auto_post_conversion);
+	fprintf(file, "mixed_units_conversion=%i\n", saved_evalops.mixed_units_conversion);
+	fprintf(file, "local_currency_conversion=%i\n", saved_evalops.local_currency_conversion);
+	fprintf(file, "number_base=%i\n", saved_printops.base);
+	if(saved_printops.base == BASE_CUSTOM) fprintf(file, "custom_number_base=%s\n", saved_custom_output_base.print(CALCULATOR->save_printoptions).c_str());
+	fprintf(file, "number_base_expression=%i\n", saved_evalops.parse_options.base);
+	if(saved_evalops.parse_options.base == BASE_CUSTOM) fprintf(file, "custom_number_base_expression=%s\n", saved_custom_input_base.print(CALCULATOR->save_printoptions).c_str());
+	fprintf(file, "read_precision=%i\n", saved_evalops.parse_options.read_precision);
+	fprintf(file, "assume_denominators_nonzero=%i\n", saved_evalops.assume_denominators_nonzero);
+	fprintf(file, "warn_about_denominators_assumed_nonzero=%i\n", saved_evalops.warn_about_denominators_assumed_nonzero);
+	fprintf(file, "structuring=%i\n", saved_evalops.structuring);
+	fprintf(file, "angle_unit=%i\n", saved_evalops.parse_options.angle_unit);
+	fprintf(file, "caret_as_xor=%i\n", saved_caret_as_xor);
+	fprintf(file, "functions_enabled=%i\n", saved_evalops.parse_options.functions_enabled);
+	fprintf(file, "variables_enabled=%i\n", saved_evalops.parse_options.variables_enabled);
+	fprintf(file, "calculate_variables=%i\n", saved_evalops.calculate_variables);
+	fprintf(file, "calculate_functions=%i\n", saved_evalops.calculate_functions);
+	fprintf(file, "variable_units_enabled=%i\n", saved_variable_units_enabled);
+	fprintf(file, "sync_units=%i\n", saved_evalops.sync_units);
+	fprintf(file, "unknownvariables_enabled=%i\n", saved_evalops.parse_options.unknowns_enabled);
+	fprintf(file, "units_enabled=%i\n", saved_evalops.parse_options.units_enabled);
+	fprintf(file, "allow_complex=%i\n", saved_evalops.allow_complex);
+	fprintf(file, "allow_infinite=%i\n", saved_evalops.allow_infinite);
+	fprintf(file, "indicate_infinite_series=%i\n", saved_printops.indicate_infinite_series);
+	fprintf(file, "show_ending_zeroes=%i\n", saved_printops.show_ending_zeroes);
+	fprintf(file, "round_halfway_to_even=%i\n", saved_printops.round_halfway_to_even);
+	fprintf(file, "approximation=%i\n", saved_evalops.approximation);
+	fprintf(file, "interval_calculation=%i\n", saved_evalops.interval_calculation);
+	fprintf(file, "in_rpn_mode=%i\n", saved_rpn_mode);
+	fprintf(file, "rpn_syntax=%i\n", saved_evalops.parse_options.rpn);
+	fprintf(file, "limit_implicit_multiplication=%i\n", saved_evalops.parse_options.limit_implicit_multiplication);
+	fprintf(file, "parsing_mode=%i\n", saved_evalops.parse_options.parsing_mode);
+	fprintf(file, "default_assumption_type=%i\n", CALCULATOR->defaultAssumptions()->type());
+	fprintf(file, "default_assumption_sign=%i\n", CALCULATOR->defaultAssumptions()->sign());
 
-  fclose(file);
-  return true;
+	fclose(file);
+	return true;
 }
 
 /*

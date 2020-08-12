@@ -236,93 +236,89 @@ Calculator::Calculator() {
   ucm = ucasemap_open(NULL, 0, &err);
 #endif
 
-  srand(time(NULL));
+	srand(time(NULL));
 
-  exchange_rates_time[0] = 0;
-  exchange_rates_time[1] = (time_t)440636L * (time_t)3600;
-  exchange_rates_time[2] = 0;
-  priv->exchange_rates_time2[0] = (time_t)440636L * (time_t)3600;
-  exchange_rates_check_time[0] = 0;
-  exchange_rates_check_time[1] = (time_t)440636L * (time_t)3600;
-  exchange_rates_check_time[2] = 0;
-  priv->exchange_rates_check_time2[0] = (time_t)440636L * (time_t)3600;
-  b_exchange_rates_warning_enabled = true;
-  b_exchange_rates_used = 0;
+	exchange_rates_time[0] = 0;
+	exchange_rates_time[1] = (time_t) 443112L * (time_t) 3600;
+	exchange_rates_time[2] = 0;
+	priv->exchange_rates_time2[0] = (time_t) 443112L * (time_t) 3600;
+	exchange_rates_check_time[0] = 0;
+	exchange_rates_check_time[1] = (time_t) 443112L * (time_t) 3600;
+	exchange_rates_check_time[2] = 0;
+	priv->exchange_rates_check_time2[0] = (time_t) 443112L * (time_t) 3600;
+	b_exchange_rates_warning_enabled = true;
+	b_exchange_rates_used = 0;
 
-  i_aborted = 0;
-  b_controlled = false;
-  i_timeout = 0;
+	i_aborted = 0;
+	b_controlled = false;
+	i_timeout = 0;
 
-  setPrecision(DEFAULT_PRECISION);
-  b_interval = true;
-  i_stop_interval = 0;
-  i_start_interval = 0;
+	setPrecision(DEFAULT_PRECISION);
+	b_interval = true;
+	i_stop_interval = 0;
+	i_start_interval = 0;
 
-  b_var_units = true;
+	b_var_units = true;
 
-  addStringAlternative(SIGN_DIVISION, DIVISION);
-  addStringAlternative(SIGN_DIVISION_SLASH, DIVISION);
-  addStringAlternative("⁄", DIVISION);
-  addStringAlternative(SIGN_MULTIPLICATION, MULTIPLICATION);
-  addStringAlternative(SIGN_MULTIDOT, MULTIPLICATION);
-  addStringAlternative(SIGN_MIDDLEDOT, MULTIPLICATION);
-  addStringAlternative(SIGN_MULTIBULLET, MULTIPLICATION);
-  addStringAlternative(SIGN_SMALLCIRCLE, MULTIPLICATION);
-  addStringAlternative(SIGN_MINUS, MINUS);
-  addStringAlternative("–", MINUS);
-  addStringAlternative(SIGN_PLUS, PLUS);
-  addStringAlternative(SIGN_NOT_EQUAL, " " NOT EQUALS);
-  addStringAlternative(SIGN_GREATER_OR_EQUAL, GREATER EQUALS);
-  addStringAlternative(SIGN_LESS_OR_EQUAL, LESS EQUALS);
-  addStringAlternative(";", COMMA);
-  addStringAlternative("\t", SPACE);
-  addStringAlternative("\n", SPACE);
-  addStringAlternative(" ", SPACE);
-  addStringAlternative(" ", SPACE);
-  addStringAlternative(" ", SPACE);
-  addStringAlternative("**", POWER);
-  addStringAlternative("↊", "X");
-  addStringAlternative("↋", "E");
-  addStringAlternative("∧", BITWISE_AND);
-  addStringAlternative("∨", BITWISE_OR);
-  addStringAlternative("¬", BITWISE_NOT);
-  addStringAlternative(SIGN_MICRO, "μ");
+	addStringAlternative(SIGN_DIVISION, DIVISION);
+	addStringAlternative(SIGN_DIVISION_SLASH, DIVISION);
+	addStringAlternative("⁄", DIVISION);
+	addStringAlternative(SIGN_MULTIPLICATION, MULTIPLICATION);
+	addStringAlternative(SIGN_MULTIDOT, MULTIPLICATION);
+	addStringAlternative(SIGN_MIDDLEDOT, MULTIPLICATION);
+	addStringAlternative(SIGN_MULTIBULLET, MULTIPLICATION);
+	addStringAlternative(SIGN_SMALLCIRCLE, MULTIPLICATION);
+	addStringAlternative(SIGN_MINUS, MINUS);
+	addStringAlternative("–", MINUS);
+	addStringAlternative(SIGN_PLUS, PLUS);
+	addStringAlternative(SIGN_NOT_EQUAL, " " NOT EQUALS);
+	addStringAlternative(SIGN_GREATER_OR_EQUAL, GREATER EQUALS);
+	addStringAlternative(SIGN_LESS_OR_EQUAL, LESS EQUALS);
+	addStringAlternative(";", COMMA);
+	addStringAlternative("\t", SPACE);
+	addStringAlternative("\n", SPACE);
+	addStringAlternative(" ", SPACE);
+	addStringAlternative(" ", SPACE);
+	addStringAlternative(" ", SPACE);
+	addStringAlternative("**", POWER);
+	addStringAlternative("↊", "X");
+	addStringAlternative("↋", "E");
+	addStringAlternative("∧", BITWISE_AND);
+	addStringAlternative("∨", BITWISE_OR);
+	addStringAlternative("¬", BITWISE_NOT);
+	addStringAlternative(SIGN_MICRO, "μ");
 
-  per_str = _("per");
-  per_str_len = per_str.length();
-  times_str = _("times");
-  times_str_len = times_str.length();
-  plus_str = _("plus");
-  plus_str_len = plus_str.length();
-  minus_str = _("minus");
-  minus_str_len = minus_str.length();
-  and_str = _("and");
-  if (and_str == "and")
-    and_str = "";
-  and_str_len = and_str.length();
-  AND_str = "AND";
-  AND_str_len = AND_str.length();
-  or_str = _("or");
-  if (or_str == "or")
-    or_str = "";
-  or_str_len = or_str.length();
-  OR_str = "OR";
-  OR_str_len = OR_str.length();
-  XOR_str = "XOR";
-  XOR_str_len = XOR_str.length();
+	per_str = _("per");
+	per_str_len = per_str.length();
+	times_str = _("times");
+	times_str_len = times_str.length();
+	plus_str = _("plus");
+	plus_str_len = plus_str.length();
+	minus_str = _("minus");
+	minus_str_len = minus_str.length();
+	and_str = _("and");
+	if(and_str == "and") and_str = "";
+	and_str_len = and_str.length();
+	AND_str = "AND";
+	AND_str_len = AND_str.length();
+	or_str = _("or");
+	if(or_str == "or") or_str = "";
+	or_str_len = or_str.length();
+	OR_str = "OR";
+	OR_str_len = OR_str.length();
+	XOR_str = "XOR";
+	XOR_str_len = XOR_str.length();
 
-  char *current_lc_numeric = setlocale(LC_NUMERIC, NULL);
-  if (current_lc_numeric)
-    saved_locale = strdup(current_lc_numeric);
-  else
-    saved_locale = NULL;
-  struct lconv *lc = localeconv();
-  if (!lc) {
-    setlocale(LC_NUMERIC, "C");
-    lc = localeconv();
-  }
-  place_currency_sign_before = lc->p_cs_precedes;
-  place_currency_sign_before_negative = lc->n_cs_precedes;
+	char *current_lc_numeric = setlocale(LC_NUMERIC, NULL);
+	if(current_lc_numeric) saved_locale = strdup(current_lc_numeric);
+	else saved_locale = NULL;
+	struct lconv *lc = localeconv();
+	if(!lc) {
+		setlocale(LC_NUMERIC, "C");
+		lc = localeconv();
+	}
+	place_currency_sign_before = lc->p_cs_precedes;
+	place_currency_sign_before_negative = lc->n_cs_precedes;
 #ifdef HAVE_STRUCT_LCONV_INT_P_CS_PRECEDES
   place_currency_code_before = lc->int_p_cs_precedes;
 #else
@@ -477,93 +473,89 @@ Calculator::Calculator(bool ignore_locale) {
   ucm = ucasemap_open(NULL, 0, &err);
 #endif
 
-  srand(time(NULL));
+	srand(time(NULL));
 
-  exchange_rates_time[0] = 0;
-  exchange_rates_time[1] = (time_t)439583L * (time_t)3600;
-  exchange_rates_time[2] = 0;
-  priv->exchange_rates_time2[0] = (time_t)439583L * (time_t)3600;
-  exchange_rates_check_time[0] = 0;
-  exchange_rates_check_time[1] = (time_t)439583L * (time_t)3600;
-  exchange_rates_check_time[2] = 0;
-  priv->exchange_rates_check_time2[0] = (time_t)439583L * (time_t)3600;
-  b_exchange_rates_warning_enabled = true;
-  b_exchange_rates_used = 0;
+	exchange_rates_time[0] = 0;
+	exchange_rates_time[1] = (time_t) 443112L * (time_t) 3600;
+	exchange_rates_time[2] = 0;
+	priv->exchange_rates_time2[0] = (time_t) 443112L * (time_t) 3600;
+	exchange_rates_check_time[0] = 0;
+	exchange_rates_check_time[1] = (time_t) 443112L * (time_t) 3600;
+	exchange_rates_check_time[2] = 0;
+	priv->exchange_rates_check_time2[0] = (time_t) 443112L * (time_t) 3600;
+	b_exchange_rates_warning_enabled = true;
+	b_exchange_rates_used = 0;
 
-  i_aborted = 0;
-  b_controlled = false;
-  i_timeout = 0;
+	i_aborted = 0;
+	b_controlled = false;
+	i_timeout = 0;
 
-  setPrecision(DEFAULT_PRECISION);
-  b_interval = true;
-  i_stop_interval = 0;
-  i_start_interval = 0;
+	setPrecision(DEFAULT_PRECISION);
+	b_interval = true;
+	i_stop_interval = 0;
+	i_start_interval = 0;
 
-  b_var_units = true;
+	b_var_units = true;
 
-  addStringAlternative(SIGN_DIVISION, DIVISION);
-  addStringAlternative(SIGN_DIVISION_SLASH, DIVISION);
-  addStringAlternative("⁄", DIVISION);
-  addStringAlternative(SIGN_MULTIPLICATION, MULTIPLICATION);
-  addStringAlternative(SIGN_MULTIDOT, MULTIPLICATION);
-  addStringAlternative(SIGN_MIDDLEDOT, MULTIPLICATION);
-  addStringAlternative(SIGN_MULTIBULLET, MULTIPLICATION);
-  addStringAlternative(SIGN_SMALLCIRCLE, MULTIPLICATION);
-  addStringAlternative(SIGN_MINUS, MINUS);
-  addStringAlternative("–", MINUS);
-  addStringAlternative(SIGN_PLUS, PLUS);
-  addStringAlternative(SIGN_NOT_EQUAL, " " NOT EQUALS);
-  addStringAlternative(SIGN_GREATER_OR_EQUAL, GREATER EQUALS);
-  addStringAlternative(SIGN_LESS_OR_EQUAL, LESS EQUALS);
-  addStringAlternative(";", COMMA);
-  addStringAlternative("\t", SPACE);
-  addStringAlternative("\n", SPACE);
-  addStringAlternative(" ", SPACE);
-  addStringAlternative(" ", SPACE);
-  addStringAlternative(" ", SPACE);
-  addStringAlternative("**", POWER);
-  addStringAlternative("↊", "X");
-  addStringAlternative("↋", "E");
-  addStringAlternative("∧", BITWISE_AND);
-  addStringAlternative("∨", BITWISE_OR);
-  addStringAlternative("¬", BITWISE_NOT);
-  addStringAlternative(SIGN_MICRO, "μ");
+	addStringAlternative(SIGN_DIVISION, DIVISION);
+	addStringAlternative(SIGN_DIVISION_SLASH, DIVISION);
+	addStringAlternative("⁄", DIVISION);
+	addStringAlternative(SIGN_MULTIPLICATION, MULTIPLICATION);
+	addStringAlternative(SIGN_MULTIDOT, MULTIPLICATION);
+	addStringAlternative(SIGN_MIDDLEDOT, MULTIPLICATION);
+	addStringAlternative(SIGN_MULTIBULLET, MULTIPLICATION);
+	addStringAlternative(SIGN_SMALLCIRCLE, MULTIPLICATION);
+	addStringAlternative(SIGN_MINUS, MINUS);
+	addStringAlternative("–", MINUS);
+	addStringAlternative(SIGN_PLUS, PLUS);
+	addStringAlternative(SIGN_NOT_EQUAL, " " NOT EQUALS);
+	addStringAlternative(SIGN_GREATER_OR_EQUAL, GREATER EQUALS);
+	addStringAlternative(SIGN_LESS_OR_EQUAL, LESS EQUALS);
+	addStringAlternative(";", COMMA);
+	addStringAlternative("\t", SPACE);
+	addStringAlternative("\n", SPACE);
+	addStringAlternative(" ", SPACE);
+	addStringAlternative(" ", SPACE);
+	addStringAlternative(" ", SPACE);
+	addStringAlternative("**", POWER);
+	addStringAlternative("↊", "X");
+	addStringAlternative("↋", "E");
+	addStringAlternative("∧", BITWISE_AND);
+	addStringAlternative("∨", BITWISE_OR);
+	addStringAlternative("¬", BITWISE_NOT);
+	addStringAlternative(SIGN_MICRO, "μ");
 
-  per_str = _("per");
-  per_str_len = per_str.length();
-  times_str = _("times");
-  times_str_len = times_str.length();
-  plus_str = _("plus");
-  plus_str_len = plus_str.length();
-  minus_str = _("minus");
-  minus_str_len = minus_str.length();
-  and_str = _("and");
-  if (and_str == "and")
-    and_str = "";
-  and_str_len = and_str.length();
-  AND_str = "AND";
-  AND_str_len = AND_str.length();
-  or_str = _("or");
-  if (or_str == "or")
-    or_str = "";
-  or_str_len = or_str.length();
-  OR_str = "OR";
-  OR_str_len = OR_str.length();
-  XOR_str = "XOR";
-  XOR_str_len = XOR_str.length();
+	per_str = _("per");
+	per_str_len = per_str.length();
+	times_str = _("times");
+	times_str_len = times_str.length();
+	plus_str = _("plus");
+	plus_str_len = plus_str.length();
+	minus_str = _("minus");
+	minus_str_len = minus_str.length();
+	and_str = _("and");
+	if(and_str == "and") and_str = "";
+	and_str_len = and_str.length();
+	AND_str = "AND";
+	AND_str_len = AND_str.length();
+	or_str = _("or");
+	if(or_str == "or") or_str = "";
+	or_str_len = or_str.length();
+	OR_str = "OR";
+	OR_str_len = OR_str.length();
+	XOR_str = "XOR";
+	XOR_str_len = XOR_str.length();
 
-  char *current_lc_numeric = setlocale(LC_NUMERIC, NULL);
-  if (current_lc_numeric)
-    saved_locale = strdup(current_lc_numeric);
-  else
-    saved_locale = NULL;
-  struct lconv *lc = localeconv();
-  if (!lc) {
-    setlocale(LC_NUMERIC, "C");
-    lc = localeconv();
-  }
-  place_currency_sign_before = lc->p_cs_precedes;
-  place_currency_sign_before_negative = lc->n_cs_precedes;
+	char *current_lc_numeric = setlocale(LC_NUMERIC, NULL);
+	if(current_lc_numeric) saved_locale = strdup(current_lc_numeric);
+	else saved_locale = NULL;
+	struct lconv *lc = localeconv();
+	if(!lc) {
+		setlocale(LC_NUMERIC, "C");
+		lc = localeconv();
+	}
+	place_currency_sign_before = lc->p_cs_precedes;
+	place_currency_sign_before_negative = lc->n_cs_precedes;
 #ifdef HAVE_STRUCT_LCONV_INT_P_CS_PRECEDES
   place_currency_code_before = lc->int_p_cs_precedes;
 #else
@@ -1664,260 +1656,260 @@ void Calculator::addBuiltinVariables() {
 
 void Calculator::addBuiltinFunctions() {
 
-  f_vector = addFunction(new VectorFunction());
-  f_sort = addFunction(new SortFunction());
-  f_rank = addFunction(new RankFunction());
-  f_limits = addFunction(new LimitsFunction());
-  // f_component = addFunction(new ComponentFunction());
-  f_dimension = addFunction(new DimensionFunction());
-  f_merge_vectors = addFunction(new MergeVectorsFunction());
-  f_matrix = addFunction(new MatrixFunction());
-  f_matrix_to_vector = addFunction(new MatrixToVectorFunction());
-  f_area = addFunction(new AreaFunction());
-  f_rows = addFunction(new RowsFunction());
-  f_columns = addFunction(new ColumnsFunction());
-  f_row = addFunction(new RowFunction());
-  f_column = addFunction(new ColumnFunction());
-  f_elements = addFunction(new ElementsFunction());
-  f_element = addFunction(new ElementFunction());
-  f_transpose = addFunction(new TransposeFunction());
-  f_identity = addFunction(new IdentityMatrixFunction());
-  f_determinant = addFunction(new DeterminantFunction());
-  f_permanent = addFunction(new PermanentFunction());
-  f_adjoint = addFunction(new AdjointFunction());
-  f_cofactor = addFunction(new CofactorFunction());
-  f_inverse = addFunction(new InverseFunction());
-  f_magnitude = addFunction(new MagnitudeFunction());
-  f_hadamard = addFunction(new HadamardFunction());
-  f_entrywise = addFunction(new EntrywiseFunction());
+	f_vector = addFunction(new VectorFunction());
+	f_sort = addFunction(new SortFunction());
+	f_rank = addFunction(new RankFunction());
+	f_limits = addFunction(new LimitsFunction());
+	//f_component = addFunction(new ComponentFunction());
+	f_dimension = addFunction(new DimensionFunction());
+	f_merge_vectors = addFunction(new MergeVectorsFunction());
+	f_matrix = addFunction(new MatrixFunction());
+	f_matrix_to_vector = addFunction(new MatrixToVectorFunction());
+	f_area = addFunction(new AreaFunction());
+	f_rows = addFunction(new RowsFunction());
+	f_columns = addFunction(new ColumnsFunction());
+	f_row = addFunction(new RowFunction());
+	f_column = addFunction(new ColumnFunction());
+	f_elements = addFunction(new ElementsFunction());
+	f_element = addFunction(new ElementFunction());
+	f_transpose = addFunction(new TransposeFunction());
+	f_identity = addFunction(new IdentityMatrixFunction());
+	f_determinant = addFunction(new DeterminantFunction());
+	f_permanent = addFunction(new PermanentFunction());
+	f_adjoint = addFunction(new AdjointFunction());
+	f_cofactor = addFunction(new CofactorFunction());
+	f_inverse = addFunction(new InverseFunction());
+	f_magnitude = addFunction(new MagnitudeFunction());
+	f_hadamard = addFunction(new HadamardFunction());
+	f_entrywise = addFunction(new EntrywiseFunction());
 
-  f_factorial = addFunction(new FactorialFunction());
-  f_factorial2 = addFunction(new DoubleFactorialFunction());
-  f_multifactorial = addFunction(new MultiFactorialFunction());
-  f_binomial = addFunction(new BinomialFunction());
+	f_factorial = addFunction(new FactorialFunction());
+	f_factorial2 = addFunction(new DoubleFactorialFunction());
+	f_multifactorial = addFunction(new MultiFactorialFunction());
+	f_binomial = addFunction(new BinomialFunction());
 
-  f_xor = addFunction(new XorFunction());
-  f_bitxor = addFunction(new BitXorFunction());
-  f_even = addFunction(new EvenFunction());
-  f_odd = addFunction(new OddFunction());
-  f_shift = addFunction(new ShiftFunction());
-  f_bitcmp = addFunction(new BitCmpFunction());
-  addFunction(new CircularShiftFunction());
+	f_xor = addFunction(new XorFunction());
+	f_bitxor = addFunction(new BitXorFunction());
+	f_even = addFunction(new EvenFunction());
+	f_odd = addFunction(new OddFunction());
+	f_shift = addFunction(new ShiftFunction());
+	f_bitcmp = addFunction(new BitCmpFunction());
+	addFunction(new CircularShiftFunction());
 
-  f_abs = addFunction(new AbsFunction());
-  f_signum = addFunction(new SignumFunction());
-  f_heaviside = addFunction(new HeavisideFunction());
-  f_dirac = addFunction(new DiracFunction());
-  f_gcd = addFunction(new GcdFunction());
-  f_lcm = addFunction(new LcmFunction());
-  f_round = addFunction(new RoundFunction());
-  f_floor = addFunction(new FloorFunction());
-  f_ceil = addFunction(new CeilFunction());
-  f_trunc = addFunction(new TruncFunction());
-  f_int = addFunction(new IntFunction());
-  f_frac = addFunction(new FracFunction());
-  f_rem = addFunction(new RemFunction());
-  f_mod = addFunction(new ModFunction());
-  addFunction(new BernoulliFunction());
+	f_abs = addFunction(new AbsFunction());
+	f_signum = addFunction(new SignumFunction());
+	f_heaviside = addFunction(new HeavisideFunction());
+	f_dirac = addFunction(new DiracFunction());
+	f_gcd = addFunction(new GcdFunction());
+	f_lcm = addFunction(new LcmFunction());
+	f_round = addFunction(new RoundFunction());
+	f_floor = addFunction(new FloorFunction());
+	f_ceil = addFunction(new CeilFunction());
+	f_trunc = addFunction(new TruncFunction());
+	f_int = addFunction(new IntFunction());
+	f_frac = addFunction(new FracFunction());
+	f_rem = addFunction(new RemFunction());
+	f_mod = addFunction(new ModFunction());
+	addFunction(new BernoulliFunction());
+	addFunction(new TotientFunction());
 
-  f_polynomial_unit = addFunction(new PolynomialUnitFunction());
-  f_polynomial_primpart = addFunction(new PolynomialPrimpartFunction());
-  f_polynomial_content = addFunction(new PolynomialContentFunction());
-  f_coeff = addFunction(new CoeffFunction());
-  f_lcoeff = addFunction(new LCoeffFunction());
-  f_tcoeff = addFunction(new TCoeffFunction());
-  f_degree = addFunction(new DegreeFunction());
-  f_ldegree = addFunction(new LDegreeFunction());
+	f_polynomial_unit = addFunction(new PolynomialUnitFunction());
+	f_polynomial_primpart = addFunction(new PolynomialPrimpartFunction());
+	f_polynomial_content = addFunction(new PolynomialContentFunction());
+	f_coeff = addFunction(new CoeffFunction());
+	f_lcoeff = addFunction(new LCoeffFunction());
+	f_tcoeff = addFunction(new TCoeffFunction());
+	f_degree = addFunction(new DegreeFunction());
+	f_ldegree = addFunction(new LDegreeFunction());
 
-  f_re = addFunction(new ReFunction());
-  f_im = addFunction(new ImFunction());
-  f_arg = addFunction(new ArgFunction());
-  f_numerator = addFunction(new NumeratorFunction());
-  f_denominator = addFunction(new DenominatorFunction());
+	f_re = addFunction(new ReFunction());
+	f_im = addFunction(new ImFunction());
+	f_arg = addFunction(new ArgFunction());
+	f_numerator = addFunction(new NumeratorFunction());
+	f_denominator = addFunction(new DenominatorFunction());
 
-  f_interval = addFunction(new IntervalFunction());
-  f_uncertainty = addFunction(new UncertaintyFunction());
+	f_interval = addFunction(new IntervalFunction());
+	f_uncertainty = addFunction(new UncertaintyFunction());
 
-  f_sqrt = addFunction(new SqrtFunction());
-  f_cbrt = addFunction(new CbrtFunction());
-  f_root = addFunction(new RootFunction());
-  f_sq = addFunction(new SquareFunction());
+	f_sqrt = addFunction(new SqrtFunction());
+	f_cbrt = addFunction(new CbrtFunction());
+	f_root = addFunction(new RootFunction());
+	f_sq = addFunction(new SquareFunction());
 
-  f_exp = addFunction(new ExpFunction());
+	f_exp = addFunction(new ExpFunction());
 
-  f_ln = addFunction(new LogFunction());
-  f_logn = addFunction(new LognFunction());
+	f_ln = addFunction(new LogFunction());
+	f_logn = addFunction(new LognFunction());
 
-  f_lambert_w = addFunction(new LambertWFunction());
+	f_lambert_w = addFunction(new LambertWFunction());
 
-  f_sin = addFunction(new SinFunction());
-  f_cos = addFunction(new CosFunction());
-  f_tan = addFunction(new TanFunction());
-  f_asin = addFunction(new AsinFunction());
-  f_acos = addFunction(new AcosFunction());
-  f_atan = addFunction(new AtanFunction());
-  f_sinh = addFunction(new SinhFunction());
-  f_cosh = addFunction(new CoshFunction());
-  f_tanh = addFunction(new TanhFunction());
-  f_asinh = addFunction(new AsinhFunction());
-  f_acosh = addFunction(new AcoshFunction());
-  f_atanh = addFunction(new AtanhFunction());
-  f_atan2 = addFunction(new Atan2Function());
-  f_sinc = addFunction(new SincFunction());
-  priv->f_cis = addFunction(new CisFunction());
-  f_radians_to_default_angle_unit =
-      addFunction(new RadiansToDefaultAngleUnitFunction());
+	f_sin = addFunction(new SinFunction());
+	f_cos = addFunction(new CosFunction());
+	f_tan = addFunction(new TanFunction());
+	f_asin = addFunction(new AsinFunction());
+	f_acos = addFunction(new AcosFunction());
+	f_atan = addFunction(new AtanFunction());
+	f_sinh = addFunction(new SinhFunction());
+	f_cosh = addFunction(new CoshFunction());
+	f_tanh = addFunction(new TanhFunction());
+	f_asinh = addFunction(new AsinhFunction());
+	f_acosh = addFunction(new AcoshFunction());
+	f_atanh = addFunction(new AtanhFunction());
+	f_atan2 = addFunction(new Atan2Function());
+	f_sinc = addFunction(new SincFunction());
+	priv->f_cis = addFunction(new CisFunction());
+	f_radians_to_default_angle_unit = addFunction(new RadiansToDefaultAngleUnitFunction());
 
-  f_zeta = addFunction(new ZetaFunction());
-  f_gamma = addFunction(new GammaFunction());
-  f_digamma = addFunction(new DigammaFunction());
-  f_beta = addFunction(new BetaFunction());
-  f_airy = addFunction(new AiryFunction());
-  f_besselj = addFunction(new BesseljFunction());
-  f_bessely = addFunction(new BesselyFunction());
-  f_erf = addFunction(new ErfFunction());
-  priv->f_erfi = addFunction(new ErfiFunction());
-  f_erfc = addFunction(new ErfcFunction());
+	f_zeta = addFunction(new ZetaFunction());
+	f_gamma = addFunction(new GammaFunction());
+	f_digamma = addFunction(new DigammaFunction());
+	f_beta = addFunction(new BetaFunction());
+	f_airy = addFunction(new AiryFunction());
+	f_besselj = addFunction(new BesseljFunction());
+	f_bessely = addFunction(new BesselyFunction());
+	f_erf = addFunction(new ErfFunction());
+	priv->f_erfi = addFunction(new ErfiFunction());
+	f_erfc = addFunction(new ErfcFunction());
 
-  f_total = addFunction(new TotalFunction());
-  f_percentile = addFunction(new PercentileFunction());
-  f_min = addFunction(new MinFunction());
-  f_max = addFunction(new MaxFunction());
-  f_mode = addFunction(new ModeFunction());
-  f_rand = addFunction(new RandFunction());
-  addFunction(new RandnFunction());
-  addFunction(new RandPoissonFunction());
+	f_total = addFunction(new TotalFunction());
+	f_percentile = addFunction(new PercentileFunction());
+	f_min = addFunction(new MinFunction());
+	f_max = addFunction(new MaxFunction());
+	f_mode = addFunction(new ModeFunction());
+	f_rand = addFunction(new RandFunction());
+	addFunction(new RandnFunction());
+	addFunction(new RandPoissonFunction());
 
-  f_date = addFunction(new DateFunction());
-  f_datetime = addFunction(new DateTimeFunction());
-  f_timevalue = addFunction(new TimeValueFunction());
-  f_timestamp = addFunction(new TimestampFunction());
-  f_stamptodate = addFunction(new TimestampToDateFunction());
-  f_days = addFunction(new DaysFunction());
-  f_yearfrac = addFunction(new YearFracFunction());
-  f_week = addFunction(new WeekFunction());
-  f_weekday = addFunction(new WeekdayFunction());
-  f_month = addFunction(new MonthFunction());
-  f_day = addFunction(new DayFunction());
-  f_year = addFunction(new YearFunction());
-  f_yearday = addFunction(new YeardayFunction());
-  f_time = addFunction(new TimeFunction());
-  f_add_days = addFunction(new AddDaysFunction());
-  f_add_months = addFunction(new AddMonthsFunction());
-  f_add_years = addFunction(new AddYearsFunction());
+	f_date = addFunction(new DateFunction());
+	f_datetime = addFunction(new DateTimeFunction());
+	f_timevalue = addFunction(new TimeValueFunction());
+	f_timestamp = addFunction(new TimestampFunction());
+	f_stamptodate = addFunction(new TimestampToDateFunction());
+	f_days = addFunction(new DaysFunction());
+	f_yearfrac = addFunction(new YearFracFunction());
+	f_week = addFunction(new WeekFunction());
+	f_weekday = addFunction(new WeekdayFunction());
+	f_month = addFunction(new MonthFunction());
+	f_day = addFunction(new DayFunction());
+	f_year = addFunction(new YearFunction());
+	f_yearday = addFunction(new YeardayFunction());
+	f_time = addFunction(new TimeFunction());
+	f_add_days = addFunction(new AddDaysFunction());
+	f_add_months = addFunction(new AddMonthsFunction());
+	f_add_years = addFunction(new AddYearsFunction());
 
-  f_lunarphase = addFunction(new LunarPhaseFunction());
-  f_nextlunarphase = addFunction(new NextLunarPhaseFunction());
+	f_lunarphase = addFunction(new LunarPhaseFunction());
+	f_nextlunarphase = addFunction(new NextLunarPhaseFunction());
 
-  f_base = addFunction(new BaseFunction());
-  f_bin = addFunction(new BinFunction());
-  f_oct = addFunction(new OctFunction());
-  addFunction(new DecFunction());
-  f_hex = addFunction(new HexFunction());
-  f_roman = addFunction(new RomanFunction());
-  addFunction(new BijectiveFunction());
+	f_base = addFunction(new BaseFunction());
+	f_bin = addFunction(new BinFunction());
+	f_oct = addFunction(new OctFunction());
+	addFunction(new DecFunction());
+	f_hex = addFunction(new HexFunction());
+	f_roman = addFunction(new RomanFunction());
+	addFunction(new BijectiveFunction());
 
-  addFunction(new IEEE754FloatFunction());
-  addFunction(new IEEE754FloatBitsFunction());
-  addFunction(new IEEE754FloatComponentsFunction());
-  addFunction(new IEEE754FloatValueFunction());
-  addFunction(new IEEE754FloatErrorFunction());
+	addFunction(new IEEE754FloatFunction());
+	addFunction(new IEEE754FloatBitsFunction());
+	addFunction(new IEEE754FloatComponentsFunction());
+	addFunction(new IEEE754FloatValueFunction());
+	addFunction(new IEEE754FloatErrorFunction());
 
-  f_ascii = addFunction(new AsciiFunction());
-  f_char = addFunction(new CharFunction());
+	f_ascii = addFunction(new AsciiFunction());
+	f_char = addFunction(new CharFunction());
 
-  f_length = addFunction(new LengthFunction());
-  f_concatenate = addFunction(new ConcatenateFunction());
+	f_length = addFunction(new LengthFunction());
+	f_concatenate = addFunction(new ConcatenateFunction());
 
-  f_replace = addFunction(new ReplaceFunction());
-  f_stripunits = addFunction(new StripUnitsFunction());
+	f_replace = addFunction(new ReplaceFunction());
+	f_stripunits = addFunction(new StripUnitsFunction());
 
-  f_genvector = addFunction(new GenerateVectorFunction());
-  f_for = addFunction(new ForFunction());
-  f_sum = addFunction(new SumFunction());
-  f_product = addFunction(new ProductFunction());
-  f_process = addFunction(new ProcessFunction());
-  f_process_matrix = addFunction(new ProcessMatrixFunction());
-  f_csum = addFunction(new CustomSumFunction());
-  f_function = addFunction(new FunctionFunction());
-  f_select = addFunction(new SelectFunction());
-  f_title = addFunction(new TitleFunction());
-  f_if = addFunction(new IFFunction());
-  f_is_number = addFunction(new IsNumberFunction());
-  f_is_real = addFunction(new IsRealFunction());
-  f_is_rational = addFunction(new IsRationalFunction());
-  f_is_integer = addFunction(new IsIntegerFunction());
-  f_represents_number = addFunction(new RepresentsNumberFunction());
-  f_represents_real = addFunction(new RepresentsRealFunction());
-  f_represents_rational = addFunction(new RepresentsRationalFunction());
-  f_represents_integer = addFunction(new RepresentsIntegerFunction());
-  f_error = addFunction(new ErrorFunction());
-  f_warning = addFunction(new WarningFunction());
-  f_message = addFunction(new MessageFunction());
+	f_genvector = addFunction(new GenerateVectorFunction());
+	f_for = addFunction(new ForFunction());
+	f_sum = addFunction(new SumFunction());
+	f_product = addFunction(new ProductFunction());
+	f_process = addFunction(new ProcessFunction());
+	f_process_matrix = addFunction(new ProcessMatrixFunction());
+	f_csum = addFunction(new CustomSumFunction());
+	f_function = addFunction(new FunctionFunction());
+	f_select = addFunction(new SelectFunction());
+	f_title = addFunction(new TitleFunction());
+	f_if = addFunction(new IFFunction());
+	f_is_number = addFunction(new IsNumberFunction());
+	f_is_real = addFunction(new IsRealFunction());
+	f_is_rational = addFunction(new IsRationalFunction());
+	f_is_integer = addFunction(new IsIntegerFunction());
+	f_represents_number = addFunction(new RepresentsNumberFunction());
+	f_represents_real = addFunction(new RepresentsRealFunction());
+	f_represents_rational = addFunction(new RepresentsRationalFunction());
+	f_represents_integer = addFunction(new RepresentsIntegerFunction());
+	f_error = addFunction(new ErrorFunction());
+	f_warning = addFunction(new WarningFunction());
+	f_message = addFunction(new MessageFunction());
 
-  f_save = addFunction(new SaveFunction());
-  f_load = addFunction(new LoadFunction());
-  f_export = addFunction(new ExportFunction());
+	f_save = addFunction(new SaveFunction());
+	f_load = addFunction(new LoadFunction());
+	f_export = addFunction(new ExportFunction());
 
-  f_register = addFunction(new RegisterFunction());
-  f_stack = addFunction(new StackFunction());
+	f_register = addFunction(new RegisterFunction());
+	f_stack = addFunction(new StackFunction());
 
-  f_diff = addFunction(new DeriveFunction());
-  f_integrate = addFunction(new IntegrateFunction());
-  addFunction(new RombergFunction());
-  addFunction(new MonteCarloFunction());
-  f_solve = addFunction(new SolveFunction());
-  f_multisolve = addFunction(new SolveMultipleFunction());
-  f_dsolve = addFunction(new DSolveFunction());
-  f_limit = addFunction(new LimitFunction());
+	f_diff = addFunction(new DeriveFunction());
+	f_integrate = addFunction(new IntegrateFunction());
+	addFunction(new RombergFunction());
+	addFunction(new MonteCarloFunction());
+	f_solve = addFunction(new SolveFunction());
+	f_multisolve = addFunction(new SolveMultipleFunction());
+	f_dsolve = addFunction(new DSolveFunction());
+	f_limit = addFunction(new LimitFunction());
 
-  f_li = addFunction(new liFunction());
-  f_Li = addFunction(new LiFunction());
-  f_Ei = addFunction(new EiFunction());
-  f_Si = addFunction(new SiFunction());
-  f_Ci = addFunction(new CiFunction());
-  f_Shi = addFunction(new ShiFunction());
-  f_Chi = addFunction(new ChiFunction());
-  priv->f_fresnels = addFunction(new FresnelSFunction());
-  priv->f_fresnelc = addFunction(new FresnelCFunction());
-  f_igamma = addFunction(new IGammaFunction());
+	f_li = addFunction(new liFunction());
+	f_Li = addFunction(new LiFunction());
+	f_Ei = addFunction(new EiFunction());
+	f_Si = addFunction(new SiFunction());
+	f_Ci = addFunction(new CiFunction());
+	f_Shi = addFunction(new ShiFunction());
+	f_Chi = addFunction(new ChiFunction());
+	priv->f_fresnels = addFunction(new FresnelSFunction());
+	priv->f_fresnelc = addFunction(new FresnelCFunction());
+	f_igamma = addFunction(new IGammaFunction());
 
-  if (canPlot())
-    f_plot = addFunction(new PlotFunction());
-  else
-    f_plot = NULL;
+	if(canPlot()) f_plot = addFunction(new PlotFunction());
+	else f_plot = NULL;
 
-  /*void *plugin = dlopen("", RTLD_NOW);
-  if(plugin) {
-      CREATEPLUG_PROC createproc = (CREATEPLUG_PROC) dlsym(plugin,
-  "createPlugin"); if (dlerror() != NULL) { dlclose(plugin); printf( "dlsym
-  error\n"); } else { createproc();
-      }
-  } else {
-      printf( "dlopen error\n");
-  }*/
+	/*void *plugin = dlopen("", RTLD_NOW);
+	if(plugin) {
+		CREATEPLUG_PROC createproc = (CREATEPLUG_PROC) dlsym(plugin, "createPlugin");
+		if (dlerror() != NULL) {
+			dlclose(plugin);
+			printf( "dlsym error\n");
+		} else {
+			createproc();
+		}
+	} else {
+		printf( "dlopen error\n");
+	}*/
+
 }
 void Calculator::addBuiltinUnits() {
-  u_euro = addUnit(new Unit(_("Currency"), "EUR", "euros", "euro",
-                            "European Euros", false, true, true));
-  u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin",
-                                "Bitcoins", u_euro, "6706.22", 1, "", false,
-                                true, true));
-  u_btc->setApproximate();
-  u_btc->setPrecision(-2);
-  u_btc->setChanged(false);
-  priv->u_byn =
-      addUnit(new AliasUnit(_("Currency"), "BYN", "", "", "Belarusian Ruble",
-                            u_euro, "2.7734", 1, "", false, true, true));
-  priv->u_byn->setApproximate();
-  priv->u_byn->setPrecision(-2);
-  priv->u_byn->setChanged(false);
-  u_second = NULL;
-  u_minute = NULL;
-  u_hour = NULL;
-  u_day = NULL;
-  u_month = NULL;
-  u_year = NULL;
+	u_euro = addUnit(new Unit(_("Currency"), "EUR", "euros", "euro", "European Euros", false, true, true));
+	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "8013.07", 1, "", false, true, true));
+	u_btc->setApproximate();
+	u_btc->setPrecision(-2);
+	u_btc->setChanged(false);
+	priv->u_byn = addUnit(new AliasUnit(_("Currency"), "BYN", "", "", "Belarusian Ruble", u_euro, "1/2.7391", 1, "", false, true, true));
+	priv->u_byn->setApproximate();
+	priv->u_byn->setPrecision(-2);
+	priv->u_byn->setChanged(false);
+	Unit *u = addUnit(new AliasUnit(_("Currency"), "BYR", "", "", "Belarusian Ruble p. (obsolete)", priv->u_byn, "0.0001", 1, "", false, true, true));
+	u->setHidden(true);
+	u->setChanged(false);
+	u_second = NULL;
+	u_minute = NULL;
+	u_hour = NULL;
+	u_day = NULL;
+	u_month = NULL;
+	u_year = NULL;
 }
 
 void Calculator::setVariableUnitsEnabled(bool enable_variable_units) {
