@@ -1855,7 +1855,6 @@ int main(int argc, char *argv[]) {
 
 	new Calculator(true);
 	CALCULATOR->loadGlobalDefinitions();
-	return 0;
 	CALCULATOR->loadLocalDefinitions();
 	CALCULATOR->setPrecision(8);
 
@@ -1892,7 +1891,32 @@ int main(int argc, char *argv[]) {
 	evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_DEFAULT;
 	evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL_SI;
 	evalops.structuring = STRUCTURING_SIMPLIFY;
-	evalops.approximation = APPROXIMATION_EXACT;
+	//evalops.approximation = APPROXIMATION_EXACT;
+
+	po.use_unicode_signs = true;
+	po.number_fraction_format = FRACTION_DECIMAL;
+	bool b_approx = false;
+	po.is_approximate = &b_approx;
+	CALCULATOR->setVariableUnitsEnabled(false);
+	for(size_t i = 0; i < 10000; i++) {
+		string str = rnd_expression(false, true, 0, 2, false, false, false, false, true);
+		cerr << str << endl;
+		string str2 = CALCULATOR->calculateAndPrint(str, 1000, evalops, po, AUTOMATIC_FRACTION_AUTO, AUTOMATIC_APPROXIMATION_AUTO, NULL, -1);
+		if(str2.find("=") != string::npos || str2.find(SIGN_ALMOST_EQUAL) != string::npos || (!b_approx && str2.find_first_not_of(NUMBER_ELEMENTS) == string::npos)) {
+			cout << str << endl;
+			cout << str2 << endl << endl;
+		}
+	}
+	for(size_t i = 0; i < 10000; i++) {
+		string str = rnd_expression(4, true, 0, 2, false, false, false, false, true);
+		cerr << str << endl;
+		string str2 = CALCULATOR->calculateAndPrint(str, 1000, evalops, po, AUTOMATIC_FRACTION_AUTO, AUTOMATIC_APPROXIMATION_AUTO, NULL, -1);
+		if(str2.find("=") != string::npos || str2.find(SIGN_ALMOST_EQUAL) != string::npos || (!b_approx && str2.find_first_not_of(NUMBER_ELEMENTS) == string::npos)) {
+			cout << str << endl;
+			cout << str2 << endl << endl;
+		}
+	}
+	return 0;
 
 	/*MathStructure m;
 	for(size_t i = 0; i < 100000L; i++) {

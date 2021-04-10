@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef COMPILED_DEFINITIONS
-#	include <gio/gio.h>
+#	include "definitions.h"
 #endif
 
 using std::string;
@@ -433,6 +433,7 @@ void DataSet::setDefaultDataFile(string s_file) {
 const string &DataSet::defaultDataFile() const {
 	return sfile;
 }
+
 #ifdef _WIN32
 #	define FILE_SEPARATOR_CHAR '\\'
 #else
@@ -515,26 +516,13 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 	while(localebase.length() < 2) localebase += " ";
 
 #ifdef COMPILED_DEFINITIONS
-	if(strstr(file_name, "resource:") == file_name) {
-		doc = NULL;
-		GFile *f = g_file_new_for_uri(file_name);
-		if(f) {
-			GFileInputStream *s = g_file_read(f, NULL, NULL);
-			if(s) {
-				int res, size = 1024;
-				char chars[1024];
-				xmlParserCtxtPtr ctxt;
-				res = g_input_stream_read(G_INPUT_STREAM(s), chars, 4, NULL, NULL);
-				if(res > 0) {
-					ctxt = xmlCreatePushParserCtxt(NULL, NULL, chars, res, file_name);
-					while((res = g_input_stream_read(G_INPUT_STREAM(s), chars, size, NULL, NULL)) > 0) {
-						xmlParseChunk(ctxt, chars, res, 0);
-					}
-					xmlParseChunk(ctxt, chars, 0, 1);
-					doc = ctxt->myDoc;
-					xmlFreeParserCtxt(ctxt);
-				}
-			}
+	if(!is_user_defs && !isLocal()) {
+		if(strcmp(file_name, "/planets.xml") == 0) {
+			doc = xmlParseMemory(planets_xml, strlen(planets_xml));
+		} else if(strcmp(file_name, "/elements.xml") == 0) {
+			doc = xmlParseMemory(elements_xml, strlen(elements_xml));
+		} else {
+			doc = xmlParseFile(file_name);
 		}
 	} else {
 		doc = xmlParseFile(file_name);
@@ -762,6 +750,7 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 				}
 				child = child->next;
 			}
+			if(is_user_defs) o->setUserModified(true);
 			if(!old_object) objects.push_back(o);
 		}
 		cur = cur->next;
@@ -774,6 +763,7 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 	return true;
 }
 int DataSet::saveObjects(const char *file_name, bool save_global) {
+	if(!b_loaded) return 1;
 	string str, filename;
 	if(!save_global && !file_name) {
 		recursiveMakeDir(getLocalDataDir());
@@ -851,6 +841,8 @@ int DataSet::saveObjects(const char *file_name, bool save_global) {
 	int returnvalue = 1;
 	if(do_save) {
 		returnvalue = xmlSaveFormatFile(filename.c_str(), doc, 1);
+	} else {
+		if(fileExists(filename)) remove(filename.c_str());
 	}
 	xmlFreeDoc(doc);
 	return returnvalue;
@@ -915,7 +907,9 @@ const string &DataSet::getNextPropertyName(DataPropertyIter *it) {
 }
 
 void DataSet::addObject(DataObject *o) {
+	if(!objectsLoaded()) loadObjects();
 	objects.push_back(o);
+	b_loaded = true;
 }
 void DataSet::delObject(DataObject *o) {
 	for(size_t i = 0; i < objects.size(); i++) {

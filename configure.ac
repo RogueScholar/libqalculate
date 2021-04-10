@@ -6,27 +6,26 @@ dnl  ----------------------
 dnl | initialize autotools |---------------------------------------------------
 dnl  ----------------------
 
-AC_INIT([libqalculate], [3.12.1])
+AC_INIT([libqalculate],[3.18.0])
 AC_CONFIG_SRCDIR(libqalculate/Calculator.cc)
 AM_INIT_AUTOMAKE
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS(config.h)
 AM_MAINTAINER_MODE
+AC_CONFIG_MACRO_DIR(m4)
 
-AC_CONFIG_MACRO_DIRS([m4])
-
-AC_ARG_ENABLE(textport,
-              [  --disable-textport	  Disable compiling the text port],
-              enable_textport=$enableval,
+AC_ARG_ENABLE(textport, 
+              [  --disable-textport	  Disable compiling the text port], 
+              enable_textport=$enableval, 
               enable_textport="yes")
 
-AC_ARG_ENABLE(defs2doc,
-              [  --enable-defs2doc	  Enable compiling the definitions documentation generator],
-              enable_defs2doc=$enableval,
+AC_ARG_ENABLE(defs2doc, 
+              [  --enable-defs2doc	  Enable compiling the definitions documentation generator], 
+              enable_defs2doc=$enableval, 
               enable_defs2doc="no")
 
-AC_ARG_ENABLE(tests,
-              [  --enable-tests	  Enable compiling test programs],
-              enable_tests=$enableval,
+AC_ARG_ENABLE(tests, 
+              [  --enable-tests	  Enable compiling test programs], 
+              enable_tests=$enableval, 
               enable_tests="no")
 
 
@@ -34,14 +33,13 @@ dnl  -------------------------------
 dnl | check for neccessary programs |------------------------------------------
 dnl  -------------------------------
 
-AC_ISC_POSIX
 AC_PROG_CC
 AC_PROG_CXX
-AM_PROG_CC_STDC
 AC_PROG_LN_S
-AC_HEADER_STDC
-AC_PROG_INTLTOOL
-AM_PROG_LIBTOOL
+AC_PROG_EGREP
+
+IT_PROG_INTLTOOL
+LT_INIT
 
 dnl  ------------------------------------
 dnl | check for compiler characteristics |-------------------------------------
@@ -80,16 +78,16 @@ AC_DEFINE([HAVE_PTHREADS],1,
 dnl libtool versioning for libqalculate
 
 dnl increment if the interface has additions, changes, removals.
-QALCULATE_CURRENT=30
+QALCULATE_CURRENT=33
 
-dnl increment any time the source changes; set to
+dnl increment any time the source changes; set to 
 dnl  0 if you increment CURRENT
-QALCULATE_REVISION=2
+QALCULATE_REVISION=0
 
 dnl increment if any interfaces have been added; set to 0
-dnl  if any interfaces have been removed. removal has
+dnl  if any interfaces have been removed. removal has 
 dnl  precedence over adding, so set to 0 if both happened.
-QALCULATE_AGE=9
+QALCULATE_AGE=12
 
 AC_SUBST(QALCULATE_CURRENT)
 AC_SUBST(QALCULATE_REVISION)
@@ -108,16 +106,14 @@ AC_LANG([C++])
 AC_CHECK_HEADERS([unordered_map])
 AC_CHECK_FUNCS([pipe2])
 
-AC_ARG_ENABLE([compiled_definitions], AS_HELP_STRING([--enable-compiled-definitions], [compile definitions using gio]))
+AC_ARG_ENABLE([compiled_definitions], AS_HELP_STRING([--enable-compiled-definitions], [compile definitions]))
 AS_IF([test "x$enable_compiled_definitions" = "xyes"], [
-	PKG_CHECK_MODULES([GIO], [gio-2.0])
 	AC_DEFINE([COMPILED_DEFINITIONS], [1], [Compile definitions])
-	AC_SUBST(GIO_CFLAGS)
-	AC_SUBST(GIO_LIBS)
 ])
 AM_CONDITIONAL(COMPILED_DEFINITIONS, [test "x$enable_compiled_definitions" = "xyes"])
 
-AC_ARG_WITH([libcurl], AS_HELP_STRING([--with-libcurl], [support for built-in retrieval of exchange rates]), [], [with_libcurl=yes])
+
+AC_ARG_WITH([libcurl], AS_HELP_STRING([--without-libcurl], [disable support for built-in retrieval of exchange rates]), [], [with_libcurl=yes])
 AS_IF([test "x$with_libcurl" = "xyes"], [
 	PKG_CHECK_MODULES([LIBCURL], [libcurl])
 	AC_DEFINE([HAVE_LIBCURL], [1], [Use libcurl])
@@ -125,12 +121,17 @@ AS_IF([test "x$with_libcurl" = "xyes"], [
 	AC_SUBST(LIBCURL_LIBS)
 ])
 
-AC_ARG_WITH([icu], AS_HELP_STRING([--with-icu], [support for case-insensitive unicode strings]), [], [with_icu=yes])
+AC_ARG_WITH([icu], AS_HELP_STRING([--without-icu], [disable support for case-insensitive unicode strings]), [], [with_icu=yes])
 AS_IF([test "x$with_icu" = "xyes"], [
 	PKG_CHECK_MODULES([ICU], [icu-uc])
 	AC_DEFINE([HAVE_ICU], [1], [Use icu])
 	AC_SUBST(ICU_CFLAGS)
 	AC_SUBST(ICU_LIBS)
+])
+
+AC_ARG_WITH([gnuplot-call], AS_HELP_STRING([--without-gnuplot-call], [disable support for invocation of external gnuplot binary (using popen)]), [], [with_gnuplot_call=yes])
+AS_IF([test "x$with_gnuplot_call" = "xyes"], [
+	AC_DEFINE([HAVE_GNUPLOT_CALL], [1], [Call to external gnuplot])
 ])
 
 PKG_CHECK_MODULES(LIBXML, [libxml-2.0 >= 2.3.8])
@@ -163,7 +164,7 @@ if test "x$enable_textport" = "xyes" ; then
 
   AC_MSG_CHECKING([whether to use readline])
   AC_ARG_WITH(readline,
-  [  --with-readline         turn on readline [default=yes, default tries -lncurses, -lcurses, -ltermcap]],
+  [  --with-readline         use readline in text port [[default=yes, default tries -lncurses, -lcurses, -ltermcap]] ],
     [case "${withval}" in
       yes) USE_READLINE="yes" ; AC_MSG_RESULT([yes]) ;;
       no) USE_READLINE="no" ; AC_MSG_RESULT([no]) ;;
@@ -268,6 +269,10 @@ ALL_LINGUAS="es fr nl sv zh_CN"
 AM_GNU_GETTEXT(external)
 AM_GNU_GETTEXT_VERSION([0.19.8])
 
+if test "$USE_NLS" = yes; then
+	AC_DEFINE([ENABLE_NLS], [1], [Define to 1 if translation of program messages to the user's native language is requested.])
+fi
+
 dnl AM_GLIB_GNU_GETTEXT sets $DATADIRNAME
 AC_MSG_CHECKING(locale directory)
 if test "x$prefix" = "xNONE"; then
@@ -285,22 +290,28 @@ AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, "$PACKAGE_LOCALE_DIR",
 	[The directory in which qalculate's locale data will be stored])
 	 AC_MSG_RESULT("$PACKAGE_LOCALE_DIR")
 
-INTLTOOL_QALCULATE_DEFINITIONS_RULE='%.xml:       %.xml.in       $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po-defs/*.po) ; LC_ALL=C $(INTLTOOL_MERGE) -x -u -c $(top_builddir)/po-defs/.intltool-merge-cache $(top_srcdir)/po-defs $< [$]@'
+QALCULATE_PODEFS_RULE='%.po: $(top_srcdir)/po-defs/$@ $(top_srcdir)/po-defs/remove-untranslated.cc; $(top_builddir)/po-defs/fixpo $(top_srcdir)/po-defs/$@ $@'
+AC_SUBST(QALCULATE_PODEFS_RULE)
+
+INTLTOOL_QALCULATE_DEFINITIONS_RULE='%.xml:       %.xml.in      $(INTLTOOL_MERGE) $(wildcard $(top_builddir)/po-defs/fixed/*.po) ; LC_ALL=C $(INTLTOOL_MERGE) -x -u -c $(top_builddir)/po-defs/fixed/.intltool-merge-cache $(top_builddir)/po-defs/fixed $< [$]@'
 AC_SUBST(INTLTOOL_QALCULATE_DEFINITIONS_RULE)
 
 dnl  --------
 dnl | output |-----------------------------------------------------------------
 dnl  --------
 
-AC_OUTPUT([
+AC_CONFIG_FILES([
   Makefile
   src/Makefile
   libqalculate/Makefile
   data/Makefile
   po/Makefile.in
   po-defs/Makefile
+  po-defs/fixed/Makefile
   docs/Makefile
   docs/reference/Makefile
   man/Makefile
   libqalculate.pc
 ])
+AC_OUTPUT
+

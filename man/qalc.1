@@ -3,8 +3,8 @@
 qalc \- Powerful and easy to use command line calculator
 .SH SYNOPSIS
 .B qalc
-.RI [ options ]
-.RI  [ expression ]
+[\fIoptions\fP]
+[\fIexpression\fP]
 .SH DESCRIPTION
 Qalculate! is a multi-purpose cross-platform desktop calculator. It is simple
 to use but provides power and versatility normally reserved for complicated
@@ -43,11 +43,15 @@ start in interactive mode
 .PP
 .TP 8
 .B \-l, \-\-list \fI[search term]\fP
-displays a list of all user-defined or matching variables, functions and units.
+displays a list of all user-defined or matching variables, functions, units, and prefixes.
 .PP
 .TP 8
 .B \-\-list\-functions \fI[search term]\fP
 displays a list of all or matching functions.
+.PP
+.TP 8
+.B \-\-list\-prefixes \fI[search term]\fP
+displays a list of all or matching prefixes.
 .PP
 .TP 8
 .B \-\-list\-units \fI[search term]\fP
@@ -148,7 +152,7 @@ Factorizes the current result.
 .TP 8
 .B find, list \fI[name]\fP
 Displays a list of variables, functions and units.
-Enter with argument 'currencies', 'functions', 'variables' or 'units' to show a list of all currencies, functions, variables or units. Enter a search term to find matching variables, functions, and/or units. If command is called with no argument all user-definied objects are listed.
+Enter with argument 'currencies', 'functions', 'variables', 'units', or 'prefixes' to show a list of all currencies, functions, variables, units, or prefixes. Enter a search term to find matching variables, functions, units, and/or prefixes. If command is called with no argument all user-definied objects are listed.
 .br
 Example: list functions.
 .br
@@ -167,9 +171,13 @@ Example: function func1 5*\\x.
 .PP
 .TP 8
 .B info
-Displays information about a function, variable or unit.
+Displays information about a function, variable, unit, or prefix.
 .br
 Example: info sin.
+.PP
+.TP 8
+.B MC/MS/M+/M-
+Memory operations (memory clear, memory store, memory plus, memory minus). Recall the memory using the MR/MRC variable.
 .PP
 .TP 8
 .B mode
@@ -251,6 +259,27 @@ Swaps position of values on the RPN stack. If no index is specified, the values 
 Example: swap 2 4
 .PP
 When a line begins with '/', the text that follows is always interpreted as a command.
+.SH "KEYBINDINGS"
+.PP
+.TP 8
+.B Tab
+shows a list of functions, variables, and units that matches the last object in the current expression
+.PP
+.TP 8
+.B Ctrl+D
+terminates the program
+.PP
+.TP 8
+.B Ctrl+E
+switches between approximation modes (exact, try exact, auto)
+.PP
+.TP 8
+.B Ctrl+F
+switches between fraction modes (simple, decimal, auto)
+.PP
+.TP 8
+.B Ctrl+A
+saves the current result in a temporary variable
 .SH "SETTINGS"
 These settings are changed using the \fIset\fP command (e.g. set base 16) or the \fI\-s, \-\-set\fP command line option (e.g. qalc -s "base 16"). Possible values are shown in parenthesis. 1 and 0 can be used instead of on and off. If the value is left out, a value of 1 is generally assumed. The default value is marked with '*'.
 .PP
@@ -279,7 +308,7 @@ Calculation:
 Default angle unit for trigonometric functions.
 .PP
 .TP 8
-.B approximation, appr \fI(0 = exact, 1* = try exact, 2 = approximate)\fP
+.B approximation, appr \fI(-1* = auto, 0 = exact, 1 = try exact, 2 = approximate, 3 = dual)\fP
 How approximate variables and calculations are handled. In exact mode approximate values will not be calculated.
 .PP
 .TP 8
@@ -292,10 +321,10 @@ approximate functions and/or irrational numbers.
 Determines the method used for interval calculation / uncertainty propagation.
 .PP
 .TP 8
-.B precision, prec \fI(> 0) 8*\fP
+.B precision, prec \fI(> 0) 10*\fP
 Specifies the default number of significant digits displayed and determines the precision used for approximate calculations.
 .PP
-Enabled Objects
+Enabled objects:
 .PP
 .TP 8
 .B calculate functions, calcfunc \fI(on*, off)\fP
@@ -326,7 +355,8 @@ Interprete undefined symbols in expressions as unknown variables.
 .B variable units, varunit \fI(on*, off)\fP
 If activated physical constants include units (e.g. c = 299 792 458 m∕s).
 .PP
-Generic Display Options.PP
+Generic display options:
+.PP
 .TP 8
 .B abbreviations, abbr \fI(on*, off)\fP
 Use abbreviated names for units and variables.
@@ -362,7 +392,7 @@ Add extra space around operators.
 .B unicode, uni \fI(on*, off)\fP
 Display Unicode characters.
 .PP
-Numerical Display
+Numerical display:
 .PP
 .TP 8
 .B base \fI(-1114112 - 1114112, bin, oct, dec*, hex, sexa, time, roman)\fP
@@ -381,7 +411,7 @@ Determines the default decimal separator.
 .B digit grouping, group \fI(0* = off, 1 = standard, 2 = locale)\fP
 .PP
 .TP 8
-.B fractions, fr \fI(0* = off, 1 = exact, 2 = on, 3 = mixed, 4 = long)\fP
+.B fractions, fr \fI(-1* = auto, 0 = off, 1 = exact, 2 = on, 3 = mixed, 4 = long, 5 = dual)\fP
 Determines how rational numbers are displayed (e.g. 5/4 = 1 + 1/4 = 1.25). 'long' removes limits on the size of the numerator and denonimator.
 .PP
 .TP 8
@@ -425,7 +455,7 @@ If actived, zeroes are kept at the end of approximate numbers.
 .B two's complement, twos \fI(on*, off)\fP
 Enables two's complement representation for display of negative binary numbers.
 .PP
-Parsing
+Parsing:
 .PP
 .TP 8
 .B caret as xor, xor^ \fI(on, off*)\fP
@@ -454,14 +484,14 @@ Use 'j' (instead of 'i') as default symbol for the imaginary unit.
 .B limit implicit multiplication, limimpl \fI(on, off*)\fP
 .PP
 .TP 8
-.B parsing mode, parse \fI(0* = adaptive, 1 = implicit first, 2 = conventional)\fP
+.B parsing mode, syntax \fI(0* = adaptive, 1 = implicit first, 2 = conventional, 3 = chain, 4 = rpn)\fP
+See syntax section.
 .PP
 .TP 8
 .B read precision, readprec \fI(0* = off, 1 = always, 2 = when decimals)\fP
 If activated, numbers be interpreted as approximate with precision equal to the number of significant digits (3.20 = 3.20+/-0.005).
-rpn syntax, rpnsyn
 .PP
-Units
+Units:
 .PP
 .TP 8
 .B all prefixes, allpref \fI(on, off*)\fP
@@ -500,9 +530,13 @@ Use negative exponents instead of division for units in result (m/s = m*s^-1).
 .B sync units, sync \fI(on*, off)\fP
 .PP
 .TP 8
+.B temperature units, temp \fI(hybrid*, absolute, relative)\fP
+Determines how expressions with temperature units are calculated (hybrid acts as absolute if the expression contains different temperature units, otherwise as relative).
+.PP
+.TP 8
 .B update exchange rates, upxrates \fI(-1 = ask*, 0 = never, > 0 = days)\fP
 .PP
-Other
+Other:
 .PP
 .TP 8
 .B ignore locale \fI(yes, no*)\fP
@@ -608,6 +642,8 @@ parenthesis, 10^x, exponentiation, functions, bitwise NOT, logical NOT, multipli
 .PP
 The evaluation of \fIshort/implicit multiplication\fP without any multiplication sign (e.g. 5x, 5(2+3)), differs depending on the parsing mode. In the \fIconventional mode\fP implicit multiplication does not differ from explicit multiplication (12/2(1+2) = 12/2*3 = 18, 5x/5y = 5 * x/5 * y = xy). In the parse \fIimplicit multiplication first\fP mode, implicit multiplication is parsed before explicit multiplication (12/2(1+2) = 12/(2 * 3) = 2, 5x/5y = (5 * x)/(5 * y) = x/y). The default \fIadaptive mode\fP works as the parse implicit multiplication first mode, unless spaces are found (1/5x = 1/(5 * x), but 1/5 x = (1/5) * x). In the adaptive mode unit expressions are parsed separately (5 m/5 m/s = (5 * m)/(5 * (m/s)) = 1 s). Function arguments without parentheses are an exception, where implicit multiplication in front of variables and units is parsed first regardless of mode (sqrt 2x = sqrt(2x)).
 .PP
+In \fIchain mode\fP, expressions are calculated from left to right, ignoring standard order of operations, as the immediate execution mode of a traditional calculator (1+2*3 = (1+2)*3 = 9).
+.PP
 The \fI"to"-operator\fP is used for unit conversion and manipulation of how the result is presented. Place " to " or a right arrow (e.g. "->") followed by one of expressions/commands the below, at the end of an expression.
 .PP
 .TP 8
@@ -642,7 +678,9 @@ prepend with + or - to force/disable use of mixed units
 .br
 - hex# (show as hexadecimal number with specified number of bits)
 .br
-- sex, sexagesimal (show as sexagesimal number)
+- sex, sexa2, sexa3, sexagesimal (show as sexagesimal number; sexa2 hides and sexa3 rounds arcseconds)
+.br
+- latitude, latitude2, longitude, longitude2 (show as sexagesimal latitude/longitude; latitude2 and longitude2 hide arcseconds)
 .br
 - bijective (shown in bijective base-26)
 .br
@@ -1133,7 +1171,7 @@ float(01000010010100010110000101001000)
 = 52.345001
 .PP
 .TP 8
-flaotError(52.345)
+floatError(52.345)
 = 1.2207031e-6
 .PP
 .TP 8
@@ -1155,7 +1193,7 @@ sqrt(32) to base sqrt(2)
 The manual of the graphical user interface at
 .I https://qalculate.github.io/manual/index.html
 (includes more details about the syntax and elements supported in mathematical expressions, and various options, and
-includes a complete list of functions, variables and units)
+includes a complete list of functions, variables, and units)
 .SH BUGS
 Please report any bugs at 
 .I https://github.com/Qalculate/libqalculate/issues

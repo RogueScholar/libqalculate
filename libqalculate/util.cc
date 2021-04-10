@@ -583,7 +583,7 @@ string getPackageDataDir() {
 
 string getGlobalDefinitionsDir() {
 #ifdef COMPILED_DEFINITIONS
-	return "resource:///qalculate";
+	return "";
 #else
 #	ifndef WIN32
 	return string(PACKAGE_DATA_DIR) + "/qalculate";

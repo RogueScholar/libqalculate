@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<QALCULATE version="3.12.1">
+<QALCULATE version="3.18.0">
   <category>
     <_title>Matrices &amp; Vectors</_title>
     <builtin_function name="vector">
@@ -304,6 +304,20 @@
         <_title>Matrix 2</_title>
       </argument>
     </builtin_function>
+    <builtin_function name="rk">
+      <_title>Matrix Rank</_title>
+      <_names>r:rk</_names>
+      <argument index="1">
+        <_title>Matrix</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="rref">
+      <_title>Reduced Row Echelon Form</_title>
+      <_names>r:rref</_names>
+      <argument index="1">
+        <_title>Matrix</_title>
+      </argument>
+    </builtin_function>
     <builtin_function name="entrywise">
       <_title>Entrywise Function</_title>
       <_names>r:entrywise</_names>
@@ -410,13 +424,13 @@
       <_names>r:perm,variations</_names>
       <expression>\x!/(\x-\y)!</expression>
       <_description>Returns the number of possible arrangements of an ordered list with a number of objects to choose from and a list size. If there are three objects (1, 2 and 3) that is put in a list with two positions, the alternatives are [1, 2], [2, 1], [1, 3], [3, 1], [2, 3] and [3, 2], and thus the number of permutations is 6.</_description>
-      <argument type="free" index="1">
+      <argument type="integer" index="1">
         <_title>Objects</_title>
-        <handle_vector>true</handle_vector>
+        <min>1</min>
       </argument>
-      <argument type="free" index="2">
+      <argument type="integer" index="2">
         <_title>Size</_title>
-        <handle_vector>true</handle_vector>
+        <min>1</min>
       </argument>
     </function>
     <function>
@@ -424,13 +438,13 @@
       <_names>r:comb</_names>
       <expression>\x!/(\y!*(\x-\y)!)</expression>
       <_description>Returns the number of possible arrangements of an unordered list with a number of objects to choose from and a list size. If there are three objects (1, 2 and 3) that is put in a list with place for two, the alternatives are [1, 2], [1, 3], and [2, 3], and thus the number of combinations is 3.</_description>
-      <argument type="free" index="1">
+      <argument type="integer" index="1">
         <_title>Objects</_title>
-        <handle_vector>true</handle_vector>
+        <min>1</min>
       </argument>
-      <argument type="free" index="2">
+      <argument type="integer" index="2">
         <_title>Size</_title>
-        <handle_vector>true</handle_vector>
+        <min>1</min>
       </argument>
     </function>
     <function>
@@ -665,7 +679,7 @@
     </category>
     <builtin_function name="gcd">
       <_title>Greatest Common Divisor</_title>
-      <_names>r:gcd</_names>
+      <_names>rc:gcd,c:GCD</_names>
       <argument index="1">
         <_title>1st value</_title>
       </argument>
@@ -770,7 +784,7 @@
       <builtin_function name="base">
         <_title>Number Base</_title>
         <_names>r:base</_names>
-        <_description>Returns a value from an expression using the specified number base (radix). For bases between -62 and 62 full mathematical expressions (including operators and functions) are supported, while for other bases the specified expression is converted to a single number.&#10;&#10;Bases ≤ 36 uses digits 0-9 and A-Z (case insensitive).&#10;&#10;Bases between 37 and 62 uses case sensitive letters (0-9, A-Z, a-z) as digits ('z' equals 61).&#10;&#10;Bases over 62 use Unicode characters as digits, with the character code as value (e.g. '0' equals 48). Escaped characters are in this case supported (e.g. '\0' = 0, '\523' = 523, '\x7f' = 127).&#10;&#10;Negative bases use the same digits as the corresponding positive bases and the digits used for non-integer bases are determined by rounding the base away from zero. Bases that are not real numbers by default uses digits 0-9 and A-Z.&#10;&#10;The set of digits used can be selected using the third argument (defaults to 0 for automatic selection). Set it to 1 for digits 0-9 and A-Z, 2 for 0-9, A-Z and a-z, and 3 for Unicode digits, or enter a text string with all digits placed in ascending order (e.g. "0123456789"). When the set of digits is manually selected, the specified expression is always converted to a single number.</_description>
+        <_description>Returns a value from an expression using the specified number base (radix). For bases between -62 and 62 full mathematical expressions (including operators and functions) are supported, while for other bases the specified expression is converted to a single number.&#10;&#10;Bases ≤ 36 uses digits 0-9 and A-Z (case insensitive).&#10;&#10;Bases between 37 and 62 uses case sensitive letters (0-9, A-Z, a-z) as digits ('z' equals 61).&#10;&#10;Bases over 62 use Unicode characters as digits, with the character code as value (e.g. '0' equals 48). Escaped characters are in this case supported (e.g. '\0' = 0, '\523' = 523, '\x7f' = 127).&#10;&#10;Negative bases use the same digits as the corresponding positive bases and the digits used for non-integer bases are determined by rounding the base away from zero. Bases that are not real numbers by default uses digits 0-9 and A-Z.&#10;&#10;The set of digits used can be selected using the third argument (defaults to 0 for automatic selection). Set it to 1 for digits 0-9 and A-Z, 2 for 0-9, A-Z and a-z, 3 for Unicode digits, and 4 for phonewords (e.g. ABC=2, CDE=3, etc.), or enter a text string with all digits placed in ascending order (e.g. "0123456789") and optionally separated by semicolon (to enable multple equivalent digits, e.g. "0;aA1;bB2;cC3"). When the set of digits is manually selected, the specified expression is always converted to a single number.</_description>
         <argument index="1">
           <_title>Number</_title>
         </argument>
@@ -872,6 +886,10 @@
       <_title>Imaginary Error Function</_title>
       <_names>r:erfi</_names>
     </builtin_function>
+    <builtin_function name="erfinv">
+      <_title>Inverse Error Function</_title>
+      <_names>r:erfinv</_names>
+    </builtin_function>
     <builtin_function name="Li">
       <_title>Polylogarithm</_title>
       <_names>rc:Li,polylog</_names>
@@ -939,6 +957,16 @@
       <expression>ln(\x/(1-\x))</expression>
       <argument type="number" index="1">
         <_title>Value</_title>
+      </argument>
+    </function>
+    <function>
+      <_title>Probit Function</_title>
+      <_names>r:probit</_names>
+      <expression>sqrt(2)*erfinv(2\x-1)</expression>
+      <argument type="number" index="1">
+        <_title>Value</_title>
+        <min include_equals="true">0</min>
+        <max include_equals="true">1</max>
       </argument>
     </function>
     <function>
@@ -1039,7 +1067,7 @@
     </builtin_function>
     <builtin_function name="cbrt">
       <_title>Cube Root</_title>
-      <_names>au:&#x221B;,r:cbrt</_names>
+      <_names>r:cbrt,aou:&#x221B;</_names>
       <_description>Returns the third real root.</_description>
       <argument type="free" index="1">
         <_title>Value</_title>
@@ -1282,7 +1310,7 @@
     <function>
       <_title>Cotangent</_title>
       <_names>r:cot</_names>
-      <expression>1/tan(\x)</expression>
+      <expression>cos(\x)/sin(\x)</expression>
       <argument type="angle" index="1">
         <_title>Angle</_title>
         <test>false</test>
@@ -1308,7 +1336,7 @@
     <function>
       <_title>Hyperbolic Cotangent</_title>
       <_names>r:coth</_names>
-      <expression>1/tanh(\x)</expression>
+      <expression>cosh(\x)/sinh(\x)</expression>
       <argument type="number" index="1">
         <test>false</test>
       </argument>
@@ -1316,15 +1344,15 @@
     <function>
       <_title>Inverse Secant</_title>
       <_names>r:arcsec, r:asec</_names>
-      <expression>radtodef(0.5pi+i*ln(sqrt(1-1\x^2)+i/\x))</expression>
+      <expression>acos(1/\x)</expression>
       <argument type="number" index="1">
         <test>false</test>
       </argument>
     </function>
     <function>
       <_title>Inverse Cosecant</_title>
-      <_names>r:arcscs, r:acsc</_names>
-      <expression>radtodef(-i*ln(sqrt(1-1\x^2)+i/\x))</expression>
+      <_names>r:arccsc, r:acsc</_names>
+      <expression>asin(1/\x)</expression>
       <argument type="number" index="1">
         <test>false</test>
       </argument>
@@ -1332,7 +1360,7 @@
     <function>
       <_title>Inverse Cotangent</_title>
       <_names>r:arccot, r:acot</_names>
-      <expression>radtodef(i/2*(ln((\x-i)/\x)-ln((\x+i)/\x)))</expression>
+      <expression>if(\x=0,radtodef(pi/2),atan(1/\x),1)</expression>
       <argument type="number" index="1">
         <test>false</test>
       </argument>
@@ -1340,7 +1368,7 @@
     <function>
       <_title>Inverse Hyperbolic Secant</_title>
       <_names>r:arsech, r:asech</_names>
-      <expression>ln(sqrt(1/\x-1)*sqrt(1/\x+1)+1/\x)</expression>
+      <expression>acosh(1/\x)</expression>
       <argument type="number" index="1">
         <test>false</test>
       </argument>
@@ -1348,7 +1376,7 @@
     <function>
       <_title>Inverse Hyperbolic Cosecant</_title>
       <_names>r:arcsch, r:acsch</_names>
-      <expression>ln(sqrt(1+1/\x^2)+1/\x)</expression>
+      <expression>if(\x=0,plus_infinity,asinh(1/\x),1)</expression>
       <argument type="number" index="1">
         <test>false</test>
       </argument>
@@ -1356,7 +1384,7 @@
     <function>
       <_title>Inverse Hyperbolic Cotangent</_title>
       <_names>r:arcoth, r:acoth</_names>
-      <expression>(ln(1+1/\x)-ln(1-1/\x))/2</expression>
+      <expression>if(\x=0,pi/2*i,atanh(1/\x),1)</expression>
       <argument type="number" index="1">
         <test>false</test>
       </argument>
@@ -1440,6 +1468,23 @@
       <_description>Returns the value of a roman number.</_description>
       <argument index="1">
         <_title>Roman number</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="geodistance">
+      <_title>Distance Between GPS Coordinates</_title>
+      <_names>r:geodistance,gpsdistance</_names>
+      <_description>Calculates the distance between two geodetic coordinates using Vincenty's formulae (with datum WGS 84), or, in case of failure, the Haversine forumla. Each coordinate can be specified using a numerical value (representing decimal degrees), an angle (e.g. with degree unit), or a text string ending with N, S, E, or W (S for negative latitude, W for negative longitude).</_description>
+      <argument index="1">
+        <_title>Latitude 1</_title>
+      </argument>
+      <argument index="2">
+        <_title>Longitude 1</_title>
+      </argument>
+      <argument index="3">
+        <_title>Latitude 2</_title>
+      </argument>
+      <argument index="4">
+        <_title>Longitude 2</_title>
       </argument>
     </builtin_function>
     <function>
@@ -1974,15 +2019,15 @@
         <_description>Returns the probability mass or cumulative distribution function of the binomial distribution.</_description>
         <expression>if(\A{0},sum(binomial(\y,"i")*\z^"i"*(1-\z)^(\y-"i"),0,\x,"i"),binomial(\y,\x)*\z^\x*(1-\z)^(\y-\x))</expression>
         <argument type="integer" index="1">
-          <_title>Number of successes</_title>
+          <_title>Number of successes (k)</_title>
           <min>0</min>
         </argument>
         <argument type="integer" index="2">
-          <_title>Number of trials</_title>
+          <_title>Number of trials (n)</_title>
           <min>0</min>
         </argument>
         <argument type="number" index="3">
-          <_title>Probability</_title>
+          <_title>Probability (p)</_title>
           <min include_equals="true">0</min>
           <max include_equals="true">1</max>
         </argument>
@@ -1996,43 +2041,64 @@
         <_description>Returns the probability density or cumulative distribution function of the exponential distribution.</_description>
         <expression>if(\Z{0},1-e^(-\y*\x),\y*e^(-\y*\x))</expression>
         <argument type="number" index="1">
-          <_title>Value</_title>
+          <_title>X</_title>
           <min include_equals="true">0</min>
         </argument>
         <argument type="number" index="2">
-          <_title>Rate parameter</_title>
+          <_title>Rate (λ)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="boolean" index="3">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Exponential Inverse Cumulative Distribution</_title>
+        <_names>r:expinv</_names>
+        <expression>-ln(1-\x)/\y</expression>
+        <argument type="number" index="1">
+          <_title>P</_title>
+          <min include_equals="true">0</min>
+          <max include_equals="false">1</max>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Rate (λ)</_title>
           <min>0</min>
+        </argument>
+      </function>
+      <function>
+        <_title>Logistic Distribution</_title>
+        <_names>r:logistic</_names>
+        <_description>Returns the probability density or cumulative distribution function of the logistic distribution.</_description>
+        <expression>if(\A{0},1/(1+e^(-(\x-\Z{0})/\y)),e^(-(\x-\z)/\y)/(\y*(1+e^(-(\x-\z)/\y))^2)</expression>
+        <argument type="free" index="1">
+          <_title>X</_title>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Scale (s)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Location (μ)</_title>
         </argument>
         <argument type="boolean" index="4">
           <_title>Cumulative</_title>
         </argument>
       </function>
       <function>
-        <_title>Logistic Distribution</_title>
-        <_names>r:logistic</_names>
-        <_description>Returns the probability density p(x) at x for a logistic distribution with scale parameter. (from Gnumeric)</_description>
-        <expression>exp(-abs(\x)/\y)/(abs(\y)*(1+exp(-abs(\x)/\y))^2)</expression>
-        <argument type="free" index="1">
-          <_title>X</_title>
-        </argument>
-        <argument type="number" index="2">
-          <_title>Scale</_title>
-          <min include_equals="true">0</min>
-        </argument>
-      </function>
-      <function>
         <_title>Normal Distribution</_title>
         <_names>r:normdist</_names>
-        <_description>Returns the probability density or cumulative distribution function of a normal distribution.</_description>
+        <_description>Returns the probability density or cumulative distribution function of the normal distribution.</_description>
         <expression>if(\A{0},(1+erf((\x-\Y{0})/(\Z{1}*sqrt(2))))/2,1/\Z*1/(sqrt(2pi))×e^(−1/2×((\x−\Y)/\Z)^2))</expression>
         <argument type="free" index="1">
           <_title>Value</_title>
         </argument>
         <argument type="free" index="2">
-          <_title>Mean</_title>
+          <_title>Mean (μ)</_title>
         </argument>
         <argument type="free" index="3">
-          <_title>Standard deviation</_title>
+          <_title>Standard deviation (σ)</_title>
+          <condition>\x^2&gt;0</condition>
         </argument>
         <argument type="boolean" index="4">
           <_title>Cumulative</_title>
@@ -2041,30 +2107,36 @@
       <function>
         <_title>Pareto Distribution</_title>
         <_names>r:pareto</_names>
-        <_description>Returns the probability density p(x) at x for a Pareto distribution with exponent and scale. (from Gnumeric)</_description>
-        <expression>if(\x &lt; \z,0,(\y/\z)/(\x/\z)^(\y+1))</expression>
+        <_description>Returns the probability density or cumulative distribution function of the Pareto distribution.</_description>
+        <expression>if(\A{0},1-(\z/\x)^\y,\y*\z^\y/\x^(\y+1))</expression>
+        <condition>\x>=\z</condition>
         <argument type="free" index="1">
           <_title>X</_title>
         </argument>
         <argument type="number" index="2">
-          <_title>Exponent</_title>
-          <min include_equals="true">0</min>
+          <_title>Shape (α)</_title>
+          <min include_equals="false">0</min>
         </argument>
         <argument type="number" index="3">
-          <_title>Scale</_title>
-          <min include_equals="true">0</min>
+          <_title>Scale (x_m)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
         </argument>
       </function>
       <function>
         <_title>Poisson Distribution</_title>
         <_names>r:poisson</_names>
-        <_description>Returns the probability mass or cumulative distribution of the Poisson distribution.</_description>
-        <expression>if(\Z{0},sum((\y^"k"*e^(-\y))/("k"!),0,\x,"k"),(\y^\x*e^(-\y))/(\x!))</expression>
-        <argument type="free" index="1">
-          <_title>Number of events (x)</_title>
+        <_description>Returns the probability density or cumulative distribution function of the Poisson distribution.</_description>
+        <expression>if(\Z{0},e^(-\y)*sum((\y^"i")/("i"!),0,floor(\x),"i"),(\y^\x*e^(-\y))/(\x!))</expression>
+        <argument type="integer" index="1">
+          <_title>X</_title>
+          <min>0</min>
         </argument>
-        <argument type="free" index="2">
-          <_title>Mean</_title>
+        <argument type="number" index="2">
+          <_title>Rate (λ)</_title>
+          <min include_equals="false">0</min>
         </argument>
         <argument type="boolean" index="3">
           <_title>Cumulative</_title>
@@ -2073,22 +2145,25 @@
       <function>
         <_title>Rayleigh Distribution</_title>
         <_names>r:rayleigh</_names>
-        <_description>Returns the probability density p(x) at x for a Rayleigh distribution with scale parameter sigma. (from Gnumeric)</_description>
-        <expression>if(\Z{0},1-exp(-\x^2/(2*\y^2)),\x/(\y^2)*exp(-\x^2/(2*\y^2)))</expression>
+        <_description>Returns the probability density or cumulative distribution function of the Rayleigh distribution.</_description>
+        <expression>if(\Z{0},1-e^(-\x^2/(2\y^2)),\x/\y^2*e^(-\x^2/(2\y^2)))</expression>
         <argument type="number" index="1">
           <_title>X</_title>
           <min include_equals="true">0</min>
         </argument>
         <argument type="number" index="2">
-          <_title>Sigma</_title>
-          <min include_equals="true">0</min>
+          <_title>Scale (σ)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="boolean" index="3">
+          <_title>Cumulative</_title>
         </argument>
       </function>
       <function>
         <_title>Rayleigh Tail Distribution</_title>
         <_names>r:rayleightail</_names>
         <_description>Returns the probability density p(x) at x for a Rayleigh tail distribution with scale parameter sigma and a lower limit. (from Gnumeric)</_description>
-        <expression>if(\x &lt; \y,0,(\x/\z)/\z*exp(((\y/\z)+(\x/\z))*((\y/\z)-(\x/\z))/2))</expression>
+        <expression>if(\x&lt;\y,0,(\x/\z)/\z*exp(((\y/\z)+(\x/\z))*((\y/\z)-(\x/\z))/2))</expression>
         <argument type="free" index="1">
           <_title>X</_title>
         </argument>
@@ -2096,8 +2171,164 @@
           <_title>Lower limit</_title>
         </argument>
         <argument type="number" index="3">
-          <_title>Sigma</_title>
+          <_title>Scale (σ)</_title>
           <min include_equals="true">0</min>
+        </argument>
+      </function>
+      <function>
+        <_title>Gamma Distribution</_title>
+        <_names>r:gammadist</_names>
+        <_description>Returns the probability density or cumulative distribution function of the gamma distribution.</_description>
+        <expression>if(\A{0},1-igamma(\y,\x/\z)/gamma(\y),\x^(\y-1)*e^(-\x/\z)/(gamma(\y)*\z^\y))</expression>
+        <argument type="number" index="1">
+          <_title>X</_title>
+          <min include_equals="true">0</min>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Shape (k)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Scale (θ)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Chi-Square Distribution</_title>
+        <_names>r:chisqdist</_names>
+        <_description>Returns the probability density or cumulative distribution function of the chi-square distribution.</_description>
+        <expression>gammadist(\x,\y/2,2,\Z{0})</expression>
+        <argument type="number" index="1">
+          <_title>X</_title>
+          <min include_equals="true">0</min>
+        </argument>
+        <argument type="integer" index="2">
+          <_title>Degrees of freedom (k)</_title>
+          <min include_equals="true">1</min>
+        </argument>
+        <argument type="boolean" index="3">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Weibull Distribution</_title>
+        <_names>r:weibulldist</_names>
+        <_description>Returns the probability density or cumulative distribution function of the Weibull distribution.</_description>
+        <expression>if(\A{0},1-e^(-(\x/\y)^\z),\z/\y*(\x/\y)^(\z-1)*e^(-(\x/\y)^\z))</expression>
+        <argument type="number" index="1">
+          <_title>X</_title>
+          <min include_equals="true">0</min>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Scale (λ)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Shape (k)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Weibull Inverse Cumulative Distribution</_title>
+        <_names>r:wblinv</_names>
+        <expression>\y(-ln(1-\x))^(1/\z)</expression>
+        <argument type="number" index="1">
+          <_title>P</_title>
+          <min include_equals="true">0</min>
+          <max include_equals="false">1</max>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Scale (λ)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Shape (k)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+      </function>
+      <function>
+        <_title>Beta Distribution</_title>
+        <_names>r:betadist</_names>
+        <_description>Returns the probability density or cumulative distribution function of the beta distribution.</_description>
+        <expression>if(\A{0},betainc(\x,\y,\z)/beta(\y,\z),\x^(\y-1)*(1-\x)^(\z-1)/beta(\y,\z))</expression>
+        <argument type="number" index="1">
+          <_title>X</_title>
+          <min include_equals="true">0</min>
+          <max include_equals="true">1</max>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Shape (α)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Shape (β)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Student's t-distribution</_title>
+        <_names>r:tdist</_names>
+        <_description>Returns the probability density or cumulative distribution function of the Student's t distribution.</_description>
+        <expression>if(\Z{0},1-betadist(\y/(\x^2+\y),\y/2,1/2,1)/2,gamma((\y+1)/2)/(sqrt(\y*pi)*gamma(\y/2))*(1+\x^2/\y)^(-(\y+1)/2))</expression>
+        <argument type="number" index="1">
+          <_title>X</_title>
+        </argument>
+        <argument type="integer" index="2">
+          <_title>Degrees of freedom (v)</_title>
+          <min>1</min>
+        </argument>
+        <argument type="boolean" index="3">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>F-distribution</_title>
+        <_names>r:fdist</_names>
+        <_description>Returns the probability density or cumulative distribution function of the F-distribution.</_description>
+        <expression>if(\A{0},betadist(\y*\x/(\y*\x+\z),\y/2,\z/2,1),sqrt((\y*\x)^\y*\z^\z/(\y*\x+\z)^(\y+\z))/(\x*beta(\y/2,\z/2)))</expression>
+        <argument type="number" index="1">
+          <_title>X</_title>
+          <min include_equals="true">0</min>
+        </argument>
+        <argument type="integer" index="2">
+          <_title>Degrees of freedom (numerator)</_title>
+          <min>1</min>
+        </argument>
+        <argument type="integer" index="3">
+          <_title>Degrees of freedom (denominator)</_title>
+          <min>1</min>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
+        </argument>
+      </function>
+      <function>
+        <_title>Cauchy Distribution</_title>
+        <_names>r:cauchydist</_names>
+        <_description>Returns the probability density or cumulative distribution function of the Cauchy distribution.</_description>
+        <expression>if(\A{0},1/pi*atan((\x-\y)/\z)+1/2,1/(pi*\z*(1+((\x-\y)/(\z))^2)))</expression>
+        <argument type="number" index="1">
+          <_title>X</_title>
+          <min include_equals="true">0</min>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Location (x_0)</_title>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Scale (γ)</_title>
+          <min include_equals="false">0</min>
+        </argument>
+        <argument type="boolean" index="4">
+          <_title>Cumulative</_title>
         </argument>
       </function>
     </category>
@@ -2314,6 +2545,16 @@
         <_title>Start Date</_title>
       </argument>
     </builtin_function>
+    <function>
+      <_title>Days in Month</_title>
+      <_names>r:daysInMonth</_names>
+      <subfunction precalculate="true">month(\X{today})</subfunction>
+      <subfunction precalculate="true">year(\x)</subfunction>
+      <expression>if([\1=2,\1=4||\1=6||\1=9||\1=11],[if(\2%4=0&amp;&amp;(\2%100!=0||\2%400==0),29,28),30],31)</expression>
+      <argument type="date" index="1">
+        <_title>Date</_title>
+      </argument>
+    </function>
   </category>
   <category>
     <_title>Utilities</_title>
@@ -2347,8 +2588,15 @@
     <builtin_function name="code">
       <_title>Unicode Value</_title>
       <_names>r:code</_names>
+      <_description>Encodes a Unicode character or text string using the selected format. Supported encodings are UTF-8 (0), UTF-16 (1), and UTF-32 (2). If the third argument is true, each separate code unit (8, 16, or 32 bits depending on encoding) is placed in a vector.</_description>
       <argument index="1">
         <_title>Character</_title>
+      </argument>
+      <argument index="2">
+        <_title>Encoding</_title>
+      </argument>
+      <argument index="3">
+        <_title>Use vector</_title>
       </argument>
     </builtin_function>
     <builtin_function name="char">
@@ -2541,6 +2789,9 @@
       <argument index="4">
         <_title>Title</_title>
       </argument>
+      <argument index="5">
+        <_title>Precalculate expression</_title>
+      </argument>
     </builtin_function>
     <builtin_function name="register">
       <_title>RPN Stack Register</_title>
@@ -2632,6 +2883,16 @@
       </argument>
       <argument index="3">
         <_title>Uncertainty is relative</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="command">
+      <_title>External Command</_title>
+      <_names>r:command</_names>
+      <argument index="1">
+        <_title>Command</_title>
+      </argument>
+      <argument index="2">
+        <_title>Argument</_title>
       </argument>
     </builtin_function>
   </category>
@@ -2908,10 +3169,10 @@
       <argument index="4">
         <_title>Min iterations</_title>
       </argument>
-      <argument index="4">
+      <argument index="5">
         <_title>Max iterations</_title>
       </argument>
-      <argument index="5">
+      <argument index="6">
         <_title>Variable of integration</_title>
       </argument>
     </builtin_function>
@@ -3012,8 +3273,12 @@
       <function>
         <_title>Lower Incomplete Gamma Function</_title>
         <_names>r:gammainc</_names>
-        <expression>1-igamma(\x,\y)/gamma(\x)</expression>
+        <expression>gamma(\x)-igamma(\x,\y)</expression>
       </function>
+      <builtin_function name="betainc">
+        <_title>Incomplete Beta Function</_title>
+        <_names>r:betainc</_names>
+      </builtin_function>
     </category>
   </category>
   <category>

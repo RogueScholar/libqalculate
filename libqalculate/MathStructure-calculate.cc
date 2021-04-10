@@ -1,7 +1,7 @@
 /*
     Qalculate (library)
 
-    Copyright (C) 2003-2007, 2008, 2016-2019  Hanna Knutsson (hanna.knutsson@protonmail.com)
+    Copyright (C) 2003-2007, 2008, 2016-2021  Hanna Knutsson (hanna.knutsson@protonmail.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1702,6 +1702,7 @@ int MathStructure::merge_multiplication(MathStructure &mstruct, const Evaluation
 						// dot product of two vectors: [a1, a2, a3, ..]*[b1, b2, b3, ...]=a1*b1+a2*b2+a3*b3+...
 						// dimension of the vectors must be equal
 						if(SIZE == mstruct.size()) {
+							if(SIZE == 0) {clear(true); return 1;}
 							for(size_t i = 0; i < SIZE; i++) {
 								mstruct[i].ref();
 								CHILD(i).multiply_nocopy(&mstruct[i], true);
@@ -1716,6 +1717,7 @@ int MathStructure::merge_multiplication(MathStructure &mstruct, const Evaluation
 					return -1;
 				}
 				default: {
+					if(!mstruct.representsScalar()) return -1;
 					// matrix/vector multiplied by scalar: multiply each element
 					for(size_t i = 0; i < SIZE; i++) {
 						CHILD(i).calculateMultiply(mstruct, eo);
@@ -4923,7 +4925,7 @@ int MathStructure::merge_bitwise_xor(MathStructure &mstruct, const EvaluationOpt
 
 #define MERGE_ALL(FUNC, TRY_LABEL) 	size_t i2, i3 = SIZE;\
 					bool do_abort = false; \
-					for(size_t i = 0; i < SIZE - 1; i++) {\
+					for(size_t i = 0; SIZE > 0 && i < SIZE - 1; i++) {\
 						i2 = i + 1;\
 						TRY_LABEL:\
 						for(; i2 < i; i2++) {\
@@ -5174,6 +5176,27 @@ bool MathStructure::factorizeUnits() {
 		}
 	}
 }
+int contains_temp_unit(const MathStructure &m, bool top = true) {
+	if(m.isUnit() && (m.unit() == CALCULATOR->getUnitById(UNIT_ID_KELVIN) || m.unit()->containsRelativeTo(CALCULATOR->getUnitById(UNIT_ID_KELVIN)))) {
+		return 1;
+	} else if(m.isPower() && m[0].isUnit() && (m[0].unit() == CALCULATOR->getUnitById(UNIT_ID_KELVIN) || m[0].unit()->containsRelativeTo(CALCULATOR->getUnitById(UNIT_ID_KELVIN)))) {
+		return 2;
+	} else if(top && m.isMultiplication()) {
+		bool b_unit = false;
+		int i_ret = 0;
+		for(size_t i = 0; i < m.size(); i++) {
+			if(!i_ret) {
+				i_ret = contains_temp_unit(m[i], false);
+				if(i_ret == 2 || (i_ret && b_unit)) return 2;
+				if(!i_ret && !b_unit && m[i].containsType(STRUCT_UNIT, false, false, false)) b_unit = true;
+			} else if(!b_unit && m[i].containsType(STRUCT_UNIT, false, false, false)) {
+				return 2;
+			}
+		}
+		return i_ret;
+	}
+	return 0;
+}
 
 bool MathStructure::calculatesub(const EvaluationOptions &eo, const EvaluationOptions &feo, bool recursive, MathStructure *mparent, size_t index_this) {
 
@@ -5209,6 +5232,10 @@ bool MathStructure::calculatesub(const EvaluationOptions &eo, const EvaluationOp
 				CHILD(1).calculatesub(eo, feo, true, this, 1);
 				CHILDREN_UPDATED;
 			}
+			if(eo.sync_units && CHILD(0).isUnit() && CALCULATOR->getTemperatureCalculationMode() == TEMPERATURE_CALCULATION_RELATIVE && !CHILD(1).isOne()) {
+				if(CHILD(0).unit() == CALCULATOR->getUnitById(UNIT_ID_CELSIUS) && CALCULATOR->getUnitById(UNIT_ID_KELVIN)) CHILD(0).setUnit(CALCULATOR->getUnitById(UNIT_ID_KELVIN));
+				else if(CHILD(0).unit() == CALCULATOR->getUnitById(UNIT_ID_FAHRENHEIT) && CALCULATOR->getUnitById(UNIT_ID_RANKINE)) CHILD(0).setUnit(CALCULATOR->getUnitById(UNIT_ID_RANKINE));
+			}
 			if(CHILD(0).merge_power(CHILD(1), eo) >= 1) {
 				b = true;
 				setToChild(1, false, mparent, index_this + 1);
@@ -5224,12 +5251,23 @@ bool MathStructure::calculatesub(const EvaluationOptions &eo, const EvaluationOp
 					EvaluationOptions eo2 = eo;
 					eo2.expand = -3;
 					eo2.combine_divisions = false;
+					int temp_unit_found = 0;
 					for(size_t i = 0; i < SIZE; i++) {
 						CHILD(i).calculatesub(eo2, feo, true, this, i);
 						CHILD(i).factorizeUnits();
+						if(temp_unit_found == 1) temp_unit_found++;
+						if(!temp_unit_found && CALCULATOR->getTemperatureCalculationMode() == TEMPERATURE_CALCULATION_RELATIVE) {
+							temp_unit_found = contains_temp_unit(CHILD(i));
+						}
+						if(temp_unit_found > 1) {
+							if(CALCULATOR->getUnitById(UNIT_ID_FAHRENHEIT) && CALCULATOR->getUnitById(UNIT_ID_RANKINE)) CHILD(i).replace(CALCULATOR->getUnitById(UNIT_ID_FAHRENHEIT), CALCULATOR->getUnitById(UNIT_ID_RANKINE));
+							if(CALCULATOR->getUnitById(UNIT_ID_CELSIUS) && CALCULATOR->getUnitById(UNIT_ID_KELVIN)) CHILD(i).replace(CALCULATOR->getUnitById(UNIT_ID_CELSIUS), CALCULATOR->getUnitById(UNIT_ID_KELVIN));
+						}
 					}
 					CHILDREN_UPDATED;
+					if(temp_unit_found) CALCULATOR->beginTemporaryStopMessages();
 					syncUnits(true, NULL, true, feo);
+					if(temp_unit_found) CALCULATOR->endTemporaryStopMessages();
 				}
 				unformat(eo);
 				MERGE_RECURSE
@@ -5241,6 +5279,26 @@ bool MathStructure::calculatesub(const EvaluationOptions &eo, const EvaluationOp
 		case STRUCT_MULTIPLICATION: {
 
 			MERGE_RECURSE
+
+			if(eo.sync_units && CALCULATOR->getTemperatureCalculationMode() == TEMPERATURE_CALCULATION_RELATIVE) {
+				int temp_unit_found = 0;
+				for(size_t i = 0; i < SIZE && temp_unit_found < 2; i++) {
+					if(!temp_unit_found && CALCULATOR->getTemperatureCalculationMode() == TEMPERATURE_CALCULATION_RELATIVE) {
+						temp_unit_found = contains_temp_unit(CHILD(i), false);
+						if(temp_unit_found < 0) temp_unit_found = 2;
+					} else if(CHILD(i).isUnit_exp()) {
+						if(temp_unit_found) temp_unit_found = 2;
+						else temp_unit_found = -1;
+					}
+				}
+				if(temp_unit_found > 1) {
+					replace(CALCULATOR->getUnitById(UNIT_ID_FAHRENHEIT), CALCULATOR->getUnitById(UNIT_ID_RANKINE));
+					replace(CALCULATOR->getUnitById(UNIT_ID_CELSIUS), CALCULATOR->getUnitById(UNIT_ID_KELVIN));
+				}
+				if(temp_unit_found) CALCULATOR->beginTemporaryStopMessages();
+				syncUnits(true, NULL, true, feo);
+				if(temp_unit_found) CALCULATOR->endTemporaryStopMessages();
+			}
 			if(eo.sync_units && syncUnits(eo.sync_nonlinear_unit_relations, NULL, true, feo)) {
 				unformat(eo);
 				MERGE_RECURSE

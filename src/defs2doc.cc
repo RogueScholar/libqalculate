@@ -26,7 +26,7 @@ using std::vector;
 using std::endl;
 using std::list;
 
-KnownVariable *vans[5];
+KnownVariable *vans[5], *v_memory;
 PrintOptions printops;
 EvaluationOptions evalops;
 
@@ -39,11 +39,43 @@ bool is_answer_variable(Variable *v) {
 }
 
 
-string fix(string str) {
+string fix(string str, bool replace_signs = false, bool b2 = false) {
+	if(printops.use_unicode_signs) {
+		gsub("<=", SIGN_GREATER_OR_EQUAL, str);
+		gsub(">=", SIGN_LESS_OR_EQUAL, str);
+		gsub("!=", SIGN_NOT_EQUAL, str);
+	}
 	gsub("&", "&amp;", str);
 	gsub("<", "&lt;", str);
 	gsub(">", "&gt;", str);
 	gsub("\n", "</para><para>", str);
+	if(replace_signs) {
+		gsub(SIGN_POWER_2, "<superscript>2</superscript>", str);
+		gsub(SIGN_POWER_3, "<superscript>3</superscript>", str);
+		gsub("-", SIGN_MINUS, str);
+		size_t i = 0, i2 = 1;
+		while(true) {
+			i = str.find("^", i2);
+			i2 = i + 1;
+			if(i == string::npos || i2 == str.length()) break;
+			bool b = is_in(NUMBERS, str[i2]);
+			if(!b && (i2 + strlen(SIGN_MINUS) < str.length() && str.substr(i2, strlen(SIGN_MINUS)) == SIGN_MINUS && is_in(NUMBERS, str[i2 + strlen(SIGN_MINUS)]))) {
+				i2 += strlen(SIGN_MINUS);
+				b = true;
+			}
+			if(b) {
+				b = (i2 == str.length() - 1);
+				if(!b) b = is_in(OPERATORS COMMA SPACES PARENTHESISS, str[i2 + 1]) || (i2 + strlen(SIGN_MIDDLEDOT) + 1 < str.length() && str.substr(i2 + 1, strlen(SIGN_MIDDLEDOT)) == SIGN_MIDDLEDOT);
+				if(b) {
+					if(i2 == str.length() - 1) str += "</superscript>";
+					else str.insert(i2 + 1, "</superscript>");
+					str.erase(i, 1);
+					str.insert(i, "<superscript>");
+				}
+			}
+		}
+		gsub("*", SIGN_MULTIPLICATION, str);
+	}
 	return str;
 }
 string fixcat(string str) {
@@ -315,7 +347,7 @@ void print_function(MathFunction *f) {
 		str += ")";
 		fprintf(ffile, "<para><command>%s</command></para>\n", str.c_str());
 		for(size_t i2 = 1; i2 <= f->countNames(); i2++) {
-			if(&f->getName(i2) != ename && !f->getName(i2).completion_only) {
+			if(&f->getName(i2) != ename) {
 				fprintf(ffile, "<para><command>%s</command></para>", f->getName(i2).name.c_str());
 			}
 		}
@@ -328,7 +360,7 @@ void print_function(MathFunction *f) {
 			fprintf(ffile, "<para>%s</para>\n", fix(f->description()).c_str());
 		}
 		if(!f->example(true).empty()) {
-			str = _("Example:"); str += " "; str += fix(f->example(false, ename->name));
+			str = _("Example:"); str += " "; str += fix(f->example(false, ename->name), printops.use_unicode_signs);
 			fprintf(ffile, "<para>%s</para>\n", str.c_str());
 		}
 		if(f->subtype() == SUBTYPE_DATA_SET && !((DataSet*) f)->copyright().empty()) {
@@ -354,7 +386,7 @@ void print_function(MathFunction *f) {
 				if(i2 > f->minargs()) {
 					str2 += " (";
 					str2 += _("optional");
-					if(!f->getDefaultValue(i2).empty()) {
+					if(!f->getDefaultValue(i2).empty() && f->getDefaultValue(i2) != "\"\"") {
 						str2 += ", ";
 						str2 += _("default: ");
 						str2 += f->getDefaultValue(i2);
@@ -371,7 +403,7 @@ void print_function(MathFunction *f) {
 			fputs("<formalpara>\n", ffile);
 			fprintf(ffile, "<title>%s</title>", _("Requirement"));
 			fputs("<para>\n", ffile);
-			fputs(fix(f->printCondition()).c_str(), ffile); fputs("\n", ffile);
+			fputs(fix(f->printCondition(), printops.use_unicode_signs).c_str(), ffile); fputs("\n", ffile);
 			fputs("</para>\n", ffile);
 			fputs("</formalpara>\n", ffile);
 		}
@@ -418,26 +450,36 @@ void print_variable(Variable *v) {
 		fprintf(vfile, "<entry><para>%s</para></entry>\n", v->title().c_str());
 		bool b_first = true;
 		for(size_t i2 = 1; i2 <= v->countNames(); i2++) {
-			if(!v->getName(i2).completion_only) {
-				if(!b_first) str += " / ";
-				b_first = false;
-				str += v->getName(i2).name;
-			}
+			if(!b_first) str += " / ";
+			b_first = false;
+			str += v->getName(i2).name;
 		}
 		fprintf(vfile, "<entry><para>%s</para></entry>\n", str.c_str());
 		value = "";
 		bool is_relative = false;
 		if(is_answer_variable(v)) {
 			value = _("a previous result");
+		} else if(v == v_memory) {
+			value = _("result of memory operations (MC, MS, M+, M−)");
 		} else if(v->isKnown()) {
 			if(v->id() == VARIABLE_ID_PRECISION) {
 				value = _("current precision");
+			} else if(v->id() == VARIABLE_ID_TODAY) {
+				value = _("current date");
+			} else if(v->id() == VARIABLE_ID_TOMORROW) {
+				value = _("tomorrow's date");
+			} else if(v->id() == VARIABLE_ID_YESTERDAY) {
+				value = _("yesterday's date");
+			} else if(v->id() == VARIABLE_ID_NOW) {
+				value = _("current date and time");
+			} else if(v->id() == VARIABLE_ID_UPTIME) {
+				value = _("current computer uptime");
 			} else if(((KnownVariable*) v)->isExpression()) {
-				value = fix(CALCULATOR->localizeExpression(((KnownVariable*) v)->expression()));
+				value = fix(CALCULATOR->localizeExpression(((KnownVariable*) v)->expression()), printops.use_unicode_signs);
 				if(!((KnownVariable*) v)->uncertainty(&is_relative).empty()) {
 					if(is_relative) {value += " ("; value += _("relative uncertainty"); value += ": ";}
 					else value += SIGN_PLUSMINUS;
-					value += fix(CALCULATOR->localizeExpression(((KnownVariable*) v)->uncertainty()));
+					value += fix(CALCULATOR->localizeExpression(((KnownVariable*) v)->uncertainty()), printops.use_unicode_signs);
 					if(is_relative) {value += ")";}
 				}
 				if(((KnownVariable*) v)->expression().find_first_not_of(NUMBER_ELEMENTS EXPS) == string::npos && value.length() > 40) {
@@ -454,7 +496,7 @@ void print_variable(Variable *v) {
 				} else if(((KnownVariable*) v)->get().isVector()) {
 					value = _("vector");
 				} else {
-					value = fix(CALCULATOR->print(((KnownVariable*) v)->get(), 30));
+					value = fix(CALCULATOR->print(((KnownVariable*) v)->get(), 30, printops), printops.use_unicode_signs);
 				}
 			}
 		} else {
@@ -504,11 +546,9 @@ void print_unit(Unit *u) {
 		fprintf(ufile, "<entry><para>%s</para></entry>\n", u->title().c_str());
 		bool b_first = true;
 		for(size_t i2 = 1; i2 <= u->countNames(); i2++) {
-			if(!u->getName(i2).completion_only) {
-				if(!b_first) str += " / ";
-				b_first = false;
-				str += u->getName(i2).name;
-			}
+			if(!b_first) str += " / ";
+			b_first = false;
+			str += u->getName(i2).name;
 		}
 		if(u->subtype() == SUBTYPE_COMPOSITE_UNIT) {
 			fprintf(ufile, "<entry><para>(%s)</para></entry>\n", str.c_str());
@@ -523,21 +563,18 @@ void print_unit(Unit *u) {
 			}
 			case SUBTYPE_ALIAS_UNIT: {
 				AliasUnit *au = (AliasUnit*) u;
-				base_unit = au->firstBaseUnit()->print(false, printops.abbreviate_names, printops.use_unicode_signs);
+				base_unit = fix(au->firstBaseUnit()->print(false, printops.abbreviate_names, printops.use_unicode_signs), printops.use_unicode_signs);
 				if(au->firstBaseExponent() != 1) {
 					if(au->firstBaseUnit()->subtype() == SUBTYPE_COMPOSITE_UNIT) {base_unit.insert(0, 1, '('); base_unit += ")";}
-					if(printops.use_unicode_signs && au->firstBaseExponent() == 2) base_unit += SIGN_POWER_2;
-					else if(printops.use_unicode_signs && au->firstBaseExponent() == 3) base_unit += SIGN_POWER_3;
-					else {
-						base_unit += POWER;
-						base_unit += i2s(au->firstBaseExponent());
-					}
+					base_unit += "<superscript>";
+					base_unit += i2s(au->firstBaseExponent());
+					base_unit += "</superscript>";
 				}
 				bool is_relative = false;
 				if(au->baseUnit() == CALCULATOR->u_euro && au->isBuiltin()) {
 					relation = "exchange rate";
 				} else {
-					relation = fix(CALCULATOR->localizeExpression(au->expression()).c_str());
+					relation = fix(CALCULATOR->localizeExpression(au->expression()).c_str(), printops.use_unicode_signs);
 					if(!au->uncertainty(&is_relative).empty()) {
 						if(is_relative) {relation += " ("; relation += _("relative uncertainty"); relation += ": ";}
 						else relation += SIGN_PLUSMINUS;
@@ -553,7 +590,7 @@ void print_unit(Unit *u) {
 				break;
 			}
 			case SUBTYPE_COMPOSITE_UNIT: {
-				base_unit = fix(((CompositeUnit*) u)->print(false, true, printops.use_unicode_signs));
+				base_unit = fix(((CompositeUnit*) u)->print(false, true, printops.use_unicode_signs), printops.use_unicode_signs);
 				relation = "";
 				break;
 			}
@@ -591,12 +628,23 @@ int main(int, char *[]) {
 	vans[2] = (KnownVariable*) CALCULATOR->addVariable(new KnownVariable(_("Temporary"), ans_str + "3", m_undefined, _("Answer 3"), false));
 	vans[3] = (KnownVariable*) CALCULATOR->addVariable(new KnownVariable(_("Temporary"), ans_str + "4", m_undefined, _("Answer 4"), false));
 	vans[4] = (KnownVariable*) CALCULATOR->addVariable(new KnownVariable(_("Temporary"), ans_str + "5", m_undefined, _("Answer 5"), false));
+	v_memory = new KnownVariable(CALCULATOR->temporaryCategory(), "", m_zero, _("Memory"), true, true);
+	ExpressionName ename;
+	ename.name = "MR";
+	ename.case_sensitive = true;
+	ename.abbreviation = true;
+	v_memory->addName(ename);
+	ename.name = "MRC";
+	v_memory->addName(ename);
+	CALCULATOR->addVariable(v_memory);
 
 	//load global definitions
 	if(!CALCULATOR->loadGlobalDefinitions()) {
 		printf(_("Failed to load global definitions!\n"));
 	}
 	printops.use_unicode_signs = true;
+	printops.multiplication_sign = MULTIPLICATION_SIGN_X;
+	printops.interval_display = INTERVAL_DISPLAY_PLUSMINUS;
 
 	generate_functions_tree_struct();
 	generate_variables_tree_struct();

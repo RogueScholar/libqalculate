@@ -1,3 +1,296 @@
+2021-04-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add support for number suffix k (e.g. 2k = 2000)
+
+2021-03-27 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add support for d(f(x))/dx syntax (equivalent to diff(f(x),x))
+
+2021-03-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add sexagesimal variants (sexa2, sexa3, longitude, longitude2, latitude, latitude2)
+
+2021-03-24 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add function for distance between GPS coordinates (geodistance)
+	* Loosen rules for parsing " and ' as arcminutes and arcseconds
+	* Do not append degrees at end of sexagesimal output
+
+2021-03-22 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add support for solving equalities and inequalities with error functions (erf(), erfc(), erfi(), erfinv())
+	* Add cauchydist() function
+
+2021-03-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Replace tonne with small prefix, with (kilo)gram (e.g. 5 kg instead of 5 mt)
+
+2021-03-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add erfinv() and probit() functions
+
+2021-03-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add functions for exponential and Weibull inverse cumulative distributions (expinv() and wblinv())
+	* Add cumulative parameter to all statistical distribution functions
+
+2021-03-12 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add incomplete beta function (betainc())
+	* betadist(), fdist(), and tdist() functions
+
+2021-03-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add chisqdist(), weibulldist, and gammadist() functions
+	* Fix gammainc() function
+
+2021-03-01 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add command() function (runs external command)
+	* Improve handling of expressions with log-based units
+	* Fix conversion to multiple units, of which one is a temperature unit, with relative temperature units activated (e.g. g/oC to g/oF)
+	* Improve conversion of expression with multiple units to a single unit (e.g. m/W to W)
+	* Fix compilation with readline version < 7
+
+2021-02-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Save handle_vector property
+
+2021-01-28 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Allow prefixes, with full name, without units (e.g. kilo = 10^3)
+
+2021-01-14 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Temperature calculation modes (absolute, relative, hybrid)
+
+2021-01-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix saving of local data objects (user data was deleted)
+
+2021-01-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add daysInMonth() function
+
+2021-01-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Always place units with prefixes before other units
+	* Improve prefixes when expression contains both units that do and units that do not use prefixes
+	* Fix kWh composite unit
+
+2021-01-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Modify behaviour of percent addition when first term is percentage (e.g. 10%+50%=60% instead of 10%+50%=15%)
+
+2020-12-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Change keybinding for store command to Ctrl+A
+	* Apply standard terminal action for keybindings (Ctrl+A, Ctrl+E, Ctrl+F) if current input is not empty
+	* Ask for name if store command is used without argument
+
+2020-12-22 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix saving of local data objects
+	* Add Unicode symbols (not used by default) for Ångström, Kelvin, liter, and pound
+
+2020-12-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix set conv mixed in qalc
+	* Use x, y, z as function arguments if '\' is not found in function expression of qalc function command
+
+2020-12-12 Juan Carlos Alonso <me@jcalonso.com>
+
+	* Fix BYN exchange rate url
+
+2020-12-12 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix saving to an existing variable (using save() or ":=") of a value containing the very same variable
+
+2020-12-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Chain calculation parsing mode
+	* RPN syntax as parsing mode
+
+2020-12-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix uninitialized PrintOptions::base_display and set default value to BASE_DISPLAY_NONE (fixes issues in floating point format output)
+	* Fix output of negative numbers with floating point format
+
+2020-11-26 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Make all currency codes, except CUP and KGS, case insensitive
+	* Make cup unit (avoid conflict with Cuban pesos) and gcd() function (avoid conflict with gigacandela) case sensitive
+
+2020-11-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix precision in output of expression after RPN operation in qalc
+
+2020-11-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Do not output Unicode cube root symbol (often has low legibility)
+	* Show cbrt(a) instead of a^(1/3) in result (when PrintOptions::halfexp_to_sqrt is true)
+
+2020-11-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix never ending loop with log-based unit in trigonometric function
+	* Use false/true instead of 0/1 for result of equality or inequality
+
+2020-11-17 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault in isolate x with exponentiation factor without x in base
+
+2020-11-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add automatic and dual approximation and fraction options to Calculator::calculateAndPrint()
+
+2020-11-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault in Calculator::convertTimeOut(), and potentially Calculator::calculateRPN() (fixes conversion in the unit manager in qalculate-gtk)
+
+2020-11-07 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Do not ask before overwriting temporary variables in qalc
+	* Add Ctrl-R shortcut for store command in qalc
+
+2020-11-06 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add "precalculate expression" argument (default false) to save() (this also changes the behaviour of ":=")
+	* Fix local time zone on Windows
+	* Fix matrix/vector multiplication when the matrix/vector is stored in an approximate variable
+	* Fix parsing of expression with multiple degree signs
+	* Support multiple equivalent custom digits, separated by semicolon (e.g. "0;aA1;bB2;cC3"), in base() function
+	* Phoneword digit set in base() function
+
+2020-11-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Automatic (default) and dual approximation in qalc
+
+2020-10-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Always place unit with prefix first
+
+2020-10-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Use Unicode symbols for >=, <=, and != in function argument description and function condition (in qalc and defs2doc)
+
+2020-10-28 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Automatic (default) and dual fractions options, in qalc, which shows simple, mixed, and/or decimal fractions depending on format and contents of expression and result
+
+2020-10-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix quoted degree symbol in function argument (e.g. code("°"))
+
+2020-10-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support for different character encodings in code() function
+	* Fix Unicode number base (multiply with 2^32 for each position)
+	* Fix default separator in load() and export()
+	* Always perform conversion to optimal (SI) unit when the expression is a number multiplied by a unit and input equals output
+
+2020-10-22 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add matrix rank (rk) and reduced row echelon form (rref) functions
+	* Add support for d/dx notation for derivatives, e.g. d/dx sin(x) = diff(sin(x))
+
+2020-10-20 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Replace variables with corresponding units (e.g. c with c_unit) in unit expressions
+
+2020-10-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix date/time output includes (wrong) decimals (zeroes) in some cases (e.g. with nextlunarphase())
+	* Improve handling of ignore comma/dot option outside of calculated expression in qalc
+	* Set arguments for comb() and perm() as positive integers
+
+2020-10-16 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Support for Unicode quotation marks
+	* Improved Unicode fraction handling
+
+2020-10-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix parsing of "°²" and similar
+	* Do not use degree symbol when degree unit is base in exponentiation
+
+2020-10-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Activate formatting and coloring on Windows 10 (set ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+	* Fix press enter to continue and to abort on Windows
+
+2020-10-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Define rad as a base unit for now (fixes issues with lumen) and add special case for conversion of rad and related units to length ratios (e.g. m/m)
+	* Fix rates.json not installed
+
+2020-09-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Compiled definitions without GIO
+	* Add MC, MS, M+, M- commands and MR/MRC variable in qalc
+
+2020-09-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improve plot (and genvector()) speed for user functions
+	* Fix show information for multiple matching objects in qalc
+	* Add yr and annus names for year unit, röntgen name for roentgen (R) unit, and rem for roentgen equivalent man
+	* Add Rutherford (Rd), millirem (mrem), mrem/s, and erg/g units
+	* Show radioactivity in rem_radioactivity as suffix (subscript)
+
+2020-09-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Allow scientific e-notation without preceding digit, e.g. E2=1E2, with warning message
+
+2020-09-17 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Do not save x, y, and z as user variables if global variables are not loaded
+
+2020-09-14 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Show information for all matching objects (if there are multiple objects with the same name) with info command
+	* Show information about prefixes with the info command and list prefixes with find command, "list prefixes", and --list-prefixes
+	* Use thin space on Windows 10
+	* Remove ending white-space from from expression when separating "to"-expression;
+
+2020-09-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix cot(pi/2), coth(pi/2*i), arccot(0), arcsch(0), and arcoth(0), and simplify inverse sec, csc, and cot
+	* Show currencies in parsed expression using ISO 4217 code (e.g. USD instead dollar)
+	* Do not use "$", "dollar", and "dollars" for USD and remove cent, if symbol for local currency is "$"
+	* Do not use "£" as symbol for GBP if symbol for local currency is "£"
+
+2020-09-09 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Use thin space on Windows 10
+	* Use B as abbreviation for byte instead of bel
+	* Show information for all matching objects (if there are multiple objects with the same name) with info command
+	* Show information about prefixes with the info command
+	* List prefixes with find command, "list prefixes", and --list-prefixes
+
+2020-09-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Use "noenhanced" Gnuplot option (fixes plot titles with exponents with more than one character)
+
+2020-09-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix conversion from km/L to mpg (and similar)
+	* Do not use variable units in conversion when units are missing from the original value
+
+2020-09-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix logarithmic y scale in plot
+
+2020-08-31 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Increase default precision in qalc to 10
+
+2020-08-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Transform vector to matrix with one column (column vector) for matrix arguments
+
+2020-08-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Treat vector as column vector for matrix multiplication (when 1st factor is a matrix and 2nd factor is a vector)
+
 2020-08-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Show information about wrong number of arguments for explicit commands (using /)

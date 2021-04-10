@@ -1,7 +1,7 @@
 /*
     Qalculate (library)
 
-    Copyright (C) 2003-2007, 2008, 2016-2019  Hanna Knutsson (hanna.knutsson@protonmail.com)
+    Copyright (C) 2003-2007, 2008, 2016-2021  Hanna Knutsson (hanna.knutsson@protonmail.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1825,7 +1825,7 @@ bool remove_add_zero_unit(MathStructure &m) {
 	return false;
 }
 
-// Functions for handling log-bases units
+// Functions for handling log-based units
 Unit *find_log_unit(const MathStructure &m, bool toplevel = true) {
 	if(!toplevel && m.isUnit() && m.unit()->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) m.unit())->hasNonlinearExpression() && (((AliasUnit*) m.unit())->expression().find("log") != string::npos || ((AliasUnit*) m.unit())->inverseExpression().find("log") != string::npos || ((AliasUnit*) m.unit())->expression().find("ln") != string::npos || ((AliasUnit*) m.unit())->inverseExpression().find("ln") != string::npos)) {
 		return ((AliasUnit*) m.unit())->firstBaseUnit();
@@ -1833,26 +1833,227 @@ Unit *find_log_unit(const MathStructure &m, bool toplevel = true) {
 	if(m.isMultiplication() && toplevel && m.last().isUnit()) {
 		Unit *u = find_log_unit(m.last(), false);
 		if(u) {
-			for(size_t i = 0; i < m.size(); i++) {
+			for(size_t i = 0; i < m.size() - 1; i++) {
 				if(m[i].containsType(STRUCT_UNIT, true)) return u;
 			}
 			return NULL;
 		}
 	}
+	if(m.isVariable() && m.variable()->isKnown()) {
+		return find_log_unit(((KnownVariable*) m.variable())->get(), toplevel);
+	}
+	if(m.isFunction() && m.function()->id() == FUNCTION_ID_STRIP_UNITS) return NULL;
 	for(size_t i = 0; i < m.size(); i++) {
 		Unit *u = find_log_unit(m[i], false);
 		if(u) return u;
 	}
 	return NULL;
 }
+bool separate_unit(MathStructure &m, Unit *u, const EvaluationOptions &eo) {
+	if(m.isVariable() && m.variable()->isKnown()) {
+		const MathStructure &mvar = ((KnownVariable*) m.variable())->get();
+		if(mvar.contains(u, false, true, true)) {
+			if(mvar.isMultiplication()) {
+				bool b = false;
+				for(size_t i = 0; i < mvar.size(); i++) {
+					if(is_unit_multiexp(mvar[i])) {
+						b = true;
+					} else if(mvar[i].containsType(STRUCT_UNIT, false, true, true) != 0) {
+						b = false;
+						break;
+					}
+				}
+				if(b) {
+					m.transformById(FUNCTION_ID_STRIP_UNITS);
+					for(size_t i = 0; i < mvar.size(); i++) {
+						if(is_unit_multiexp(mvar[i])) {
+							m.multiply(mvar[i], i);
+						}
+					}
+					m.unformat(eo);
+					separate_unit(m, u, eo);
+					return true;
+				}
+			}
+			if(eo.calculate_variables && ((eo.approximation != APPROXIMATION_EXACT && eo.approximation != APPROXIMATION_EXACT_VARIABLES) || (!m.variable()->isApproximate() && !mvar.containsInterval(true, false, false, 0, true)))) {
+				m.set(mvar);
+				m.unformat(eo);
+				separate_unit(m, u, eo);
+				return true;
+			}
+		}
+	}
+	if(m.isFunction() && m.function()->id() == FUNCTION_ID_STRIP_UNITS) return false;
+	bool b = false;
+	for(size_t i = 0; i < m.size(); i++) {
+		if(separate_unit(m[i], u, eo)) {
+			b = true;
+		}
+	}
+	return b;
+}
+void separate_unit2(MathStructure &m, Unit *u, const EvaluationOptions &eo) {
+	if(m.isMultiplication()) {
+		size_t i_unit = m.size();
+		for(size_t i = 0; i < m.size(); i++) {
+			separate_unit2(m[i], u, eo);
+			if(m[i].isUnit_exp()) {
+				if(i_unit < 1 && ((m[i].isUnit() && m[i].unit() == u) || (m[i].isPower() && m[i][0].unit() == u))) {
+					if(i_unit == i - 1) {
+						m[i].multiply(m_one);
+						m[i].swapChildren(1, 2);
+					} else {
+						m[i - 1].ref();
+						m[i].multiply_nocopy(&m[i - 1]);
+						m.delChild(i);
+						i--;
+					}
+				}
+				i_unit = i;
+			} else if(i < m.size() && m[i].containsType(STRUCT_UNIT, false, true, true)) {
+				MathStructure mtest(m[i]);
+				CALCULATOR->beginTemporaryStopMessages();
+				mtest.eval(eo);
+				if(mtest.containsType(STRUCT_UNIT, false, true, true) > 0) {
+					i_unit = i;
+				}
+				CALCULATOR->endTemporaryStopMessages();
+			}
+		}
+	} else {
+		for(size_t i = 0; i < m.size(); i++) {
+			separate_unit2(m[i], u, eo);
+		}
+	}
+}
 void convert_log_units(MathStructure &m, const EvaluationOptions &eo) {
 	while(true) {
 		Unit *u = find_log_unit(m);
 		if(!u) break;
+		separate_unit(m, u, eo);
+		separate_unit2(m, u, eo);
+		if(!m.convert(u, true, NULL, false, eo)) break;
 		CALCULATOR->error(false, "Log-based units were converted before calculation.", NULL);
-		m.convert(u, true, NULL, false, eo);
 	}
 }
+
+Unit *contains_temperature_unit(const MathStructure &m, bool only_cf = true, Unit *u_prev = NULL) {
+	if(m.isUnit()) {
+		if(!only_cf) {
+			if(m.unit() != u_prev && (m.unit() == CALCULATOR->getUnitById(UNIT_ID_KELVIN) || m.unit()->containsRelativeTo(CALCULATOR->getUnitById(UNIT_ID_KELVIN)))) return m.unit();
+		} else if(m.unit() == CALCULATOR->getUnitById(UNIT_ID_CELSIUS) || m.unit() == CALCULATOR->getUnitById(UNIT_ID_FAHRENHEIT)) {
+			return m.unit();
+		}
+	}
+	if(m.isVariable() && m.variable()->isKnown()) {
+		return contains_temperature_unit(((KnownVariable*) m.variable())->get(), only_cf, u_prev);
+	}
+	if(m.isFunction() && m.function()->id() == FUNCTION_ID_STRIP_UNITS) return NULL;
+	for(size_t i = 0; i < m.size(); i++) {
+		Unit *u = contains_temperature_unit(m[i], only_cf, u_prev);
+		if(u) return u;
+	}
+	return NULL;
+}
+bool separate_temperature_units(MathStructure &m, const EvaluationOptions &eo) {
+	if(m.isVariable() && m.variable()->isKnown()) {
+		const MathStructure &mvar = ((KnownVariable*) m.variable())->get();
+		if(contains_temperature_unit(mvar, false)) {
+			if(mvar.isMultiplication()) {
+				bool b = false;
+				for(size_t i = 0; i < mvar.size(); i++) {
+					if(is_unit_multiexp(mvar[i])) {
+						b = true;
+					} else if(mvar[i].containsType(STRUCT_UNIT, false, true, true) != 0) {
+						b = false;
+						break;
+					}
+				}
+				if(b) {
+					m.transformById(FUNCTION_ID_STRIP_UNITS);
+					for(size_t i = 0; i < mvar.size(); i++) {
+						if(is_unit_multiexp(mvar[i])) {
+							m.multiply(mvar[i], i);
+						}
+					}
+					m.unformat(eo);
+					separate_temperature_units(m, eo);
+					return true;
+				}
+			}
+			if(eo.calculate_variables && ((eo.approximation != APPROXIMATION_EXACT && eo.approximation != APPROXIMATION_EXACT_VARIABLES) || (!m.variable()->isApproximate() && !mvar.containsInterval(true, false, false, 0, true)))) {
+				m.set(mvar);
+				m.unformat(eo);
+				separate_temperature_units(m, eo);
+				return true;
+			}
+		}
+	}
+	if(m.isFunction() && m.function()->id() == FUNCTION_ID_STRIP_UNITS) return false;
+	bool b = false;
+	for(size_t i = 0; i < m.size(); i++) {
+		if(separate_temperature_units(m[i], eo)) {
+			b = true;
+		}
+	}
+	return b;
+}
+void separate_temperature_units2(MathStructure &m, const EvaluationOptions &eo) {
+	if(m.isMultiplication()) {
+		size_t i_unit = m.size();
+		for(size_t i = 0; i < m.size(); i++) {
+			separate_temperature_units2(m[i], eo);
+			if(m[i].isUnit_exp()) {
+				if(i_unit < 1 && ((m[i].isUnit() && m[i].unit()->baseUnit() == CALCULATOR->getUnitById(UNIT_ID_KELVIN)) || (m[i].isPower() && m[i][0].unit()->baseUnit() == CALCULATOR->getUnitById(UNIT_ID_KELVIN)))) {
+					if(i_unit == i - 1) {
+						m[i].multiply(m_one);
+						m[i].swapChildren(1, 2);
+					} else {
+						m[i - 1].ref();
+						m[i].multiply_nocopy(&m[i - 1]);
+						m.delChild(i);
+						i--;
+					}
+				}
+				i_unit = i;
+			} else if(i < m.size() && m[i].containsType(STRUCT_UNIT, false, true, true)) {
+				MathStructure mtest(m[i]);
+				CALCULATOR->beginTemporaryStopMessages();
+				mtest.eval(eo);
+				if(mtest.containsType(STRUCT_UNIT, false, true, true) > 0) {
+					i_unit = i;
+				}
+				CALCULATOR->endTemporaryStopMessages();
+			}
+		}
+	} else {
+		for(size_t i = 0; i < m.size(); i++) {
+			separate_temperature_units2(m[i], eo);
+		}
+	}
+}
+void convert_temperature_units(MathStructure &m, const EvaluationOptions &eo) {
+	if(CALCULATOR->getTemperatureCalculationMode() == TEMPERATURE_CALCULATION_RELATIVE || !CALCULATOR->getUnitById(UNIT_ID_KELVIN)) return;
+	Unit *u = contains_temperature_unit(m, true);
+	if(!u) return;
+	if(!contains_temperature_unit(m, false, u)) {
+		if(CALCULATOR->getTemperatureCalculationMode() == TEMPERATURE_CALCULATION_HYBRID) return;
+		MathStructure *mp = &m;
+		if(m.isMultiplication() && m.size() == 2 && m[0].isMinusOne()) mp = &m[1];
+		if(mp->isUnit_exp()) return;
+		if(mp->isMultiplication() && mp->size() > 0 && mp->last().isUnit_exp()) {
+			bool b = false;
+			for(size_t i = 0; i < mp->size() - 1; i++) {
+				if(contains_temperature_unit((*mp)[i], true)) {b = true; break;}
+			}
+			if(!b) return;
+		}
+	}
+	separate_temperature_units(m, eo);
+	separate_temperature_units2(m, eo);
+	m.convert(CALCULATOR->getUnitById(UNIT_ID_KELVIN), true, NULL, false, eo);
+}
+
 bool warn_ratio_units(MathStructure &m, bool top_level = true) {
 	if(!top_level && m.isUnit() && ((m.unit()->subtype() == SUBTYPE_BASE_UNIT && m.unit()->referenceName() == "Np") || (m.unit()->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) m.unit())->baseUnit()->referenceName() == "Np"))) {
 		CALCULATOR->error(true, "Logarithmic ratio units is treated as other units and the result might not be as expected.", NULL);
@@ -1981,7 +2182,10 @@ MathStructure &MathStructure::eval(const EvaluationOptions &eo) {
 
 	if(m_type == STRUCT_UNDEFINED || m_type == STRUCT_ABORTED || m_type == STRUCT_DATETIME || m_type == STRUCT_UNIT || m_type == STRUCT_SYMBOLIC || (m_type == STRUCT_VARIABLE && !o_variable->isKnown())) return *this;
 
-	if(eo.structuring != STRUCTURING_NONE && eo.sync_units) convert_log_units(*this, eo);
+	if(eo.structuring != STRUCTURING_NONE && eo.sync_units) {
+		convert_log_units(*this, eo);
+		convert_temperature_units(*this, eo);
+	}
 
 	EvaluationOptions feo = eo;
 	feo.structuring = STRUCTURING_NONE;

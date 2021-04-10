@@ -55,7 +55,7 @@
     </unit>
     <unit type="alias">
       <_title>&#xC5;ngstr&#xF6;m</_title>
-      <_names>aru:&#xC5;,u:&#xE5;ngstr&#xF6;m,angstrom</_names>
+      <_names>aru:&#xC5;,aou:&#x212B;,u:&#xE5;ngstr&#xF6;m,angstrom</_names>
       <use_with_prefixes>true</use_with_prefixes>
       <base>
         <unit>m</unit>
@@ -354,31 +354,11 @@
     <_title>!units!Angle</_title>
     <category>
       <_title>Plane Angle</_title>
-      <unit type="composite">
-        <hidden>true</hidden>
-        <title>Meter per Meter</title>
-        <names>r:m_p_m</names>
-        <part>
-          <unit>m</unit>
-          <prefix>0</prefix>
-          <exponent>1</exponent>
-        </part>
-        <part>
-          <unit>m</unit>
-          <prefix>0</prefix>
-          <exponent>-1</exponent>
-        </part>
-      </unit>
-      <unit type="alias">
+      <unit type="base">
         <system>SI</system>
         <_title>Radian</_title>
         <_names>ar:rad,radian,p:radians</_names>
         <use_with_prefixes>false</use_with_prefixes>
-        <base>
-          <unit>m_p_m</unit>
-          <relation>1</relation>
-          <exponent>1</exponent>
-        </base>
       </unit>
       <unit type="alias">
         <_title>Degree</_title>
@@ -431,22 +411,6 @@
     <category>
       <_title>Solid Angle</_title>
       <unit type="composite">
-        <hidden>true</hidden>
-        <title>Square Meter per Square Meter</title>
-        <names>r:sqm_p_sqm</names>
-        <part>
-          <unit>m</unit>
-          <prefix>0</prefix>
-          <exponent>2</exponent>
-        </part>
-        <part>
-          <unit>m</unit>
-          <prefix>0</prefix>
-          <exponent>-2</exponent>
-        </part>
-      </unit>
-      <unit type="composite">
-        <hidden>true</hidden>
         <title>Square Degree</title>
         <names>r:sqdeg</names>
         <part>
@@ -606,7 +570,7 @@
     <unit type="alias">
       <_title>Pound</_title>
       <system>Imperial/US</system>
-      <_names>ar:lb,pound,p:pounds</_names>
+      <_names>ar:lb,aou:&#x2114;,pound,p:pounds</_names>
       <base>
         <unit>oz</unit>
         <relation>16</relation>
@@ -894,7 +858,7 @@
     </unit>
     <unit type="alias">
       <_title>Julian Year</_title>
-      <_names>r:year,p:years</_names>
+      <_names>r:year,p:years,a:yr,annus</_names>
       <base>
         <unit>d</unit>
         <relation>365.25</relation>
@@ -1380,7 +1344,7 @@
       <unit type="alias">
         <system>CGS</system>
         <_title>Abhenry</_title>
-        <_names>r:abenry,p:abhenrys,a:abH</_names>
+        <_names>r:abhenry,p:abhenrys,a:abH</_names>
         <base>
           <unit>H</unit>
           <relation>1E-9</relation>
@@ -1412,7 +1376,7 @@
     <unit type="base">
       <system>SI</system>
       <_title>Kelvin</_title>
-      <_names>ar:K,kelvin,p:kelvins</_names>
+      <_names>ar:K,aou:&#x212A;,kelvin,p:kelvins</_names>
     </unit>
     <unit type="alias">
       <system>SI</system>
@@ -1429,7 +1393,7 @@
     <unit type="alias">
       <_title>Degree Rankine</_title>
       <system>Imperial/US</system>
-      <_names>ar:oR,au:&#xB0;R,r:rankine</_names>
+      <_names>ar:oR,a:oRa,au:&#xB0;R,au:&#xB0;Ra,r:rankine</_names>
       <base>
         <unit>K</unit>
         <relation>5/9</relation>
@@ -1939,7 +1903,7 @@
     </unit>
     <unit type="alias">
       <_title>Liter</_title>
-      <_names>ar:L,a:l,liter,p:liters,litre,p:litres</_names>
+      <_names>ar:L,a:l,aou:&#x2113;,liter,p:liters,litre,p:litres</_names>
       <use_with_prefixes>true</use_with_prefixes>
       <base>
         <unit>m</unit>
@@ -2076,7 +2040,7 @@
       <unit type="alias">
         <_title>Cup (U.S.)</_title>
         <system>US</system>
-        <_names>r:cup,p:cups</_names>
+        <_names>r-c:cup,p-c:cups</_names>
         <base>
           <unit>L</unit>
           <relation>0.2365882365</relation>
@@ -3135,7 +3099,7 @@
     </unit>
     <unit type="composite">
       <_title>Kilowatt Hour</_title>
-      <names>r:W_h</names>
+      <names>r:kW_h</names>
       <part>
         <unit>W</unit>
         <prefix>3</prefix>
@@ -3578,6 +3542,15 @@
         <exponent>1</exponent>
       </base>
     </unit>
+    <unit type="alias">
+      <_title>Rutherford</_title>
+      <_names>ar:Rd,rutherford,p:rutherfords</_names>
+      <base>
+        <unit>Bq</unit>
+        <relation>1E6</relation>
+        <exponent>1</exponent>
+      </base>
+    </unit>
     <category>
       <_title>Absorbed Dose</_title>
       <unit type="alias">
@@ -3613,13 +3586,38 @@
         </base>
       </unit>
       <unit type="alias">
-        <_title>Rem</_title>
-        <_names>r:rem_radioactivity</_names>
+        <system>CGS</system>
+        <_title>Roentgen Equivalent Man (Rem)</_title>
+        <_names>ros:rem_radioactivity,a:rem</_names>
         <base>
           <unit>Sv</unit>
           <relation>1/100</relation>
           <exponent>1</exponent>
         </base>
+      </unit>
+      <unit type="composite">
+        <system>CGS</system>
+        <_title>Millirem</_title>
+        <names>r:mrem_c</names>
+        <part>
+          <unit>rem_radioactivity</unit>
+          <prefix>-3</prefix>
+          <exponent>1</exponent>
+        </part>
+      </unit>
+      <unit type="composite">
+        <_title>Erg per Gram</_title>
+        <names>r:erg_p_g</names>
+        <part>
+          <unit>erg</unit>
+          <prefix>0</prefix>
+          <exponent>1</exponent>
+        </part>
+        <part>
+          <unit>g</unit>
+          <prefix>0</prefix>
+          <exponent>-1</exponent>
+        </part>
       </unit>
     </category>
     <category>
@@ -3641,7 +3639,7 @@
       </unit>
       <unit type="alias">
         <_title>Roentgen</_title>
-        <_names>ar:R,roentgen,p:roentgens</_names>
+        <_names>ar:R,roentgen,r&#x00f6;ntgen,p:roentgens,p:r&#x00f6;ntgens</_names>
         <base>
           <unit>C_p_kg</unit>
           <relation>0.000258</relation>
@@ -3666,6 +3664,21 @@
           <exponent>-1</exponent>
         </part>
       </unit>
+      <unit type="composite">
+        <system>CGS</system>
+        <_title>Millirem per hour</_title>
+        <names>r:mrem_p_h</names>
+        <part>
+          <unit>rem_radioactivity</unit>
+          <prefix>-3</prefix>
+          <exponent>1</exponent>
+        </part>
+        <part>
+          <unit>h</unit>
+          <prefix>0</prefix>
+          <exponent>-1</exponent>
+        </part>
+      </unit>
     </category>
   </category>
   <category>
@@ -3676,21 +3689,21 @@
     </unit>
     <unit type="alias">
       <_title>Bel</_title>
-      <_names>ar:B,bel,p:bels</_names>
+      <_names>r:bel,p:bels</_names>
       <base>
         <unit>Np</unit>
         <relation>0.5*ln(10)</relation>
         <exponent>1</exponent>
       </base>
     </unit>
-    <unit type="composite">
+    <unit type="alias">
       <_title>Decibel</_title>
-      <names>r:dB_c</names>
-      <part>
-        <unit>B</unit>
-        <prefix>-1</prefix>
+      <_names>ar:dB,decibel,p:decibels</_names>
+      <base>
+        <unit>bel</unit>
+        <relation>0.1</relation>
         <exponent>1</exponent>
-      </part>
+      </base>
     </unit>
   </category>
   <category>
@@ -3702,7 +3715,7 @@
     </unit>
     <unit type="alias">
       <_title>Byte (8-bit)</_title>
-      <_names>r:byte,p:bytes,octet,p:octets</_names>
+      <_names>r:byte,a:B,p:bytes,octet,p:octets</_names>
       <use_with_prefixes>true</use_with_prefixes>
       <base>
         <unit>bit</unit>
