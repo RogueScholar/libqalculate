@@ -275,6 +275,7 @@ class Number {
 		Number integer() const;
 		bool isRational() const;
 		bool isReal() const;
+		bool isNonInteger() const;
 		bool isFraction() const;
 		bool isZero() const;
 		bool isNonZero() const;
@@ -499,6 +500,7 @@ class Number {
 
 		bool polylog(const Number &o);
 		bool igamma(const Number &o);
+		bool betainc(const Number &p, const Number &q, bool regularized = true);
 		bool fresnels();
 		bool fresnelc();
 		bool expint();

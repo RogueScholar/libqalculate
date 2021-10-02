@@ -143,26 +143,11 @@ Calculator::Calculator() {
 	b_ignore_locale = false;
 
 #ifdef ENABLE_NLS
-	if(!b_ignore_locale) {
-		bindtextdomain(GETTEXT_PACKAGE, getPackageLocaleDir().c_str());
-		bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
-	}
+	bindtextdomain(GETTEXT_PACKAGE, getPackageLocaleDir().c_str());
+	bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
 #endif
 
-	if(b_ignore_locale) {
-		char *current_lc_monetary = setlocale(LC_MONETARY, "");
-		if(current_lc_monetary) saved_locale = strdup(current_lc_monetary);
-		else saved_locale = NULL;
-		setlocale(LC_ALL, "C");
-		if(saved_locale) {
-			setlocale(LC_MONETARY, saved_locale);
-			free(saved_locale);
-			saved_locale = NULL;
-		}
-	} else {
-		setlocale(LC_ALL, "");
-	}
-
+	setlocale(LC_ALL, "");
 
 	gmp_randinit_default(randstate);
 	gmp_randseed_ui(randstate, (unsigned long int) time(NULL));
@@ -182,13 +167,13 @@ Calculator::Calculator() {
 	srand(time(NULL));
 
 	exchange_rates_time[0] = 0;
-	exchange_rates_time[1] = (time_t) 449184L * (time_t) 3600;
+	exchange_rates_time[1] = (time_t) 451920L * (time_t) 3600;
 	exchange_rates_time[2] = 0;
-	priv->exchange_rates_time2[0] = (time_t) 449184L * (time_t) 3600;
+	priv->exchange_rates_time2[0] = (time_t) 451920L * (time_t) 3600;
 	exchange_rates_check_time[0] = 0;
-	exchange_rates_check_time[1] = (time_t) 449184L * (time_t) 3600;
+	exchange_rates_check_time[1] = (time_t) 451920L * (time_t) 3600;
 	exchange_rates_check_time[2] = 0;
-	priv->exchange_rates_check_time2[0] = (time_t) 449184L * (time_t) 3600;
+	priv->exchange_rates_check_time2[0] = (time_t) 451920L * (time_t) 3600;
 	b_exchange_rates_warning_enabled = true;
 	b_exchange_rates_used = 0;
 
@@ -214,36 +199,43 @@ Calculator::Calculator() {
 	addStringAlternative(SIGN_MINUS, MINUS);
 	addStringAlternative("–", MINUS);
 	addStringAlternative(SIGN_PLUS, PLUS);
-	addStringAlternative(SIGN_NOT_EQUAL, " " NOT EQUALS);
+	addStringAlternative(SIGN_NOT_EQUAL, NOT EQUALS);
+	addStringAlternative("~=", NOT EQUALS);
 	addStringAlternative(SIGN_GREATER_OR_EQUAL, GREATER EQUALS);
 	addStringAlternative(SIGN_LESS_OR_EQUAL, LESS EQUALS);
 	addStringAlternative(";", COMMA);
 	addStringAlternative("\t", SPACE);
 	addStringAlternative("\n", SPACE);
-	addStringAlternative(" ", SPACE);
+	addStringAlternative(THIN_SPACE, SPACE);
 	addStringAlternative(" ", SPACE);
 	addStringAlternative(" ", SPACE);
 	addStringAlternative("**", POWER);
+	addStringAlternative("^^", "⊻");
 	addStringAlternative("↊", "X");
 	addStringAlternative("↋", "E");
 	addStringAlternative("∧", BITWISE_AND);
 	addStringAlternative("∨", BITWISE_OR);
 	addStringAlternative("¬", BITWISE_NOT);
-	addStringAlternative(SIGN_MICRO, "μ");
 
+	//division operator
 	per_str = _("per");
 	per_str_len = per_str.length();
+	//multiplication operator
 	times_str = _("times");
 	times_str_len = times_str.length();
+	//addition operator
 	plus_str = _("plus");
 	plus_str_len = plus_str.length();
+	//subtraction operator
 	minus_str = _("minus");
 	minus_str_len = minus_str.length();
+	//logical operator
 	and_str = _("and");
 	if(and_str == "and") and_str = "";
 	and_str_len = and_str.length();
 	AND_str = "AND";
 	AND_str_len = AND_str.length();
+	//logical operator
 	or_str = _("or");
 	if(or_str == "or") or_str = "";
 	or_str_len = or_str.length();
@@ -274,7 +266,7 @@ Calculator::Calculator() {
 #endif
 	local_digit_group_separator = lc->thousands_sep;
 	if((local_digit_group_separator.length() == 1 && local_digit_group_separator[0] < 0) || local_digit_group_separator == " ") local_digit_group_separator = " ";
-	else if(local_digit_group_separator == " ") local_digit_group_separator = " ";
+	else if(local_digit_group_separator == " ") local_digit_group_separator = THIN_SPACE;
 	local_digit_group_format = lc->grouping;
 	remove_blank_ends(local_digit_group_format);
 	default_dot_as_separator = (local_digit_group_separator == ".");
@@ -371,24 +363,27 @@ Calculator::Calculator(bool ignore_locale) {
 
 	b_ignore_locale = ignore_locale;
 
-#ifdef ENABLE_NLS
-	if(!b_ignore_locale) {
-		bindtextdomain(GETTEXT_PACKAGE, getPackageLocaleDir().c_str());
-		bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
-	}
-#endif
-
 	if(b_ignore_locale) {
 		char *current_lc_monetary = setlocale(LC_MONETARY, "");
 		if(current_lc_monetary) saved_locale = strdup(current_lc_monetary);
 		else saved_locale = NULL;
 		setlocale(LC_ALL, "C");
+#ifdef ENABLE_NLS
+#	ifdef _WIN32
+		bindtextdomain(GETTEXT_PACKAGE, "NULL");
+		bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+#	endif
+#endif
 		if(saved_locale) {
 			setlocale(LC_MONETARY, saved_locale);
 			free(saved_locale);
 			saved_locale = NULL;
 		}
 	} else {
+#ifdef ENABLE_NLS
+		bindtextdomain(GETTEXT_PACKAGE, getPackageLocaleDir().c_str());
+		bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+#endif
 		setlocale(LC_ALL, "");
 	}
 
@@ -411,13 +406,13 @@ Calculator::Calculator(bool ignore_locale) {
 	srand(time(NULL));
 
 	exchange_rates_time[0] = 0;
-	exchange_rates_time[1] = (time_t) 449184L * (time_t) 3600;
+	exchange_rates_time[1] = (time_t) 451920L * (time_t) 3600;
 	exchange_rates_time[2] = 0;
-	priv->exchange_rates_time2[0] = (time_t) 449184L * (time_t) 3600;
+	priv->exchange_rates_time2[0] = (time_t) 451920L * (time_t) 3600;
 	exchange_rates_check_time[0] = 0;
-	exchange_rates_check_time[1] = (time_t) 449184L * (time_t) 3600;
+	exchange_rates_check_time[1] = (time_t) 451920L * (time_t) 3600;
 	exchange_rates_check_time[2] = 0;
-	priv->exchange_rates_check_time2[0] = (time_t) 449184L * (time_t) 3600;
+	priv->exchange_rates_check_time2[0] = (time_t) 451920L * (time_t) 3600;
 	b_exchange_rates_warning_enabled = true;
 	b_exchange_rates_used = 0;
 
@@ -443,22 +438,23 @@ Calculator::Calculator(bool ignore_locale) {
 	addStringAlternative(SIGN_MINUS, MINUS);
 	addStringAlternative("–", MINUS);
 	addStringAlternative(SIGN_PLUS, PLUS);
-	addStringAlternative(SIGN_NOT_EQUAL, " " NOT EQUALS);
+	addStringAlternative(SIGN_NOT_EQUAL, NOT EQUALS);
+	addStringAlternative("~=", NOT EQUALS);
 	addStringAlternative(SIGN_GREATER_OR_EQUAL, GREATER EQUALS);
 	addStringAlternative(SIGN_LESS_OR_EQUAL, LESS EQUALS);
 	addStringAlternative(";", COMMA);
 	addStringAlternative("\t", SPACE);
 	addStringAlternative("\n", SPACE);
-	addStringAlternative(" ", SPACE);
+	addStringAlternative(THIN_SPACE, SPACE);
 	addStringAlternative(" ", SPACE);
 	addStringAlternative(" ", SPACE);
 	addStringAlternative("**", POWER);
+	addStringAlternative("^^", "⊻");
 	addStringAlternative("↊", "X");
 	addStringAlternative("↋", "E");
 	addStringAlternative("∧", BITWISE_AND);
 	addStringAlternative("∨", BITWISE_OR);
 	addStringAlternative("¬", BITWISE_NOT);
-	addStringAlternative(SIGN_MICRO, "μ");
 
 	per_str = _("per");
 	per_str_len = per_str.length();
@@ -503,7 +499,7 @@ Calculator::Calculator(bool ignore_locale) {
 #endif
 	local_digit_group_separator = lc->thousands_sep;
 	if((local_digit_group_separator.length() == 1 && local_digit_group_separator[0] < 0) || local_digit_group_separator == " ") local_digit_group_separator = " ";
-	else if(local_digit_group_separator == " ") local_digit_group_separator = " ";
+	else if(local_digit_group_separator == " ") local_digit_group_separator = THIN_SPACE;
 	local_digit_group_format = lc->grouping;
 	remove_blank_ends(local_digit_group_format);
 	default_dot_as_separator = (local_digit_group_separator == ".");
@@ -608,6 +604,9 @@ Calculator::~Calculator() {
 #endif
 }
 
+string Calculator::logicalORString(void) const {return _("or");}
+string Calculator::logicalANDString(void) const {return _("and");}
+
 Unit *Calculator::getGraUnit() {
 	if(!u_gra) u_gra = getUnit("gra");
 	if(!u_gra) {
@@ -638,13 +637,48 @@ bool Calculator::utf8_pos_is_valid_in_name(char *pos) {
 		return false;
 	}
 	if((unsigned char) pos[0] >= 0xC0) {
-		string str;
-		str += pos[0];
-		while((unsigned char) pos[1] >= 0x80 && (unsigned char) pos[1] < 0xC0) {
-			str += pos[1];
-			pos++;
+		size_t l = 1;
+		while((unsigned char) pos[l] >= 0x80 && (unsigned char) pos[l] < 0xC0) {
+			l++;
 		}
-		return str != SIGN_DIVISION && str != SIGN_DIVISION_SLASH && str != SIGN_MULTIPLICATION && str != SIGN_MULTIDOT && str != SIGN_SMALLCIRCLE && str != SIGN_MULTIBULLET && str != SIGN_MINUS && str != SIGN_PLUS && str != SIGN_NOT_EQUAL && str != SIGN_GREATER_OR_EQUAL && str != SIGN_LESS_OR_EQUAL;
+		if(l == 3 && pos[0] == '\xe2') {
+			if(pos[1] == '\x80') {
+				// thin space
+				if(pos[2] == '\x89') return false;
+				// quotation marks
+				if((pos[2] >= -104 && pos[2] <= -97) || pos[2] == -70 || pos[2] == -71) return false;
+				// operator
+				if(pos[2] == '\xa2') return false;
+			} else if(pos[1] == '\x81') {
+				// exponents
+				if(pos[2] == -80 || (pos[2] >= -76 && pos[2] <= -69) || pos[2] == -67 || pos[2] == -66) return false;
+			} else if(pos[1] == '\x85') {
+				// fractions
+				if(pos[2] >= -112 && pos[2] <= -98) return false;
+			} else if(pos[1] == '\x88') {
+				// operators
+				if(pos[2] == '\x95' || pos[2] == '\x99' || pos[2] == '\x92') return false;
+			} else if(pos[1] == '\x89') {
+				// inequalities
+				if(pos[2] == '\xa0' || pos[2] == '\xa5' || pos[2] == '\xa4') return false;
+			} else if(pos[1] == '\x8b') {
+				// operator
+				if(pos[2] == '\x85') return false;
+			}
+		} else if(l == 3 && pos[0] == '\xef') {
+			if(pos[1] == '\xbc' && pos[2] == '\x8b') return false;
+		} else if(l == 2 && pos[0] == '\xc2') {
+			// exponents
+			if(pos[1] == -71 || pos[1] == -77 || pos[1] == -78) return false;
+			// fractions
+			if(pos[1] == -66 || pos[1] == -67 || pos[1] == -68) return false;
+			// operators
+			if(pos[1] == '\xb1' || pos[1] == '\xb7') return false;
+		} else if(l == 2 && pos[0] == '\xc3') {
+			// operators
+			if(pos[1] == '\x97' || pos[1] == '\xb7') return false;
+		}
+		pos += (l - 1);
 	}
 	return true;
 }
@@ -781,21 +815,31 @@ ExpressionItem *Calculator::getActiveExpressionItem(ExpressionItem *item) {
 	}
 	return NULL;
 }
-ExpressionItem *Calculator::getActiveExpressionItem(string name, ExpressionItem *item) {
-	if(name.empty()) return NULL;
-	for(size_t index = 0; index < variables.size(); index++) {
-		if(variables[index] != item && variables[index]->isActive() && variables[index]->hasName(name)) {
-			return variables[index];
+ExpressionItem *Calculator::getActiveExpressionItem(string name_, ExpressionItem *item) {
+	if(name_.empty()) return NULL;
+	size_t l = name_.length();
+	if(l > UFV_LENGTHS) {
+		for(size_t i = 0; i < ufvl.size(); i++) {
+			if(ufvl_t[i] == 'f' || ufvl_t[i] == 'v' || ufvl_t[i] == 'u') {
+				if(ufvl[i] != item) {
+					const ExpressionName &ename = ((ExpressionItem*) ufvl[i])->getName(ufvl_i[i]);
+					if((ename.case_sensitive && name_ == ename.name) || (!ename.case_sensitive && equalsIgnoreCase(name_, ename.name))) {
+						return (ExpressionItem*) ufvl[i];
+					}
+				}
+			}
 		}
-	}
-	for(size_t index = 0; index < functions.size(); index++) {
-		if(functions[index] != item && functions[index]->isActive() && functions[index]->hasName(name)) {
-			return functions[index];
-		}
-	}
-	for(size_t i = 0; i < units.size(); i++) {
-		if(units[i] != item && units[i]->isActive() && units[i]->hasName(name)) {
-			return units[i];
+	} else {
+		l--;
+		for(size_t i2 = 1; i2 <= 3; i2++) {
+			for(size_t i = 0; i < ufv[i2][l].size(); i++) {
+				if(ufv[i2][l][i] != item) {
+					const ExpressionName &ename = ((ExpressionItem*) ufv[i2][l][i])->getName(ufv_i[i2][l][i]);
+					if((ename.case_sensitive && name_ == ename.name) || (!ename.case_sensitive && equalsIgnoreCase(name_, ename.name))) {
+						return (ExpressionItem*) ufv[i2][l][i];
+					}
+				}
+			}
 		}
 	}
 	return NULL;
@@ -860,7 +904,7 @@ Prefix *Calculator::getPrefix(size_t index) const {
 }
 Prefix *Calculator::getPrefix(string name_) const {
 	for(size_t i = 0; i < prefixes.size(); i++) {
-		if(prefixes[i]->shortName(false) == name_ || prefixes[i]->longName(false) == name_ || prefixes[i]->unicodeName(false) == name_) {
+		if(prefixes[i]->hasName(name_, true)) {
 			return prefixes[i];
 		}
 	}
@@ -1169,35 +1213,30 @@ Prefix *Calculator::addPrefix(Prefix *p) {
 void Calculator::prefixNameChanged(Prefix *p, bool new_item) {
 	size_t l2;
 	if(!new_item) delPrefixUFV(p);
-	if(!p->longName(false).empty()) {
-		l2 = p->longName(false).length();
+	for(size_t i2 = 1; i2 <= p->countNames(); i2++) {
+		const ExpressionName &ename = p->getName(i2);
+		l2 = ename.name.length();
 		if(l2 > UFV_LENGTHS) {
 			size_t i = 0, l;
 			for(vector<void*>::iterator it = ufvl.begin(); ; ++it) {
 				l = 0;
 				if(it != ufvl.end()) {
-					if(ufvl_t[i] == 'v')
-						l = ((Variable*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'f')
-						l = ((MathFunction*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'u')
-						l = ((Unit*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'p')
-						l = ((Prefix*) (*it))->shortName(false).length();
-					else if(ufvl_t[i] == 'P')
-						l = ((Prefix*) (*it))->longName(false).length();
-					else if(ufvl_t[i] == 'q')
-						l = ((Prefix*) (*it))->unicodeName(false).length();
+					if(ufvl_t[i] == 'v') l = ((Variable*) (*it))->getName(ufvl_i[i]).name.length();
+					else if(ufvl_t[i] == 'f') l = ((MathFunction*) (*it))->getName(ufvl_i[i]).name.length();
+					else if(ufvl_t[i] == 'u') l = ((Unit*) (*it))->getName(ufvl_i[i]).name.length();
+					else if(ufvl_t[i] == 'p' || ufvl_t[i] == 'P') l = ((Prefix*) (*it))->getName(ufvl_i[i]).name.length();
 				}
 				if(it == ufvl.end()) {
 					ufvl.push_back((void*) p);
-					ufvl_t.push_back('P');
-					ufvl_i.push_back(1);
+					if(ename.abbreviation) ufvl_t.push_back('p');
+					else ufvl_t.push_back('P');
+					ufvl_i.push_back(i2);
 					break;
 				} else if(l <= l2) {
 					ufvl.insert(it, (void*) p);
-					ufvl_t.insert(ufvl_t.begin() + i, 'P');
-					ufvl_i.insert(ufvl_i.begin() + i, 1);
+					if(ename.abbreviation) ufvl_t.insert(ufvl_t.begin() + i, 'p');
+					else ufvl_t.insert(ufvl_t.begin() + i, 'P');
+					ufvl_i.insert(ufvl_i.begin() + i, i2);
 					break;
 				}
 				i++;
@@ -1205,85 +1244,7 @@ void Calculator::prefixNameChanged(Prefix *p, bool new_item) {
 		} else if(l2 > 0) {
 			l2--;
 			ufv[0][l2].push_back((void*) p);
-			ufv_i[0][l2].push_back(1);
-		}
-	}
-	if(!p->shortName(false).empty()) {
-		l2 = p->shortName(false).length();
-		if(l2 > UFV_LENGTHS) {
-			size_t i = 0, l;
-			for(vector<void*>::iterator it = ufvl.begin(); ; ++it) {
-				l = 0;
-				if(it != ufvl.end()) {
-					if(ufvl_t[i] == 'v')
-						l = ((Variable*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'f')
-						l = ((MathFunction*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'u')
-						l = ((Unit*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'p')
-						l = ((Prefix*) (*it))->shortName(false).length();
-					else if(ufvl_t[i] == 'P')
-						l = ((Prefix*) (*it))->longName(false).length();
-					else if(ufvl_t[i] == 'q')
-						l = ((Prefix*) (*it))->unicodeName(false).length();
-				}
-				if(it == ufvl.end()) {
-					ufvl.push_back((void*) p);
-					ufvl_t.push_back('p');
-					ufvl_i.push_back(1);
-					break;
-				} else if(l <= l2) {
-					ufvl.insert(it, (void*) p);
-					ufvl_t.insert(ufvl_t.begin() + i, 'p');
-					ufvl_i.insert(ufvl_i.begin() + i, 1);
-					break;
-				}
-				i++;
-			}
-		} else if(l2 > 0) {
-			l2--;
-			ufv[0][l2].push_back((void*) p);
-			ufv_i[0][l2].push_back(2);
-		}
-	}
-	if(!p->unicodeName(false).empty()) {
-		l2 = p->unicodeName(false).length();
-		if(l2 > UFV_LENGTHS) {
-			size_t i = 0, l;
-			for(vector<void*>::iterator it = ufvl.begin(); ; ++it) {
-				l = 0;
-				if(it != ufvl.end()) {
-					if(ufvl_t[i] == 'v')
-						l = ((Variable*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'f')
-						l = ((MathFunction*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'u')
-						l = ((Unit*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'p')
-						l = ((Prefix*) (*it))->shortName(false).length();
-					else if(ufvl_t[i] == 'P')
-						l = ((Prefix*) (*it))->longName(false).length();
-					else if(ufvl_t[i] == 'q')
-						l = ((Prefix*) (*it))->unicodeName(false).length();
-				}
-				if(it == ufvl.end()) {
-					ufvl.push_back((void*) p);
-					ufvl_t.push_back('q');
-					ufvl_i.push_back(1);
-					break;
-				} else if(l <= l2) {
-					ufvl.insert(it, (void*) p);
-					ufvl_t.insert(ufvl_t.begin() + i, 'q');
-					ufvl_i.insert(ufvl_i.begin() + i, 1);
-					break;
-				}
-				i++;
-			}
-		} else if(l2 > 0) {
-			l2--;
-			ufv[0][l2].push_back((void*) p);
-			ufv_i[0][l2].push_back(3);
+			ufv_i[0][l2].push_back(i2);
 		}
 	}
 }
@@ -1501,6 +1462,11 @@ void Calculator::addBuiltinFunctions() {
 	f_entrywise = addFunction(new EntrywiseFunction());
 	addFunction(new RRefFunction());
 	addFunction(new MatrixRankFunction());
+	priv->f_dot = addFunction(new DotProductFunction());
+	priv->f_times = addFunction(new EntrywiseMultiplicationFunction());
+	priv->f_rdivide = addFunction(new EntrywiseDivisionFunction());
+	priv->f_power = addFunction(new EntrywisePowerFunction());
+	addFunction(new NormFunction());
 
 	f_factorial = addFunction(new FactorialFunction());
 	f_factorial2 = addFunction(new DoubleFactorialFunction());
@@ -1684,6 +1650,8 @@ void Calculator::addBuiltinFunctions() {
 	f_multisolve = addFunction(new SolveMultipleFunction());
 	f_dsolve = addFunction(new DSolveFunction());
 	f_limit = addFunction(new LimitFunction());
+	addFunction(new NewtonRaphsonFunction());
+	addFunction(new SecantMethodFunction());
 
 	f_li = addFunction(new liFunction());
 	f_Li = addFunction(new LiFunction());
@@ -1696,6 +1664,7 @@ void Calculator::addBuiltinFunctions() {
 	priv->f_fresnelc = addFunction(new FresnelCFunction());
 	f_igamma = addFunction(new IGammaFunction());
 	addFunction(new IncompleteBetaFunction());
+	addFunction(new InverseIncompleteBetaFunction());
 
 	addFunction(new GeographicDistanceFunction());
 
@@ -1718,11 +1687,11 @@ void Calculator::addBuiltinFunctions() {
 }
 void Calculator::addBuiltinUnits() {
 	u_euro = addUnit(new Unit(_("Currency"), "EUR", "euros", "euro", "European Euros", false, true, true));
-	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "49072.78", 1, "", false, true, true));
+	u_btc = addUnit(new AliasUnit(_("Currency"), "BTC", "bitcoins", "bitcoin", "Bitcoins", u_euro, "27574.06", 1, "", false, true, true));
 	u_btc->setApproximate();
 	u_btc->setPrecision(-2);
 	u_btc->setChanged(false);
-	priv->u_byn = addUnit(new AliasUnit(_("Currency"), "BYN", "", "", "Belarusian Ruble", u_euro, "1/3.0905", 1, "", false, true, true));
+	priv->u_byn = addUnit(new AliasUnit(_("Currency"), "BYN", "", "", "Belarusian Ruble", u_euro, "1/2.9794", 1, "", false, true, true));
 	priv->u_byn->setApproximate();
 	priv->u_byn->setPrecision(-2);
 	priv->u_byn->setChanged(false);
@@ -1897,209 +1866,6 @@ void Calculator::deleteUnitName(string name_, Unit *object) {
 	deleteUnitName(name_, object);
 }
 
-string Calculator::localizeExpression(string str, const ParseOptions &po) const {
-	if((DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) || po.base == BASE_UNICODE || (po.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return str;
-	vector<size_t> q_begin;
-	vector<size_t> q_end;
-	size_t i3 = 0;
-	while(true) {
-		i3 = str.find_first_of("\"\'", i3);
-		if(i3 == string::npos) {
-			break;
-		}
-		q_begin.push_back(i3);
-		i3 = str.find(str[i3], i3 + 1);
-		if(i3 == string::npos) {
-			q_end.push_back(str.length() - 1);
-			break;
-		}
-		q_end.push_back(i3);
-		i3++;
-	}
-	if(COMMA_STR != COMMA || po.comma_as_separator) {
-		bool b_alt_comma = po.comma_as_separator && COMMA_STR == COMMA;
-		size_t ui = str.find(COMMA);
-		while(ui != string::npos) {
-			bool b = false;
-			for(size_t ui2 = 0; ui2 < q_end.size(); ui2++) {
-				if(ui <= q_end[ui2] && ui >= q_begin[ui2]) {
-					ui = str.find(COMMA, q_end[ui2] + 1);
-					b = true;
-					break;
-				}
-			}
-			if(!b) {
-				str.replace(ui, strlen(COMMA), b_alt_comma ? ";" : COMMA_STR);
-				ui = str.find(COMMA, ui + (b_alt_comma ? 1 : COMMA_STR.length()));
-			}
-		}
-	}
-	if(DOT_STR != DOT) {
-		size_t ui = str.find(DOT);
-		while(ui != string::npos) {
-			bool b = false;
-			for(size_t ui2 = 0; ui2 < q_end.size(); ui2++) {
-				if(ui <= q_end[ui2] && ui >= q_begin[ui2]) {
-					ui = str.find(DOT, q_end[ui2] + 1);
-					b = true;
-					break;
-				}
-			}
-			if(!b) {
-				str.replace(ui, strlen(DOT), DOT_STR);
-				ui = str.find(DOT, ui + DOT_STR.length());
-			}
-		}
-	}
-	return str;
-}
-string Calculator::unlocalizeExpression(string str, const ParseOptions &po) const {
-	if((DOT_STR == DOT && COMMA_STR == COMMA && !po.comma_as_separator) || po.base == BASE_UNICODE || (po.base == BASE_CUSTOM && priv->custom_input_base_i > 62)) return str;
-	int base = po.base;
-	if(base == BASE_CUSTOM) {
-		base = (int) priv->custom_input_base_i;
-	} else if(base == BASE_BIJECTIVE_26) {
-		base = 36;
-	} else if(base == BASE_GOLDEN_RATIO || base == BASE_SUPER_GOLDEN_RATIO || base == BASE_SQRT2) {
-		base = 2;
-	} else if(base == BASE_PI) {
-		base = 4;
-	} else if(base == BASE_E) {
-		base = 3;
-	} else if(base == BASE_DUODECIMAL) {
-		base = -12;
-	} else if(base < 2 || base > 36) {
-		base = -1;
-	}
-	vector<size_t> q_begin;
-	vector<size_t> q_end;
-	size_t i3 = 0;
-	while(true) {
-		i3 = str.find_first_of("\"\'", i3);
-		if(i3 == string::npos) {
-			break;
-		}
-		q_begin.push_back(i3);
-		i3 = str.find(str[i3], i3 + 1);
-		if(i3 == string::npos) {
-			q_end.push_back(str.length() - 1);
-			break;
-		}
-		q_end.push_back(i3);
-		i3++;
-	}
-	if(DOT_STR != DOT) {
-		if(DOT_STR == COMMA && str.find(COMMA_STR) == string::npos && base > 0 && base <= 10) {
-			bool b_vector = (str.find(LEFT_VECTOR_WRAP) != string::npos && !po.dot_as_separator);
-			bool b_dot = (str.find(DOT) != string::npos);
-			size_t ui = str.find_first_of(b_vector ? DOT COMMA : COMMA);
-			size_t ui2 = 0;
-			while(ui != string::npos) {
-				for(; ui2 < q_end.size(); ui2++) {
-					if(ui >= q_begin[ui2]) {
-						if(ui <= q_end[ui2]) {
-							ui = str.find_first_of(b_vector ? DOT COMMA : COMMA, q_end[ui2] + 1);
-							if(ui == string::npos) break;
-						}
-					} else {
-						break;
-					}
-				}
-				if(ui == string::npos) break;
-				if(ui > 0) {
-					size_t ui3 = str.find_last_not_of(SPACES, ui - 1);
-					if(ui3 != string::npos && ((str[ui3] > 'a' && str[ui3] < 'z') || (str[ui3] > 'A' && str[ui3] < 'Z')) && is_not_number(str[ui3], base)) return str;
-				}
-				if(ui != str.length() - 1) {
-					size_t ui3 = str.find_first_not_of(SPACES, ui + 1);
-					if(ui3 != string::npos && is_not_number(str[ui3], base)) return str;
-					if(b_vector || !b_dot) {
-						ui3 = str.find_first_not_of(SPACES NUMBERS, ui3 + 1);
-						if(ui3 != string::npos && (str[ui3] == COMMA_CH || (b_vector && str[ui3] == DOT_CH))) return str;
-					}
-				}
-				ui = str.find(b_vector ? DOT COMMA : COMMA, ui + 1);
-			}
-		}
-		if(po.dot_as_separator) {
-			size_t ui = str.find(DOT);
-			size_t ui2 = 0;
-			while(ui != string::npos) {
-				for(; ui2 < q_end.size(); ui2++) {
-					if(ui >= q_begin[ui2]) {
-						if(ui <= q_end[ui2]) {
-							ui = str.find(DOT, q_end[ui2] + 1);
-							if(ui == string::npos) break;
-						}
-					} else {
-						break;
-					}
-				}
-				if(ui == string::npos) break;
-				str.replace(ui, strlen(DOT), SPACE);
-				ui = str.find(DOT, ui + strlen(SPACE));
-			}
-		}
-		size_t ui2 = 0;
-		size_t ui = str.find(DOT_STR);
-		while(ui != string::npos) {
-			for(; ui2 < q_end.size(); ui2++) {
-				if(ui >= q_begin[ui2]) {
-					if(ui <= q_end[ui2]) {
-						ui = str.find(DOT_STR, q_end[ui2] + 1);
-						if(ui == string::npos) break;
-					}
-				} else {
-					break;
-				}
-			}
-			if(ui == string::npos) break;
-			str.replace(ui, DOT_STR.length(), DOT);
-			ui = str.find(DOT_STR, ui + strlen(DOT));
-		}
-	}
-	if(COMMA_STR != COMMA || po.comma_as_separator) {
-		bool b_alt_comma = po.comma_as_separator && COMMA_STR == COMMA;
-		if(po.comma_as_separator) {
-			size_t ui = str.find(COMMA);
-			size_t ui2 = 0;
-			while(ui != string::npos) {
-				for(; ui2 < q_end.size(); ui2++) {
-					if(ui >= q_begin[ui2]) {
-						if(ui <= q_end[ui2]) {
-							ui = str.find(COMMA, q_end[ui2] + 1);
-							if(ui == string::npos) break;
-						}
-					} else {
-						break;
-					}
-				}
-				if(ui == string::npos) break;
-				str.erase(ui, strlen(COMMA));
-				ui = str.find(COMMA, ui);
-			}
-		}
-		size_t ui2 = 0;
-		size_t ui = str.find(b_alt_comma ? ";" : COMMA_STR);
-		while(ui != string::npos) {
-			for(; ui2 < q_end.size(); ui2++) {
-				if(ui >= q_begin[ui2]) {
-					if(ui <= q_end[ui2]) {
-						ui = str.find(b_alt_comma ? ";" : COMMA_STR, q_end[ui2] + 1);
-						if(ui == string::npos) break;
-					}
-				} else {
-					break;
-				}
-			}
-			if(ui == string::npos) break;
-			str.replace(ui, b_alt_comma ? 1 : COMMA_STR.length(), COMMA);
-			ui = str.find(b_alt_comma ? ";" : COMMA_STR, ui + strlen(COMMA));
-		}
-	}
-	return str;
-}
-
 Unit* Calculator::addUnit(Unit *u, bool force, bool check_names) {
 	if(check_names) {
 		for(size_t i = 1; i <= u->countNames(); i++) {
@@ -2226,9 +1992,23 @@ Unit* Calculator::getUnitById(int id) const {
 }
 Unit* Calculator::getActiveUnit(string name_) {
 	if(name_.empty()) return NULL;
-	for(size_t i = 0; i < units.size(); i++) {
-		if(units[i]->isActive() && units[i]->subtype() != SUBTYPE_COMPOSITE_UNIT && units[i]->hasName(name_)) {
-			return units[i];
+	size_t l = name_.length();
+	if(l > UFV_LENGTHS) {
+		for(size_t i = 0; i < ufvl.size(); i++) {
+			if(ufvl_t[i] == 'u') {
+				const ExpressionName &ename = ((ExpressionItem*) ufvl[i])->getName(ufvl_i[i]);
+				if((ename.case_sensitive && name_ == ename.name) || (!ename.case_sensitive && equalsIgnoreCase(name_, ename.name))) {
+					return (Unit*) ufvl[i];
+				}
+			}
+		}
+	} else {
+		l--;
+		for(size_t i = 0; i < ufv[2][l].size(); i++) {
+			const ExpressionName &ename = ((ExpressionItem*) ufv[2][l][i])->getName(ufv_i[2][l][i]);
+			if((ename.case_sensitive && name_ == ename.name) || (!ename.case_sensitive && equalsIgnoreCase(name_, ename.name))) {
+				return (Unit*) ufv[2][l][i];
+			}
 		}
 	}
 	return NULL;
@@ -2362,18 +2142,10 @@ void Calculator::nameChanged(ExpressionItem *item, bool new_item) {
 			size_t i = 0, l = 0;
 			for(vector<void*>::iterator it = ufvl.begin(); ; ++it) {
 				if(it != ufvl.end()) {
-					if(ufvl_t[i] == 'v')
-						l = ((Variable*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'f')
-						l = ((MathFunction*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'u')
-						l = ((Unit*) (*it))->getName(ufvl_i[i]).name.length();
-					else if(ufvl_t[i] == 'p')
-						l = ((Prefix*) (*it))->shortName(false).length();
-					else if(ufvl_t[i] == 'P')
-						l = ((Prefix*) (*it))->longName(false).length();
-					else if(ufvl_t[i] == 'q')
-						l = ((Prefix*) (*it))->unicodeName(false).length();
+					if(ufvl_t[i] == 'v') l = ((Variable*) (*it))->getName(ufvl_i[i]).name.length();
+					else if(ufvl_t[i] == 'f') l = ((MathFunction*) (*it))->getName(ufvl_i[i]).name.length();
+					else if(ufvl_t[i] == 'u') l = ((Unit*) (*it))->getName(ufvl_i[i]).name.length();
+					else if(ufvl_t[i] == 'p' || ufvl_t[i] == 'P') l = ((Prefix*) (*it))->getName(ufvl_i[i]).name.length();
 				}
 				if(it == ufvl.end()) {
 					ufvl.push_back((void*) item);
@@ -2387,8 +2159,8 @@ void Calculator::nameChanged(ExpressionItem *item, bool new_item) {
 				} else {
 					if(l < l2
 					|| (item->type() == TYPE_VARIABLE && l == l2 && ufvl_t[i] == 'v')
-					|| (item->type() == TYPE_FUNCTION && l == l2 && (ufvl_t[i] != 'p' && ufvl_t[i] != 'P' && ufvl_t[i] != 'q'))
-					|| (item->type() == TYPE_UNIT && l == l2 && (ufvl_t[i] != 'p' && ufvl_t[i] != 'P' && ufvl_t[i] != 'q' && ufvl_t[i] != 'f'))
+					|| (item->type() == TYPE_FUNCTION && l == l2 && (ufvl_t[i] != 'p' && ufvl_t[i] != 'P'))
+					|| (item->type() == TYPE_UNIT && l == l2 && (ufvl_t[i] != 'p' && ufvl_t[i] != 'P' && ufvl_t[i] != 'f'))
 					) {
 						ufvl.insert(it, (void*) item);
 						switch(item->type()) {
@@ -2457,6 +2229,9 @@ Variable* Calculator::getVariableById(int id) const {
 		case VARIABLE_ID_Z: {return v_z;}
 		case VARIABLE_ID_N: {return v_n;}
 		case VARIABLE_ID_C: {return v_C;}
+		case VARIABLE_ID_PERCENT: {return v_percent;}
+		case VARIABLE_ID_PERMILLE: {return v_permille;}
+		case VARIABLE_ID_PERMYRIAD: {return v_permyriad;}
 		case VARIABLE_ID_UNDEFINED: {return v_undef;}
 	}
 	unordered_map<int, Variable*>::iterator it = priv->id_variables.find(id);
@@ -2465,9 +2240,23 @@ Variable* Calculator::getVariableById(int id) const {
 }
 Variable* Calculator::getActiveVariable(string name_) {
 	if(name_.empty()) return NULL;
-	for(size_t i = 0; i < variables.size(); i++) {
-		if(variables[i]->isActive() && variables[i]->hasName(name_)) {
-			return variables[i];
+	size_t l = name_.length();
+	if(l > UFV_LENGTHS) {
+		for(size_t i = 0; i < ufvl.size(); i++) {
+			if(ufvl_t[i] == 'v') {
+				const ExpressionName &ename = ((ExpressionItem*) ufvl[i])->getName(ufvl_i[i]);
+				if((ename.case_sensitive && name_ == ename.name) || (!ename.case_sensitive && equalsIgnoreCase(name_, ename.name))) {
+					return (Variable*) ufvl[i];
+				}
+			}
+		}
+	} else {
+		l--;
+		for(size_t i = 0; i < ufv[3][l].size(); i++) {
+			const ExpressionName &ename = ((ExpressionItem*) ufv[3][l][i])->getName(ufv_i[3][l][i]);
+			if((ename.case_sensitive && name_ == ename.name) || (!ename.case_sensitive && equalsIgnoreCase(name_, ename.name))) {
+				return (Variable*) ufv[3][l][i];
+			}
 		}
 	}
 	return NULL;
@@ -2598,6 +2387,7 @@ MathFunction* Calculator::getFunctionById(int id) const {
 		case FUNCTION_ID_IF: {return f_if;}
 		case FUNCTION_ID_SHIFT: {return f_shift;}
 		case FUNCTION_ID_XOR: {return f_xor;}
+		case FUNCTION_ID_WARNING: {return f_warning;}
 	}
 	unordered_map<int, MathFunction*>::iterator it = priv->id_functions.find(id);
 	if(it == priv->id_functions.end()) return NULL;
@@ -2605,9 +2395,23 @@ MathFunction* Calculator::getFunctionById(int id) const {
 }
 MathFunction* Calculator::getActiveFunction(string name_) {
 	if(name_.empty()) return NULL;
-	for(size_t i = 0; i < functions.size(); i++) {
-		if(functions[i]->isActive() && functions[i]->hasName(name_)) {
-			return functions[i];
+	size_t l = name_.length();
+	if(l > UFV_LENGTHS) {
+		for(size_t i = 0; i < ufvl.size(); i++) {
+			if(ufvl_t[i] == 'f') {
+				const ExpressionName &ename = ((ExpressionItem*) ufvl[i])->getName(ufvl_i[i]);
+				if((ename.case_sensitive && name_ == ename.name) || (!ename.case_sensitive && equalsIgnoreCase(name_, ename.name))) {
+					return (MathFunction*) ufvl[i];
+				}
+			}
+		}
+	} else {
+		l--;
+		for(size_t i = 0; i < ufv[1][l].size(); i++) {
+			const ExpressionName &ename = ((ExpressionItem*) ufv[1][l][i])->getName(ufv_i[1][l][i]);
+			if((ename.case_sensitive && name_ == ename.name) || (!ename.case_sensitive && equalsIgnoreCase(name_, ename.name))) {
+				return (MathFunction*) ufv[1][l][i];
+			}
 		}
 	}
 	return NULL;

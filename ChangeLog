@@ -1,3 +1,140 @@
+2021-07-29 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Save answer to dot and temperature questions in non-interactive mode and do not show the questions in non-interactive terse mode
+	* Fix saving of sub functions with default values
+
+2021-07-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Stop parsing function after minimum number of arguments under the same conditions as after maximum number of arguments, when there are no more argument and parentheses are not used (e.g. log 64 / log 2 = log(64)/log(2))
+	* Stop parsing function that only takes one argument at argument separator, if parentheses are not used
+
+2021-07-15 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Change "assumptions" abbreviation to "asm"
+	* Set both type and sign if assumptions are set to "none" or zero, and set type to number for "complex"
+	* Convert Celsius to Fahrenheit if no calculation was performed
+
+2021-07-14 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix handling of OR and AND in multisolve()
+
+2021-07-07 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix segfault after failure to convert approximate unit (e.g. cal_fifteen)
+
+2021-07-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add support for "a perm b" (= perm(a,b)), "a comb b" (= comb(a,b)), "a dot b" (= "a.b"), "a cross b" (= cross(a,b)), and Unicode cross product symbol
+	* Add Calculator::getGlobalFunction(), Calculator::getGlobalUnit(), and Calculator::getGlobalVariable(), for more efficient retrieval of objects
+
+2021-07-03 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Avoid use of right-to-left Unicode symbols (do not present the currency symbols for IRR and AFN to the user)
+	* Do not try to load data objects from global definitions dir if data set is local
+
+2021-07-02 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix norm() and magnitude()
+	* Add a second argument, p, to norm()
+	* Output abs(x) as |x|
+
+2021-06-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add support for "^^" as XOR operator
+	* always check for "user" directory (regardless of compile time options), on Windows
+	* Output both original and factorized integer, in qalc
+	* Improved HTML output
+
+2021-06-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add support for function creation in save() (e.g. func1():=\x*\y^2, or func1(\a,\b):=\a*\b^2)
+	* QALCULATE_USER_DIR environment variable
+
+2021-06-21 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Always return exact result in base() function, in exact mode
+
+2021-05-30 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Interpret "(10-134)±" as "(10-134)±0" instead of "(10-134)*0" (and similar)
+	* Add operators (".'", ".*", "./", ".^") and functions (replace multiply(), divide(), and pow()) for transpose, element-wise multiplication, division, and power
+	* Modify behaviour of addition with column vector, and addition of row vector to matrix
+
+2021-05-23 Alex Henrie <alexhenrie24@gmail.com>
+
+	* Catalan translation
+
+2021-05-23 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Vector dot product operator (".")
+
+2021-05-19 leveltrauma <rhade_tm@t-online.de>
+
+	* German translation
+
+2021-05-19 Noah <33094578+coolreader18@users.noreply.github.com>
+
+	* Add "BYO Gnuplot" functionality
+
+2021-05-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Integration of x^a*b^(cx^d) (when a is not an integer)
+
+2021-05-18 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Localize data property values
+
+2021-05-11 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Exact calculation of igamma() in some cases
+
+2021-05-05 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Make prefix names more flexible (as other objects), primarily for translations
+
+2021-05-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Fix handling of translated definitions with more than one row (primarily translated function descriptions)
+
+2021-04-26 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add dot() function for vector dot product and disable dot product using multiplication operator or implicit multiplication
+
+2021-04-25 Damir Islamov <damir@secretlaboratory.ru>
+
+	* Russian translation
+
+2021-04-25 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* secantsolve() function for solving equations using secant method
+	* normdistinv() function
+
+2021-04-20 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Inverse of chi-square cumulative distribution
+	* Improve simplification of logical expressions (boolean algebra)
+	* Add boolean assumptions type for unknown variables
+	* Add nand and nor operators
+	* Add spelled out version of logical not operator ("not")
+	* Interpret bitwise operators as logical in some cases
+
+2021-04-19 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* newtonsolve() function for solving equations using Newton's method
+
+2021-04-17 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Improve betainc() function and return regularized version
+	* Add inverse incomplete beta function (betaincinv())
+	* Add inverse functions for F-distribution and Student's t-distribution
+	* Fix cumulative t-distribution for X < 0
+	* Fix include_equals parameter for max and min of function arguments
+
+2021-04-08 Hanna Knutsson <hanna.knutsson@protonmail.com>
+
+	* Add plural forms to translated messages
+	* Set ENABLE_NLS outside of gettext macros
+
 2021-04-04 Hanna Knutsson <hanna.knutsson@protonmail.com>
 
 	* Add support for number suffix k (e.g. 2k = 2000)

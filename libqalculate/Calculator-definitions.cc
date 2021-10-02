@@ -231,7 +231,7 @@ bool Calculator::loadLocalDefinitions() {
 	} \
 	item->clearNames();
 
-#define ITEM_SET_BEST_NAMES(validation) \
+#define X_SET_BEST_NAMES(validation, x) \
 	size_t names_i = 0, i2 = 0; \
 	string *str_names; \
 	if(best_names == "-") {best_names = ""; nextbest_names = "";} \
@@ -281,11 +281,14 @@ bool Calculator::loadLocalDefinitions() {
 			if(!case_set) { \
 				ename.case_sensitive = ename.abbreviation || text_length_is_one(ename.name); \
 			} \
-			item->addName(ename); \
+			x->addName(ename); \
 		} \
 		if(names_i == string::npos) {break;} \
 		names_i++; \
 	}
+
+#define PREFIX_SET_BEST_NAMES X_SET_BEST_NAMES(unitNameIsValid, p)
+#define ITEM_SET_BEST_NAMES(validation) X_SET_BEST_NAMES(validation, item)
 
 #define ITEM_SET_BUILTIN_NAMES \
 	for(size_t i = 0; i < 10; i++) { \
@@ -313,7 +316,7 @@ bool Calculator::loadLocalDefinitions() {
 		nameChanged(item); \
 	}
 
-#define ITEM_SET_REFERENCE_NAMES(validation) \
+#define X_SET_REFERENCE_NAMES(validation, x) \
 	if(str_names != &default_names && !default_names.empty()) { \
 		if(default_names[0] == '!') { \
 			names_i = default_names.find('!', 1) + 1; \
@@ -357,22 +360,25 @@ bool Calculator::loadLocalDefinitions() {
 			if(ename.reference) { \
 				if(names_i == string::npos) {ename.name = default_names.substr(i3, default_names.length() - i3);} \
 				else {ename.name = default_names.substr(i3, names_i - i3);} \
+				if(!case_set) { \
+					ename.case_sensitive = ename.abbreviation || text_length_is_one(ename.name); \
+				} \
 				remove_blank_ends(ename.name); \
-				size_t i4 = item->hasName(ename.name, ename.case_sensitive); \
+				size_t i4 = x->hasName(ename.name, ename.case_sensitive); \
 				if(i4 > 0) { \
-					const ExpressionName *enameptr = &item->getName(i4); \
+					const ExpressionName *enameptr = &x->getName(i4); \
 					ename.suffix = enameptr->suffix; \
 					ename.abbreviation = enameptr->abbreviation; \
 					ename.avoid_input = enameptr->avoid_input; \
 					ename.completion_only = enameptr->completion_only; \
 					ename.plural = enameptr->plural; \
 					ename.case_sensitive = enameptr->case_sensitive; \
-					item->setName(ename, i4); \
+					x->setName(ename, i4); \
 				} else if(!ename.name.empty() && validation(ename.name, version_numbers, is_user_defs)) { \
 					if(!case_set) { \
 						ename.case_sensitive = ename.abbreviation || text_length_is_one(ename.name); \
 					} \
-					item->addName(ename); \
+					x->addName(ename); \
 				} \
 			} \
 			if(names_i == string::npos) {break;} \
@@ -380,6 +386,8 @@ bool Calculator::loadLocalDefinitions() {
 		} \
 	}
 
+#define PREFIX_SET_REFERENCE_NAMES X_SET_REFERENCE_NAMES(unitNameIsValid, p)
+#define ITEM_SET_REFERENCE_NAMES(validation) X_SET_REFERENCE_NAMES(validation, item)
 
 #define ITEM_READ_NAME(validation)\
 					if(!new_names && (!xmlStrcmp(child->name, (const xmlChar*) "name") || !xmlStrcmp(child->name, (const xmlChar*) "abbreviation") || !xmlStrcmp(child->name, (const xmlChar*) "plural"))) {\
@@ -729,7 +737,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 	string locale;
 #ifdef _WIN32
 	WCHAR wlocale[LOCALE_NAME_MAX_LENGTH];
-	if(LCIDToLocaleName(LOCALE_USER_DEFAULT, wlocale, LOCALE_NAME_MAX_LENGTH, 0) != 0) locale = utf8_encode(wlocale);
+	if(GetUserDefaultLocaleName(LOCALE_CUSTOM_UI_DEFAULT, wlocale, LOCALE_NAME_MAX_LENGTH, 0) != 0) locale = utf8_encode(wlocale);
 	gsub("-", "_", locale);
 #else
 	char *clocale = setlocale(LC_MESSAGES, NULL);
@@ -812,10 +820,11 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 		xmlFreeDoc(doc);
 		return false;
 	}
-	int version_numbers[] = {3, 18, 0};
+	int version_numbers[] = {3, 20, 0};
 	parse_qalculate_version(version, version_numbers);
 
 	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);
+	bool new_prefix_names = version_numbers[0] > 3 || (version_numbers[0] == 3 && version_numbers[1] > 18);
 
 	ParseOptions po;
 
@@ -953,7 +962,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 								if(farg) {
 									XML_DO_FROM_TEXT(child2, nr.set);
 									farg->setMin(&nr);
-									XML_GET_FALSE_FROM_PROP(child, "include_equals", b)
+									XML_GET_FALSE_FROM_PROP(child2, "include_equals", b)
 									farg->setIncludeEqualsMin(b);
 								} else if(iarg) {
 									XML_GET_STRING_FROM_TEXT(child2, stmp);
@@ -964,7 +973,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 								if(farg) {
 									XML_DO_FROM_TEXT(child2, nr.set);
 									farg->setMax(&nr);
-									XML_GET_FALSE_FROM_PROP(child, "include_equals", b)
+									XML_GET_FALSE_FROM_PROP(child2, "include_equals", b)
 									farg->setIncludeEqualsMax(b);
 								} else if(iarg) {
 									XML_GET_STRING_FROM_TEXT(child2, stmp);
@@ -1503,6 +1512,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 						XML_GET_STRING_FROM_TEXT(child, stmp);
 						if(!((UnknownVariable*) v)->assumptions()) ((UnknownVariable*) v)->setAssumptions(new Assumptions());
 						if(stmp == "integer") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_INTEGER);
+						else if(stmp == "boolean") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_BOOLEAN);
 						else if(stmp == "rational") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_RATIONAL);
 						else if(stmp == "real") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_REAL);
 						else if(stmp == "complex") ((UnknownVariable*) v)->assumptions()->setType(ASSUMPTION_TYPE_COMPLEX);
@@ -2099,8 +2109,9 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 				XML_GET_STRING_FROM_PROP(cur, "type", type)
 				uname = ""; sexp = ""; svalue = ""; name = "";
 				bool b_best = false;
+				ITEM_INIT_NAME
 				while(child != NULL) {
-					if(!xmlStrcmp(child->name, (const xmlChar*) "name")) {
+					if(!new_prefix_names && !xmlStrcmp(child->name, (const xmlChar*) "name")) {
 						lang = xmlNodeGetLang(child);
 						if(!lang) {
 							if(name.empty()) {
@@ -2117,29 +2128,41 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 							}
 							xmlFree(lang);
 						}
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "abbreviation")) {
+					} else if(!new_prefix_names && !xmlStrcmp(child->name, (const xmlChar*) "abbreviation")) {
 						XML_GET_STRING_FROM_TEXT(child, stmp);
-					} else if(!xmlStrcmp(child->name, (const xmlChar*) "unicode")) {
+					} else if(!new_prefix_names && !xmlStrcmp(child->name, (const xmlChar*) "unicode")) {
 						XML_GET_STRING_FROM_TEXT(child, uname);
 					} else if(!xmlStrcmp(child->name, (const xmlChar*) "exponent")) {
 						XML_GET_STRING_FROM_TEXT(child, sexp);
 					} else if(!xmlStrcmp(child->name, (const xmlChar*) "value")) {
 						XML_GET_STRING_FROM_TEXT(child, svalue);
+					} else if(new_prefix_names) {
+						ITEM_READ_NAMES
 					}
 					child = child->next;
 				}
+				p = NULL;
 				if(type == "decimal") {
-					addPrefix(new DecimalPrefix(s2i(sexp), name, stmp, uname));
+					p = new DecimalPrefix(s2i(sexp), name, stmp, uname);
 				} else if(type == "number") {
-					addPrefix(new NumberPrefix(svalue, name, stmp, uname));
+					p = new NumberPrefix(svalue, name, stmp, uname);
 				} else if(type == "binary") {
-					addPrefix(new BinaryPrefix(s2i(sexp), name, stmp, uname));
+					p = new BinaryPrefix(s2i(sexp), name, stmp, uname);
 				} else {
 					if(svalue.empty()) {
-						addPrefix(new DecimalPrefix(s2i(sexp), name, stmp, uname));
+						p = new DecimalPrefix(s2i(sexp), name, stmp, uname);
 					} else {
-						addPrefix(new NumberPrefix(svalue, name, stmp, uname));
+						p = new NumberPrefix(svalue, name, stmp, uname);
 					}
+				}
+				if(p) {
+					if(new_prefix_names) {
+						PREFIX_SET_BEST_NAMES
+						PREFIX_SET_REFERENCE_NAMES
+					}
+					addPrefix(p);
+				} else {
+					ITEM_CLEAR_NAMES
 				}
 				done_something = true;
 			}
@@ -2226,43 +2249,6 @@ int Calculator::saveDataObjects() {
 	return returnvalue;
 }
 
-int Calculator::savePrefixes(const char* file_name, bool save_global) {
-	if(!save_global) {
-		return true;
-	}
-	xmlDocPtr doc = xmlNewDoc((xmlChar*) "1.0");
-	xmlNodePtr cur, newnode;
-	doc->children = xmlNewDocNode(doc, NULL, (xmlChar*) "QALCULATE", NULL);
-	xmlNewProp(doc->children, (xmlChar*) "version", (xmlChar*) VERSION);
-	cur = doc->children;
-	for(size_t i = 0; i < prefixes.size(); i++) {
-		newnode = xmlNewTextChild(cur, NULL, (xmlChar*) "prefix", NULL);
-		if(!prefixes[i]->longName(false).empty()) xmlNewTextChild(newnode, NULL, (xmlChar*) "name", (xmlChar*) prefixes[i]->longName(false).c_str());
-		if(!prefixes[i]->shortName(false).empty()) xmlNewTextChild(newnode, NULL, (xmlChar*) "abbreviation", (xmlChar*) prefixes[i]->shortName(false).c_str());
-		if(!prefixes[i]->unicodeName(false).empty()) xmlNewTextChild(newnode, NULL, (xmlChar*) "unicode", (xmlChar*) prefixes[i]->unicodeName(false).c_str());
-		switch(prefixes[i]->type()) {
-			case PREFIX_DECIMAL: {
-				xmlNewProp(newnode, (xmlChar*) "type", (xmlChar*) "decimal");
-				xmlNewTextChild(newnode, NULL, (xmlChar*) "exponent", (xmlChar*) i2s(((DecimalPrefix*) prefixes[i])->exponent()).c_str());
-				break;
-			}
-			case PREFIX_BINARY: {
-				xmlNewProp(newnode, (xmlChar*) "type", (xmlChar*) "binary");
-				xmlNewTextChild(newnode, NULL, (xmlChar*) "exponent", (xmlChar*) i2s(((BinaryPrefix*) prefixes[i])->exponent()).c_str());
-				break;
-			}
-			case PREFIX_NUMBER: {
-				xmlNewProp(newnode, (xmlChar*) "type", (xmlChar*) "number");
-				xmlNewTextChild(newnode, NULL, (xmlChar*) "value", (xmlChar*) prefixes[i]->value().print(save_printoptions).c_str());
-				break;
-			}
-		}
-	}
-	int returnvalue = xmlSaveFormatFile(file_name, doc, 1);
-	xmlFreeDoc(doc);
-	return returnvalue;
-}
-
 #define SAVE_NAMES(o)\
 				str = "";\
 				for(size_t i2 = 1;;)  {\
@@ -2301,6 +2287,43 @@ int Calculator::savePrefixes(const char* file_name, bool save_global) {
 					}\
 					str += ',';\
 				}
+
+int Calculator::savePrefixes(const char* file_name, bool save_global) {
+	if(!save_global) {
+		return true;
+	}
+	string str;
+	const ExpressionName *ename;
+	xmlDocPtr doc = xmlNewDoc((xmlChar*) "1.0");
+	xmlNodePtr cur, newnode;
+	doc->children = xmlNewDocNode(doc, NULL, (xmlChar*) "QALCULATE", NULL);
+	xmlNewProp(doc->children, (xmlChar*) "version", (xmlChar*) VERSION);
+	cur = doc->children;
+	for(size_t i = 0; i < prefixes.size(); i++) {
+		newnode = xmlNewTextChild(cur, NULL, (xmlChar*) "prefix", NULL);
+		SAVE_NAMES(prefixes[i])
+		switch(prefixes[i]->type()) {
+			case PREFIX_DECIMAL: {
+				xmlNewProp(newnode, (xmlChar*) "type", (xmlChar*) "decimal");
+				xmlNewTextChild(newnode, NULL, (xmlChar*) "exponent", (xmlChar*) i2s(((DecimalPrefix*) prefixes[i])->exponent()).c_str());
+				break;
+			}
+			case PREFIX_BINARY: {
+				xmlNewProp(newnode, (xmlChar*) "type", (xmlChar*) "binary");
+				xmlNewTextChild(newnode, NULL, (xmlChar*) "exponent", (xmlChar*) i2s(((BinaryPrefix*) prefixes[i])->exponent()).c_str());
+				break;
+			}
+			case PREFIX_NUMBER: {
+				xmlNewProp(newnode, (xmlChar*) "type", (xmlChar*) "number");
+				xmlNewTextChild(newnode, NULL, (xmlChar*) "value", (xmlChar*) prefixes[i]->value().print(save_printoptions).c_str());
+				break;
+			}
+		}
+	}
+	int returnvalue = xmlSaveFormatFile(file_name, doc, 1);
+	xmlFreeDoc(doc);
+	return returnvalue;
+}
 
 string Calculator::temporaryCategory() const {
 	return _("Temporary");
@@ -2419,6 +2442,10 @@ int Calculator::saveVariables(const char* file_name, bool save_global) {
 									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "type", (xmlChar*) "integer");
 									break;
 								}
+								case ASSUMPTION_TYPE_BOOLEAN: {
+									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "type", (xmlChar*) "boolean");
+									break;
+								}
 								case ASSUMPTION_TYPE_RATIONAL: {
 									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "type", (xmlChar*) "rational");
 									break;
@@ -2444,30 +2471,32 @@ int Calculator::saveVariables(const char* file_name, bool save_global) {
 									break;
 								}
 							}
-							switch(((UnknownVariable*) variables[i])->assumptions()->sign()) {
-								case ASSUMPTION_SIGN_NONZERO: {
-									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "non-zero");
-									break;
-								}
-								case ASSUMPTION_SIGN_NONPOSITIVE: {
-									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "non-positive");
-									break;
-								}
-								case ASSUMPTION_SIGN_NEGATIVE: {
-									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "negative");
-									break;
-								}
-								case ASSUMPTION_SIGN_NONNEGATIVE: {
-									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "non-negative");
-									break;
-								}
-								case ASSUMPTION_SIGN_POSITIVE: {
-									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "positive");
-									break;
-								}
-								case ASSUMPTION_SIGN_UNKNOWN: {
-									newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "unknown");
-									break;
+							if(((UnknownVariable*) variables[i])->assumptions()->type() != ASSUMPTION_TYPE_BOOLEAN) {
+								switch(((UnknownVariable*) variables[i])->assumptions()->sign()) {
+									case ASSUMPTION_SIGN_NONZERO: {
+										newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "non-zero");
+										break;
+									}
+									case ASSUMPTION_SIGN_NONPOSITIVE: {
+										newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "non-positive");
+										break;
+									}
+									case ASSUMPTION_SIGN_NEGATIVE: {
+										newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "negative");
+										break;
+									}
+									case ASSUMPTION_SIGN_NONNEGATIVE: {
+										newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "non-negative");
+										break;
+									}
+									case ASSUMPTION_SIGN_POSITIVE: {
+										newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "positive");
+										break;
+									}
+									case ASSUMPTION_SIGN_UNKNOWN: {
+										newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "sign", (xmlChar*) "unknown");
+										break;
+									}
 								}
 							}
 						}

@@ -167,9 +167,10 @@ typedef enum {
 #define MESSAGE_STAGE_UNSET			0
 
 ///Message categories
-#define MESSAGE_CATEGORY_NONE		0
-#define MESSAGE_CATEGORY_PARSING	1
-#define MESSAGE_CATEGORY_WIDE_INTERVAL	10
+#define MESSAGE_CATEGORY_NONE				0
+#define MESSAGE_CATEGORY_PARSING			1
+#define MESSAGE_CATEGORY_WIDE_INTERVAL			10
+#define MESSAGE_CATEGORY_IMPLICIT_MULTIPLICATION	11
 
 
 /// A message with information to the user. Primarily used for errors and warnings.
@@ -199,7 +200,10 @@ enum {
 	VARIABLE_ID_Y = 301,
 	VARIABLE_ID_Z = 302,
 	VARIABLE_ID_N = 303,
-	VARIABLE_ID_C = 304
+	VARIABLE_ID_C = 304,
+	VARIABLE_ID_PERCENT = 350,
+	VARIABLE_ID_PERMILLE = 351,
+	VARIABLE_ID_PERMYRIAD = 352
 };
 
 enum {
@@ -372,12 +376,12 @@ class Calculator {
 	DecimalPrefix *decimal_null_prefix;
 	BinaryPrefix *binary_null_prefix;
 
-  	bool place_currency_code_before, place_currency_sign_before;
+	bool place_currency_code_before, place_currency_sign_before;
 	bool place_currency_code_before_negative, place_currency_sign_before_negative;
 	bool default_dot_as_separator;
 	std::string local_digit_group_separator, local_digit_group_format;
 
-  	bool b_busy;
+	bool b_busy;
 	std::string expression_to_calculate;
 	EvaluationOptions tmp_evaluationoptions;
 	MathStructure *tmp_parsedstruct;
@@ -471,7 +475,8 @@ class Calculator {
 	//@{
 	/** Calls MathStructure::format(po) and MathStructure::print(po). The process is aborted after msecs milliseconds.
 	*/
-	std::string print(const MathStructure &mstruct, int milliseconds = 100000, const PrintOptions &op = default_print_options);
+	std::string print(const MathStructure &mstruct, int milliseconds = 100000, const PrintOptions &po = default_print_options);
+	std::string print(const MathStructure &mstruct, int milliseconds, const PrintOptions &po, bool format, int colorize = 0, int tagtype = TAG_TYPE_HTML);
 	///Deprecated: use print() instead
 	std::string printMathStructureTimeOut(const MathStructure &mstruct, int milliseconds = 100000, const PrintOptions &op = default_print_options);
 
@@ -493,6 +498,9 @@ class Calculator {
 	bool isControlled(void) const;
 	std::string abortedMessage(void) const;
 	std::string timedOutString(void) const;
+
+	std::string logicalORString(void) const;
+	std::string logicalANDString(void) const;
 
 	///Deprecated: use startControl()
 	void startPrintControl(int milliseconds = 0);

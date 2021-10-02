@@ -530,7 +530,7 @@ bool calculate_differentiable_functions(MathStructure &m, const EvaluationOption
 }
 bool calculate_nondifferentiable_functions(MathStructure &m, const EvaluationOptions &eo, bool recursive, bool do_unformat, int i_type) {
 	if(m.isFunction() && m.function() != eo.protected_function) {
-		if((i_type <= 0 && !function_differentiable(m.function())) || (i_type >= 0 && !contains_interval_variable(m, i_type))) {
+		if((i_type <= 0 && (!function_differentiable(m.function()) || (m.function()->id() == FUNCTION_ID_INCOMPLETE_BETA && (m.size() != 3 || m[1].containsInterval(true, false, false, 1, true) || m[2].containsInterval(true, false, false, 1, true))) || (m.function()->id() == FUNCTION_ID_I_GAMMA && (m.size() != 2 || m[1].containsInterval(true, false, false, 1, true))))) || (i_type >= 0 && !contains_interval_variable(m, i_type))) {
 			if(m.calculateFunctions(eo, false, do_unformat)) {
 				if(recursive) calculate_nondifferentiable_functions(m, eo, recursive, do_unformat, i_type);
 				return true;
@@ -1641,6 +1641,27 @@ bool MathStructure::complexToExponentialForm(const EvaluationOptions &eo) {
 		if(!mabs.isOne()) multiply(mabs);
 		evalSort(false);
 		return true;
+	} else if(representsReal(true)) {
+		return false;
+	} else {
+		MathStructure marg(CALCULATOR->getFunctionById(FUNCTION_ID_ARG), this, NULL);
+		marg *= nr_one_i;
+		CALCULATOR->beginTemporaryStopMessages();
+		EvaluationOptions eo2 = eo;
+		eo2.complex_number_form = COMPLEX_NUMBER_FORM_RECTANGULAR;
+		eo2.parse_options.angle_unit = ANGLE_UNIT_RADIANS;
+		marg.eval(eo2);
+		if(!marg.isFunction() || marg.function()->id() != FUNCTION_ID_ARG) {
+			CALCULATOR->endTemporaryStopMessages(true);
+			MathStructure mabs(CALCULATOR->getFunctionById(FUNCTION_ID_ABS), this, NULL);
+			set(CALCULATOR->getVariableById(VARIABLE_ID_E), true);
+			raise(marg);
+			mabs.eval(eo2);
+			if(!mabs.isOne()) multiply(mabs);
+			evalSort(false);
+			return true;
+		}
+		CALCULATOR->endTemporaryStopMessages();
 	}
 	if(m_type == STRUCT_POWER) return false;
 	bool b = false;
@@ -1703,6 +1724,33 @@ bool MathStructure::complexToPolarForm(const EvaluationOptions &eo) {
 		CHILD_UPDATED(1)
 		evalSort(true);
 		return true;
+	} else if(representsReal(true)) {
+		return false;
+	} else {
+		MathStructure marg(CALCULATOR->getFunctionById(FUNCTION_ID_ARG), this, NULL);
+		CALCULATOR->beginTemporaryStopMessages();
+		EvaluationOptions eo2 = eo;
+		eo2.complex_number_form = COMPLEX_NUMBER_FORM_RECTANGULAR;
+		marg.eval(eo2);
+		if(!marg.isFunction() || marg.function()->id() != FUNCTION_ID_ARG) {
+			CALCULATOR->endTemporaryStopMessages(true);
+			MathStructure mabs(CALCULATOR->getFunctionById(FUNCTION_ID_ABS), this, NULL);
+			mabs.eval(eo2);
+			switch(eo2.parse_options.angle_unit) {
+				case ANGLE_UNIT_DEGREES: {if(CALCULATOR->getDegUnit()) {marg.multiply(CALCULATOR->getDegUnit(), true);} break;}
+				case ANGLE_UNIT_GRADIANS: {if(CALCULATOR->getGraUnit()) {marg.multiply(CALCULATOR->getGraUnit(), true);} break;}
+				case ANGLE_UNIT_RADIANS: {if(CALCULATOR->getRadUnit()) {marg.multiply(CALCULATOR->getRadUnit(), true);} break;}
+				default: {break;}
+			}
+			set(marg, true);
+			transformById(FUNCTION_ID_SIN);
+			multiply(nr_one_i);
+			add_nocopy(new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_COS), &marg, NULL));
+			if(!mabs.isOne()) multiply(mabs);
+			evalSort(true);
+			return true;
+		}
+		CALCULATOR->endTemporaryStopMessages();
 	}
 	if(m_type == STRUCT_POWER || m_type == STRUCT_FUNCTION) return false;
 	bool b = false;
@@ -1754,10 +1802,48 @@ bool MathStructure::complexToCisForm(const EvaluationOptions &eo) {
 		CHILD(1).transformById(FUNCTION_ID_CIS);
 		CHILD_UPDATED(1)
 		return true;
+	} else if(representsReal(true)) {
+		return false;
+	} else {
+		MathStructure marg(CALCULATOR->getFunctionById(FUNCTION_ID_ARG), this, NULL);
+		CALCULATOR->beginTemporaryStopMessages();
+		EvaluationOptions eo2 = eo;
+		eo2.complex_number_form = COMPLEX_NUMBER_FORM_RECTANGULAR;
+		marg.eval(eo2);
+		if(!marg.isFunction() || marg.function()->id() != FUNCTION_ID_ARG) {
+			CALCULATOR->endTemporaryStopMessages(true);
+			MathStructure mabs(CALCULATOR->getFunctionById(FUNCTION_ID_ABS), this, NULL);
+			mabs.eval(eo2);
+			switch(eo2.parse_options.angle_unit) {
+				case ANGLE_UNIT_DEGREES: {if(CALCULATOR->getDegUnit()) {marg.multiply(CALCULATOR->getDegUnit(), true);} break;}
+				case ANGLE_UNIT_GRADIANS: {if(CALCULATOR->getGraUnit()) {marg.multiply(CALCULATOR->getGraUnit(), true);} break;}
+				default: {break;}
+			}
+			set(marg, true);
+			transformById(FUNCTION_ID_CIS);
+			multiply(mabs);
+			evalSort(true);
+			return true;
+		}
+		CALCULATOR->endTemporaryStopMessages();
 	}
 	bool b = false;
+	size_t i_cis = SIZE;
 	for(size_t i = 0; i < SIZE; i++) {
-		if(CHILD(i).complexToCisForm(eo)) {b = true; CHILD_UPDATED(i);}
+		if(CHILD(i).complexToCisForm(eo)) {
+			b = true; CHILD_UPDATED(i);
+			if(i_cis == SIZE) i_cis = i;
+			else i_cis = SIZE + 1;
+		}
+	}
+	if(b && SIZE >= 2 && isMultiplication() && i_cis < SIZE && CHILD(i_cis).isMultiplication() && CHILD(i_cis).size() == 2 && CHILD(i_cis).last().isFunction() && CHILD(i_cis).last().function()->id() == FUNCTION_ID_CIS && CHILD(i_cis)[0].isOne()) {
+		CHILD(i_cis).setToChild(2, true);
+		if(SIZE > 2) {
+			MathStructure *m_cis = &CHILD(i_cis);
+			m_cis->ref();
+			ERASE(i_cis)
+			multiply_nocopy(m_cis);
+		}
 	}
 	return b;
 }

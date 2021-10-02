@@ -289,6 +289,61 @@ bool IGammaFunction::representsReal(const MathStructure &vargs, bool) const {ret
 bool IGammaFunction::representsNonComplex(const MathStructure &vargs, bool) const {return vargs.size() == 2 && (vargs[1].representsNonNegative() || (vargs[0].representsInteger() && vargs[0].representsNonNegative()));}
 bool IGammaFunction::representsNumber(const MathStructure &vargs, bool) const {return vargs.size() == 2 && (vargs[1].representsNonZero() || vargs[0].representsPositive());}
 int IGammaFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
+	if(vargs[1].isZero() && vargs[0].number().realPartIsPositive()) {
+		mstruct = vargs[0];
+		mstruct.transformById(FUNCTION_ID_GAMMA);
+		return 1;
+	} else if(vargs[0].isOne()) {
+		mstruct.set(CALCULATOR->getVariableById(VARIABLE_ID_E));
+		mstruct ^= vargs[1];
+		mstruct.last().negate();
+		return 1;
+#if MPFR_VERSION_MAJOR < 4
+	} else {
+#else
+	} else if(eo.approximation == APPROXIMATION_EXACT && !vargs[0].isApproximate() && !vargs[1].isApproximate()) {
+#endif
+		if(vargs[0].number() == nr_half) {
+			mstruct = vargs[1];
+			mstruct ^= nr_half;
+			mstruct.transformById(FUNCTION_ID_ERFC);
+			mstruct *= CALCULATOR->getVariableById(VARIABLE_ID_PI);
+			mstruct.last() ^= nr_half;
+			return 1;
+		} else if(vargs[0].number().isTwo()) {
+			mstruct.set(CALCULATOR->getVariableById(VARIABLE_ID_E));
+			mstruct ^= vargs[1];
+			mstruct.last().negate();
+			mstruct *= vargs[1];
+			mstruct.last() += m_one;
+			return 1;
+		} else if(vargs[0].number().isInteger() && vargs[0].number() > 2 && vargs[0].number() < 1000) {
+			Number s_fac(vargs[0].number());
+			s_fac.subtract(1);
+			s_fac.factorial();
+			if(!s_fac.isApproximate()) {
+				Number nr_fac(1, 1, 0);
+				Number nr_i(1, 1, 0);
+				Number nr_x;
+				Number nr(1, 1, 0);
+				bool b = true;
+				while(nr_i < vargs[0].number()) {
+					if(CALCULATOR->aborted()) {b = false; break;}
+					nr_x = vargs[1].number();
+					if(!nr_x.raise(nr_i) || !nr_fac.multiply(nr_i) || !nr_x.divide(nr_fac) || nr_x.isApproximate() || !nr.add(nr_x)) {b = false; break;}
+					nr_i++;
+				}
+				if(b) {
+					mstruct.set(CALCULATOR->getVariableById(VARIABLE_ID_E));
+					mstruct ^= vargs[1];
+					mstruct.last().negate();
+					mstruct *= s_fac;
+					mstruct *= nr;
+					return 1;
+				}
+			}
+		}
+	}
 	FR_FUNCTION_2(igamma)
 }
 
@@ -467,156 +522,170 @@ bool betainc(Number &nvalue, const Number &nr_x, const Number &nr_a, const Numbe
 	return false;
 }
 
-IncompleteBetaFunction::IncompleteBetaFunction() : MathFunction("betainc", 3) {
-	setArgumentDefinition(1, new NumberArgument("", ARGUMENT_MIN_MAX_NONE, true, false));
-	setArgumentDefinition(2, new NumberArgument("", ARGUMENT_MIN_MAX_NONE, true, false));
-	setArgumentDefinition(3, new NumberArgument("", ARGUMENT_MIN_MAX_NONE, true, false));
+InverseIncompleteBetaFunction::InverseIncompleteBetaFunction() : MathFunction("betaincinv", 3) {
+	NumberArgument *arg = new NumberArgument("", ARGUMENT_MIN_MAX_NONE, true, true);
+	Number fr;
+	arg->setMin(&fr);
+	fr = 1;
+	arg->setMax(&fr);
+	setArgumentDefinition(1, arg);
+	setArgumentDefinition(2, new NumberArgument("", ARGUMENT_MIN_MAX_NONE, true, true));
+	setArgumentDefinition(3, new NumberArgument("", ARGUMENT_MIN_MAX_NONE, true, true));
 }
-int IncompleteBetaFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
-	if(vargs[0].number().isZero()) {
-		mstruct.clear();
-		return 1;
-	} else if(vargs[0].number().isOne()) {
-		mstruct = vargs[1];
-		mstruct.transformById(FUNCTION_ID_BETA);
-		mstruct.addChild(vargs[2]);
-		return 1;
-	} else if(vargs[1].number().isOne()) {
-		mstruct.set(1, 1, 0);
-		mstruct -= vargs[0];
-		mstruct ^= vargs[2];
-		mstruct.negate();
-		mstruct += m_one;
-		mstruct /= vargs[2];
-		return 1;
-	} else if(vargs[2].number().isOne()) {
+int InverseIncompleteBetaFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
+	if(eo.approximation == APPROXIMATION_EXACT && !vargs[0].isApproximate() && !vargs[1].isApproximate() && !vargs[2].isApproximate()) return 0;
+	if((vargs[0].number().isZero() || vargs[0].number().isOne()) && vargs[1].number().isPositive() && vargs[2].number().isPositive()) {
 		mstruct = vargs[0];
-		mstruct ^= vargs[1];
-		mstruct += m_zero;
-		mstruct.last() ^= vargs[1];
-		mstruct.last().negate();
-		mstruct /= vargs[1];
 		return 1;
 	}
-	if(vargs[1].number().isInteger() && vargs[2].number().isInteger() && vargs[1].number().isPositive() && vargs[2].number().isPositive()) {
-		if(vargs[0].number().isInterval() && vargs[0].number() <= 1 && vargs[0].number() >= -1) {
-			mstruct = vargs[0].number().lowerEndPoint();
-			mstruct.transform(this);
-			mstruct.addChild(vargs[1]);
-			mstruct.addChild(vargs[2]);
-			mstruct.transformById(FUNCTION_ID_INTERVAL);
-			mstruct.addChild(vargs[0].number().upperEndPoint());
-			mstruct.last().transform(this);
-			mstruct.last().addChild(vargs[1]);
-			mstruct.last().addChild(vargs[2]);
-			if(!vargs[0].number().isNonZero()) {
-				mstruct.transformById(FUNCTION_ID_INTERVAL);
-				mstruct.insertChild(m_zero, 1);
-			}
-			return 1;
-		}
-		//sum(binomial(p+q−1;\i)*x^\i*(1−x)^((p+q−1)−\i);p;p+q−1;\i)
-		Number n(vargs[1].number()); n += vargs[2].number(); n--;
-		Number i(vargs[1].number());
-		Number v, v_i, x_m1(1, 1, 0), x_i, x_m1_i;
-		x_m1 -= vargs[0].number();
-		while(i <= n) {
-			if(CALCULATOR->aborted()) return 0;
-			x_i = vargs[0].number(); x_m1_i = x_m1;
-			if(!v_i.binomial(n, i) || !x_i.raise(i) || !x_m1_i.raise(n - i) || !v_i.multiply(x_i) || !v_i.multiply(x_m1_i)) return 0;
-			v += v_i;
-			i++;
-		}
-		mstruct = v;
-		mstruct *= vargs[1];
-		mstruct.last().transformById(FUNCTION_ID_BETA);
-		mstruct.last().addChild(vargs[2]);
-		return 1;
-	} else if(vargs[0].number().isNonNegative() && vargs[0].number().isFraction() && !vargs[1].number().isInterval() && (!vargs[1].number().isInteger() || vargs[1].number().isPositive()) && !vargs[2].number().isInterval()) {
-		if(vargs[0].number().isInterval()) {
-			mstruct = vargs[0].number().lowerEndPoint();
-			mstruct.transform(this);
-			mstruct.addChild(vargs[1]);
-			mstruct.addChild(vargs[2]);
-			mstruct.transformById(FUNCTION_ID_INTERVAL);
-			mstruct.addChild(vargs[0].number().upperEndPoint());
-			mstruct.last().transform(this);
-			mstruct.last().addChild(vargs[1]);
-			mstruct.last().addChild(vargs[2]);
-			return 1;
-		}
-		Number x(vargs[0].number()), p(vargs[1].number()), q(vargs[2].number());
-		Number nr_prec(1, 1, -(PRECISION + 10));
-		Number nr_add;
-		if(x > nr_half && (!q.isInteger() || q.isPositive())) {
-			Number term_i;
-			Number term, term_prev;
-			Number w(1, 1, 0);
-			if(!w.subtract(x) || !w.multiply(2)) return 0;
-			Number w_pow(w);
-			if(!w_pow.raise(q)) return 0;
-			Number w_mul;
-			Number div_q(q);
-			Number twopowq(2, 1, 0);
-			if(!twopowq.raise(q)) return 0;
-			Number i(1, 1, 0);
-			Number num_p(1, 1, 0);
-			Number div_fac(1, 1, 0);
-			Number nr_pmul;
-			while(true) {
-				if(CALCULATOR->aborted()) return 0;
-				term_prev = term;
-				term_i = num_p;
-				w_mul.set(1, 1, 0);
-				if(!w_mul.subtract(w_pow) || !term_i.multiply(w_mul) || !term_i.divide(div_q) || !term_i.divide(div_fac) || !term_i.divide(twopowq) || !term.add(term_i)) return 0;
-				term_i.abs();
-				if(term_i < nr_prec) {
-					term.setUncertainty(term_i);
-					break;
-				}
-				div_q++;
-				nr_pmul = i;
-				if(!w_pow.multiply(w) || !nr_pmul.subtract(p) || !num_p.multiply(nr_pmul) || !div_fac.multiply(i) || !twopowq.multiply(2)) return 0;
-				i++;
-			}
-			nr_add = term;
-			x.set(1, 2, 0);
-		}
-		Number nr(x);
-		Number term_i;
-		Number term(1, 1, 0), term_prev;
-		Number div_p(p);
-		Number i(1, 1, 0);
-		Number num_q(1, 1, 0);
-		Number div_fac(1, 1, 0);
-		if(!nr.raise(p) || !term.divide(div_p)) return 0;
-		div_p++;
-		num_q -= q;
-		Number nr_qmul;
-		Number x_pow(x);
-		nr_prec /= nr;
+	if(!vargs[0].number().isNonZero()) return 0;
+	// Newton's method: x_(i+1) = x_i - 1/beta(p,q)*betainc(x_i, p, q))/(x_i^(p-1)*(1-x_1)^(q-1))
+	Number nr_prec(1, 1, -(PRECISION + 10));
+	int precbak = PRECISION;
+	Number x0(5, 10, 0);
+	if(vargs[1].number() > vargs[2].number()) {
+		x0 *= vargs[2].number();
+		x0 /= vargs[1].number();
+		x0.negate(); x0++;
+	} else {
+		x0 *= vargs[1].number();
+		x0 /= vargs[2].number();
+	}
+	x0.setToFloatingPoint();
+	Number prev_xip1_retry;
+	int prev_retry = 0;
+	Number retry_div(100, 1, 0);
+	int ret = 0;
+	iibf_begin:
+	CALCULATOR->beginTemporaryStopMessages();
+	Number x_i, x_ip1, x_itest;
+	Number beta(vargs[1].number()), gy(vargs[2].number()), gxy(vargs[1].number());
+	if(!gxy.add(vargs[2].number()) || !gy.gamma() || !beta.gamma() || !gxy.gamma() || !beta.multiply(gy) || !beta.divide(gxy)) {
+	} else {
+		Number pm1(vargs[1].number()); pm1--;
+		Number qm1(vargs[2].number()); qm1--;
+		Number xip, xiq;
+		iibf:
+		x_i = x0;
 		while(true) {
-			if(CALCULATOR->aborted()) return 0;
-			term_prev = term;
-			term_i = num_q;
-			if(!term_i.divide(div_p) || !term_i.divide(div_fac) || !term_i.multiply(x_pow) || !term.add(term_i)) return 0;
-			term_i.abs();
-			if(term_i < nr_prec) {
-				term.setUncertainty(term_i);
+			if(CALCULATOR->aborted()) break;
+			xip = x_i;
+			xiq.set(1, 1, 0);
+			if(!xiq.subtract(x_i) || !xip.raise(pm1) || !xiq.raise(qm1)) break;
+			x_ip1 = x_i;
+			if(x_ip1.isNegative() || !x_ip1.isFraction()) {
+				x_ip1.abs();
+				if(prev_retry != 0 && ((prev_retry < 0 && prev_xip1_retry < x_ip1) || (prev_retry > 0 && prev_xip1_retry > x_ip1))) {
+					if(prev_retry < 0) x0 *= retry_div;
+					x0.negate();
+					x0++;
+					x0 /= retry_div;
+					x0.negate();
+					x0++;
+					prev_retry = 1;
+				} else {
+					if(prev_retry > 0) {retry_div.sqrt(); retry_div.intervalToMidValue();}
+					prev_retry = -1;
+					x0 /= retry_div;
+				}
+				prev_xip1_retry = x_ip1;
+				CALCULATOR->endTemporaryStopMessages();
+				goto iibf;
+			}
+			if(!x_ip1.betainc(vargs[1].number(), vargs[2].number(), true)) break;
+			if(!x_ip1.subtract(vargs[0].number()) || !x_ip1.divide(xip) || !x_ip1.divide(xiq) || !x_ip1.multiply(beta)) break;
+			x_itest = x_ip1;
+			if(!x_itest.divide(x_i) || !x_itest.abs() || !x_i.subtract(x_ip1)) break;
+			if(x_itest < nr_prec) {
+				x_i.setUncertainty(x_ip1);
+				ret = 1;
 				break;
 			}
-			PrintOptions po;
-			po.preserve_precision = true;
-			po.preserve_format = true;
-			i++; div_p++;
-			nr_qmul = i;
-			if(!nr_qmul.subtract(q) || !num_q.multiply(nr_qmul) || !div_fac.multiply(i) || !x_pow.multiply(x)) return 0;
+			int prec = x_i.precision(true);
+			if(prec >= 0 && prec < precbak && PRECISION * 5 < 1000) {
+				CALCULATOR->setPrecision(PRECISION * 10 > 1000 ? 1000 : PRECISION * 10);
+				CALCULATOR->endTemporaryStopMessages();
+				goto iibf_begin;
+			}
 		}
-		if(!nr.multiply(term) || !nr.add(nr_add)) return 0;
+	}
+	if(precbak != PRECISION) CALCULATOR->setPrecision(precbak);
+	CALCULATOR->endTemporaryStopMessages(true);
+	if(ret == 1) mstruct = x_i;
+	return ret;
+}
+
+IncompleteBetaFunction::IncompleteBetaFunction() : MathFunction("betainc", 3) {
+	NumberArgument *arg = new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false, false);
+	arg->setComplexAllowed(false);
+	arg->setHandleVector(true);
+	setArgumentDefinition(1, arg);
+	arg = new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false, false);
+	arg->setComplexAllowed(false);
+	arg->setHandleVector(true);
+	setArgumentDefinition(2, arg);
+	arg = new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false, false);
+	arg->setComplexAllowed(false);
+	arg->setHandleVector(true);
+	setArgumentDefinition(3, arg);
+}
+#define BETAINC_FAILED {if(b_eval) {mstruct.transform(STRUCT_VECTOR); mstruct.addChild(p); mstruct.addChild(q); return -4;} return 0;}
+int IncompleteBetaFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
+	if(vargs[0].isVector() || vargs[1].isVector() || vargs[2].isVector()) return 0;
+	mstruct = vargs[0];
+	MathStructure p(vargs[1]);
+	MathStructure q(vargs[2]);
+	bool b_eval = !mstruct.isNumber() || !p.isNumber() || !q.isNumber();
+	if(b_eval) {mstruct.eval(eo); p.eval(eo); q.eval(eo);}
+	if(mstruct.isVector() || p.isVector() || q.isVector()) BETAINC_FAILED
+	if(p.representsNonPositive() && p.representsInteger() && (q.representsNonPositive() || q.representsNonInteger() || q.compare(-p) == COMPARISON_RESULT_LESS)) {
+		mstruct.set(1, 1, 0);
+		return 1;
+	} else if(q.representsNonPositive() && q.representsInteger()) {
+		mstruct.clear();
+		return 1;
+	} else if(!mstruct.representsNonZero() && (p.isNumber() || !p.representsPositive()) && (!p.isNumber() || !p.number().realPartIsPositive())) {
+		BETAINC_FAILED
+	} else if(mstruct.isZero()) {
+		mstruct.clear();
+		return 1;
+	} else if(mstruct.isOne() && (q.isNumber() || q.representsPositive()) && (!q.isNumber() || q.number().realPartIsPositive())) {
+		mstruct.set(1, 1, 0);
+		return 1;
+	} else if(p.isOne()) {
+		mstruct.negate();
+		mstruct += m_one;
+		mstruct ^= q;
+		mstruct.negate();
+		mstruct += m_one;
+		return 1;
+	} else if(q.isOne()) {
+		if((p.isNumber() || p.representsNonPositive()) && (!p.isNumber() || !p.number().realPartIsPositive())) BETAINC_FAILED
+		mstruct ^= p;
+		if(!p.isNumber() && !p.representsPositive()) {
+			mstruct -= m_zero;
+			mstruct.last() ^= p;
+		}
+		return 1;
+	}
+	if(!mstruct.isNumber() || !p.isNumber() || !q.isNumber()) BETAINC_FAILED
+	Number nr(mstruct.number());
+	if(nr.betainc(p.number(), q.number(), true)) {
+		if((eo.approximation == APPROXIMATION_EXACT && nr.isApproximate() && !mstruct.isApproximate() && !p.isApproximate() && !q.isApproximate()) || (!eo.allow_complex && nr.isComplex() && !mstruct.number().isComplex() && !p.number().isComplex() && !q.number().isComplex()) || (!eo.allow_infinite && nr.includesInfinity() && !mstruct.number().includesInfinity() && !p.number().includesInfinity() && !q.number().includesInfinity())) {
+			BETAINC_FAILED
+		}
 		mstruct.set(nr);
 		return 1;
 	}
-	Number nr(vargs[0].number()); if(!betainc(nr, vargs[0].number(), vargs[1].number(), vargs[2].number()) || (eo.approximation == APPROXIMATION_EXACT && nr.isApproximate() && !vargs[0].isApproximate() && !vargs[1].isApproximate()) || (!eo.allow_complex && nr.isComplex() && !vargs[0].number().isComplex() && !vargs[1].number().isComplex()) || (!eo.allow_infinite && nr.includesInfinity() && !vargs[0].number().includesInfinity() && !vargs[1].number().includesInfinity())) {return 0;} else {mstruct.set(nr); return 1;}
+	if(!betainc(nr, mstruct.number(), p.number(), q.number()) || (eo.approximation == APPROXIMATION_EXACT && nr.isApproximate() && !mstruct.isApproximate() && !p.isApproximate() && !q.isApproximate()) || (!eo.allow_complex && nr.isComplex() && !mstruct.number().isComplex() && !p.number().isComplex() && !q.number().isComplex()) || (!eo.allow_infinite && nr.includesInfinity() && !mstruct.number().includesInfinity() && !p.number().includesInfinity() && !q.number().includesInfinity())) {
+		BETAINC_FAILED
+	}
+	mstruct.set(nr);
+	mstruct *= p;
+	mstruct.last().transformById(FUNCTION_ID_BETA);
+	mstruct.last().addChild(q);
+	mstruct.last().inverse();
+	return 1;
 }
 
 LimitFunction::LimitFunction() : MathFunction("limit", 2, 4) {

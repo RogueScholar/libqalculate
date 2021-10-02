@@ -549,7 +549,8 @@ MathStructure &AliasUnit::convertFromFirstBaseUnit(MathStructure &mvalue, MathSt
 				mstruct->setApproximate(true, true);
 			}
 			if(!mexp.isOne()) mstruct->raise(mexp);
-			mvalue.multiply_nocopy(mstruct, true);
+			if(mvalue.isOne()) mvalue.set_nocopy(*mstruct);
+			else mvalue.multiply_nocopy(mstruct, true);
 		}
 	}
 	return mvalue;
@@ -640,7 +641,8 @@ MathStructure &AliasUnit::convertToFirstBaseUnit(MathStructure &mvalue, MathStru
 			mstruct->setApproximate(true, true);
 		}
 		if(!mexp.isOne()) mstruct->raise(mexp);
-		mvalue.multiply_nocopy(mstruct, true);
+		if(mvalue.isOne()) mvalue.set_nocopy(*mstruct);
+		else mvalue.multiply_nocopy(mstruct, true);
 	}
 	if(i_exp != 1) mexp.multiply(i_exp);
 	return mvalue;
@@ -800,7 +802,7 @@ string AliasUnit_Composite::print(bool plural_, bool short_, bool use_unicode, b
 	string str = "";
 	const ExpressionName *ename = &o_unit->preferredName(short_, use_unicode, plural_, false, can_display_unicode_string_function, can_display_unicode_string_arg);
 	if(prefixv) {
-		str += prefixv->name(ename->abbreviation, use_unicode, can_display_unicode_string_function, can_display_unicode_string_arg);
+		str += prefixv->preferredName(ename->abbreviation, use_unicode, plural_, false, can_display_unicode_string_function, can_display_unicode_string_arg).name;
 	}
 	str += ename->name;
 	return str;

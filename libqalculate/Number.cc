@@ -67,7 +67,7 @@ int char2val(const char &c, const int &base) {
 }
 
 void insert_thousands_separator(string &str, const PrintOptions &po) {
-	if(po.digit_grouping != DIGIT_GROUPING_NONE && (po.digit_grouping != DIGIT_GROUPING_LOCALE || !CALCULATOR->local_digit_group_separator.empty())) {
+	if(po.digit_grouping != DIGIT_GROUPING_NONE && (po.digit_grouping != DIGIT_GROUPING_LOCALE || !CALCULATOR->local_digit_group_separator.empty() || CALCULATOR->getIgnoreLocale())) {
 		size_t group_size = 3, i_format = 0;
 		if(po.digit_grouping == DIGIT_GROUPING_LOCALE && CALCULATOR->local_digit_group_format.size() > i_format) {
 			if(CALCULATOR->local_digit_group_format[i_format] == CHAR_MAX) return;
@@ -81,12 +81,12 @@ void insert_thousands_separator(string &str, const PrintOptions &po) {
 				while(i < str.length()) {
 #ifdef _WIN32
 					// do not use thin space on Windows < 10
-					if(IsWindows10OrGreater() && po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (" ", po.can_display_unicode_string_arg))) {
+					if(IsWindows10OrGreater() && po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (THIN_SPACE, po.can_display_unicode_string_arg))) {
 #else
-					if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (" ", po.can_display_unicode_string_arg))) {
+					if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (THIN_SPACE, po.can_display_unicode_string_arg))) {
 #endif
-						str.insert(i, " ");
-						i += 3 + strlen(" ");
+						str.insert(i, THIN_SPACE);
+						i += 3 + strlen(THIN_SPACE);
 					} else {
 						str.insert(i, " ");
 						i += 4;
@@ -100,15 +100,15 @@ void insert_thousands_separator(string &str, const PrintOptions &po) {
 		if(po.digit_grouping == DIGIT_GROUPING_LOCALE || i > group_size + 1) {
 			while(i > group_size) {
 				i -= group_size;
-				if(po.digit_grouping != DIGIT_GROUPING_LOCALE) {
+				if(po.digit_grouping != DIGIT_GROUPING_LOCALE || CALCULATOR->local_digit_group_separator.empty()) {
 #ifdef _WIN32
 					// do not use thin space on Windows < 10
-					if(IsWindows10OrGreater() && po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (" ", po.can_display_unicode_string_arg))) {
+					if(IsWindows10OrGreater() && po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (THIN_SPACE, po.can_display_unicode_string_arg))) {
 #else
-					if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (" ", po.can_display_unicode_string_arg))) {
+					if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (THIN_SPACE, po.can_display_unicode_string_arg))) {
 #endif
 						// thin space is preferred
-						str.insert(i, " ");
+						str.insert(i, THIN_SPACE);
 					} else {
 						str.insert(i, " ");
 					}
@@ -145,7 +145,7 @@ string format_number_string(string cl_str, int base, BaseDisplay base_display, b
 			l = bits;
 		}
 		// place binary digits in groups of four
-		if(base == 2 && base_display == BASE_DISPLAY_NORMAL) {
+		if(base == 2 && (base_display == BASE_DISPLAY_NORMAL || base_display == BASE_DISPLAY_SUFFIX)) {
 			for(int i = (int) l - 4; i > 0; i -= 4) {
 				cl_str.insert(i, 1, ' ');
 			}
@@ -2287,6 +2287,17 @@ bool Number::isZero() const {
 	if(n_type == NUMBER_TYPE_FLOAT) return mpfr_zero_p(fu_value) && mpfr_zero_p(fl_value);
 	else if(n_type == NUMBER_TYPE_RATIONAL) return mpz_sgn(mpq_numref(r_value)) == 0;
 	return false;
+}
+bool Number::isNonInteger() const {
+	if(!isInterval()) return !isInteger();
+	mpfr_t fu_test, fl_test;
+	mpfr_init2(fu_test, mpfr_get_prec(fu_value));
+	mpfr_init2(fl_test, mpfr_get_prec(fl_value));
+	mpfr_floor(fu_test, fu_value);
+	mpfr_floor(fl_test, fl_value);
+	bool b_ret = mpfr_equal_p(fu_test, fl_test) && !mpfr_equal_p(fl_test, fl_value);
+	mpfr_clears(fu_test, fl_test, NULL);
+	return b_ret;
 }
 bool Number::isNonZero() const {
 	if(i_value && i_value->isNonZero()) return true;
@@ -7869,6 +7880,177 @@ bool Number::igamma(const Number &o) {
 	return true;
 #endif
 }
+bool Number::betainc(const Number &p, const Number &q, bool regularized) {
+	if(isZero()) return p.realPartIsPositive();
+	if(!isNonZero() && !p.realPartIsPositive()) return false;
+	if(isOne() && q.realPartIsPositive()) {
+		if(regularized) return true;
+		Number gy(p), gx(q), gxy(p);
+		if(!gxy.add(q) || !gy.gamma() || !gx.gamma() || !gxy.gamma() || !gx.multiply(gy) || !gx.divide(gxy)) return false;
+		set(gx, true);
+		return true;
+	}
+	if(p.isOne()) return negate() && add(1) && raise(q) && negate() && add(1) && (regularized || divide(q));
+	if(q.isOne() && p.realPartIsPositive()) return raise(p) && (regularized || divide(p));
+	if(p.isNonPositive() && p.isInteger() && (q.isNonPositive() || q.isNonInteger() || q > -p)) {set(1, 1, 0, true); return true;}
+	if(q.isNonPositive() && q.isInteger()) {clear(true); return true;}
+	if(!isReal() || !p.isReal() || !q.isReal()) return false;
+	if(p.isInteger() && q.isInteger() && p.isPositive() && q.isPositive()) {
+		if(isInterval() && isLessThan(1) && isGreaterThan(-1)) {
+			Number nr_low(lowerEndPoint()), nr_high(upperEndPoint());
+			if(!nr_low.betainc(p, q, regularized) || !nr_high.betainc(p, q, regularized)) return false;
+			if(!isNonZero() && nr_low.isPositive() && nr_high.isPositive()) {
+				if(nr_low > nr_high) nr_high.clear();
+				else nr_low.clear();
+			}
+			return setInterval(nr_low, nr_high);
+		}
+		//sum(binomial(p+q−1;\i)*x^\i*(1−x)^((p+q−1)−\i);p;p+q−1;\i)
+		Number n(p); n += q; n--;
+		Number i(p);
+		Number v, v_i, x_m1(1, 1, 0), x_i, x_m1_i;
+		x_m1 -= *this;
+		while(i <= n) {
+			if(CALCULATOR->aborted()) return false;
+			x_i = *this; x_m1_i = x_m1;
+			if(!v_i.binomial(n, i) || !x_i.raise(i) || !x_m1_i.raise(n - i) || !v_i.multiply(x_i) || !v_i.multiply(x_m1_i)) return false;
+			v += v_i;
+			i++;
+		}
+		if(!regularized) {
+			Number gy(p), gx(q), gxy(p);
+			if(!gxy.add(q) || !gy.gamma() || !gx.gamma() || !gxy.gamma() || !v.multiply(gx) || !v.multiply(gy) || !v.divide(gxy)) return false;
+		}
+		set(v);
+		return true;
+	}
+	if(isNonNegative() && isFraction() && !p.isInterval() && (!p.isInteger() || p.isPositive()) && !q.isInterval()) {
+		if(isInterval()) {
+			Number nr_low(lowerEndPoint()), nr_high(upperEndPoint());
+			if(!nr_low.betainc(p, q, regularized) || !nr_high.betainc(p, q, regularized)) return false;
+			return setInterval(nr_low, nr_high);
+		}
+		int precbak = PRECISION;
+		Number nr_prec(1, 1, -(PRECISION + 20));
+		Number nr_mul(1, 1, 0);
+		betainc_begin:
+		if(regularized) {
+			Number gy(q), gxy(p); nr_mul.set(p);
+			if(!gxy.add(q) || !gy.gamma() || !nr_mul.gamma() || !gxy.gamma() || !nr_mul.multiply(gy) || !nr_mul.divide(gxy) || !nr_mul.recip()) return false;
+		}
+		Number nr_add;
+		Number x(*this);
+		if(isGreaterThan(nr_half) && (!q.isInteger() || q.isPositive())) {
+			CALCULATOR->beginTemporaryStopMessages();
+			bool b_success = false;
+			Number term_i;
+			Number term, term_prev;
+			Number w(1, 1, 0);
+			if(w.subtract(x) && w.multiply(2)) {
+				Number w_pow(w);
+				if(w_pow.raise(q)) {
+					Number w_mul;
+					Number div_q(q);
+					Number twopowq(2, 1, 0);
+					if(twopowq.raise(q)) {
+						Number i(1, 1, 0);
+						Number num_p(1, 1, 0);
+						Number div_fac(1, 1, 0);
+						Number nr_pmul;
+						while(true) {
+							if(CALCULATOR->aborted()) break;
+							term_prev = term;
+							term_i = num_p;
+							w_mul.set(1, 1, 0);
+							if(!term_i.multiply(nr_mul) || !w_mul.subtract(w_pow) || !term_i.multiply(w_mul) || !term_i.divide(div_q) || !term_i.divide(div_fac) || !term_i.divide(twopowq) || !term.add(term_i)) break;
+							if(!term_prev.isZero()) {
+								term_prev.recip();
+								term_prev *= term_i;
+								term_prev.abs();
+								if(term_prev < nr_prec) {
+									term.setUncertainty(term_i);
+									int prec = term.precision(true);
+									if(prec >= 0 && prec < 5) break;
+									nr_add = term;
+									x.set(1, 2, 0);
+									b_success = true;
+									break;
+								}
+							}
+							int prec = term.precision(true);
+							if(prec >= 0 && prec < precbak && PRECISION * 5 < 5000) {
+								CALCULATOR->setPrecision(PRECISION * 10 > 5000 ? 5000 : PRECISION * 10);
+								CALCULATOR->endTemporaryStopMessages();
+								goto betainc_begin;
+							}
+							div_q++;
+							nr_pmul = i;
+							if(!w_pow.multiply(w) || !nr_pmul.subtract(p) || !num_p.multiply(nr_pmul) || !div_fac.multiply(i) || !twopowq.multiply(2)) break;
+							i++;
+						}
+					}
+				}
+			}
+			CALCULATOR->endTemporaryStopMessages(true);
+			if(!b_success) {
+				if(precbak != PRECISION) CALCULATOR->setPrecision(precbak);
+				return false;
+			}
+		}
+		bool b_success = false;
+		betainc_begin2:
+		CALCULATOR->beginTemporaryStopMessages();
+		Number nr(x);
+		Number term_i;
+		Number term(1, 1, 0), term_prev;
+		Number div_p(p);
+		Number i(1, 1, 0);
+		Number num_q(1, 1, 0);
+		Number div_fac(1, 1, 0);
+		if(nr.raise(p) && nr_mul.multiply(nr) && term.multiply(nr_mul) && term.divide(div_p)) {
+			div_p++;
+			num_q -= q;
+			Number nr_qmul;
+			Number x_pow(x);
+			while(true) {
+				if(CALCULATOR->aborted()) break;
+				term_prev = term;
+				term_i = num_q;
+				if(!term_i.multiply(nr_mul) || !term_i.divide(div_p) || !term_i.divide(div_fac) || !term_i.multiply(x_pow) || !term.add(term_i)) break;
+				term_prev.recip();
+				term_prev *= term_i;
+				term_prev.abs();
+				if(term_prev < nr_prec) {
+					term.setUncertainty(term_i);
+					int prec = term.precision(true);
+					if(prec >= 0 && prec < 5) break;
+					b_success = true;
+					break;
+				}
+				int prec = term.precision(true);
+				if(prec >= 0 && prec < precbak && PRECISION * 5 < 5000) {
+					CALCULATOR->setPrecision(PRECISION * 10 > 5000 ? 5000 : PRECISION * 10);
+					if(regularized) {
+						Number gy(q), gxy(p); nr_mul.set(p);
+						if(!gxy.add(q) || !gy.gamma() || !nr_mul.gamma() || !gxy.gamma() || !nr_mul.multiply(gy) || !nr_mul.divide(gxy) || !nr_mul.recip()) return false;
+					}
+					CALCULATOR->endTemporaryStopMessages();
+					goto betainc_begin2;
+				}
+				i++; div_p++;
+				nr_qmul = i;
+				if(!nr_qmul.subtract(q) || !num_q.multiply(nr_qmul) || !div_fac.multiply(i) || !x_pow.multiply(x)) break;
+			}
+		}
+		if(precbak != PRECISION) CALCULATOR->setPrecision(precbak);
+		CALCULATOR->endTemporaryStopMessages(true);
+		nr = term;
+		if(!nr.add(nr_add)) return false;
+		set(nr);
+		return b_success;
+	}
+	return false;
+}
 bool Number::fresnels() {
 	if(hasImaginaryPart()) return false;
 	if(isZero()) return true;
@@ -9852,6 +10034,7 @@ string to_float(Number nr_pre, unsigned int bits, unsigned int expbits, bool *ap
 		nrexp.log(2);
 		nrexp.intervalToMidValue();
 		nrexp.floor();
+		nrexp.setApproximate(false);
 		bool rerun = false;
 		tofloat_afterexp:
 		if(nrexp > expbias) {
@@ -9916,6 +10099,7 @@ string to_float(Number nr_pre, unsigned int bits, unsigned int expbits, bool *ap
 		po2.min_exp = 0;
 		po2.base_display = BASE_DISPLAY_NONE;
 		po2.binary_bits = expbits;
+		po2.show_ending_zeroes = false;
 		sbin += nrexp.print(po2);
 		remove_blanks(sbin);
 		if(sbin.length() < expbits + 1) sbin.insert(1, expbits + 1 - sbin.length(), '0');
@@ -11898,10 +12082,7 @@ string Number::print(const PrintOptions &po, const InternalPrintStruct &ips) con
 				if(po.spacious) str += " ";
 				str += i2s(base);
 				str += "^";
-				if(neg_bexp) {
-					if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MINUS, po.can_display_unicode_string_arg))) str += SIGN_MINUS;
-					else str = "-";
-				}
+				if(neg_bexp) str += "-";
 				str += str_bexp;
 				if(ips.depth > 0) {
 					str.insert(0, "(");
@@ -12371,11 +12552,11 @@ string Number::print(const PrintOptions &po, const InternalPrintStruct &ips) con
 			size_t i_dp = str.find(po.decimalpoint());
 			if(i_dp != string::npos && ((infinite_series == 1 && i_dp + po.decimalpoint().length() + 2 < str.length() - infinite_series) || (infinite_series > 1 && i_dp + po.decimalpoint().length() < str.length() - infinite_series))) {
 #ifdef _WIN32
-				if(IsWindows10OrGreater() && po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (" ", po.can_display_unicode_string_arg))) {
+				if(IsWindows10OrGreater() && po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (THIN_SPACE, po.can_display_unicode_string_arg))) {
 #else
-				if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (" ", po.can_display_unicode_string_arg))) {
+				if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (THIN_SPACE, po.can_display_unicode_string_arg))) {
 #endif
-					str.insert(str.length() - (infinite_series == 1 ? 3 : infinite_series), " ");
+					str.insert(str.length() - (infinite_series == 1 ? 3 : infinite_series), THIN_SPACE);
 				} else {
 					str.insert(str.length() - (infinite_series == 1 ? 3 : infinite_series), " ");
 				}

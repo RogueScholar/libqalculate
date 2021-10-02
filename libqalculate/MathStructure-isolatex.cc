@@ -4391,7 +4391,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 								}
 							}
 						}
-						if(warn_complex) CALCULATOR->error(false, _("Only one or two of the roots where calculated for %s."), format_and_print(mbak).c_str(), NULL);
+						if(warn_complex) CALCULATOR->error(false, _("Only one or two of the roots were calculated for %s."), format_and_print(mbak).c_str(), NULL);
 					} else {
 						MathStructure *mposcheck = NULL;
 						bool b_test = false;
@@ -4704,6 +4704,22 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 				}
 				fix_n_multiple(*this, eo2, eo, x_var);
 				return true;
+			}
+			break;
+		}
+		case STRUCT_LOGICAL_NOT: {
+			if(ct_comp == COMPARISON_EQUALS || ct_comp == COMPARISON_NOT_EQUALS) {
+				if(CHILD(1).isOne()) {
+					CHILD(0).setToChild(1, true);
+					CHILD(1).clear(true);
+					return true;
+				}
+				if(CHILD(1).isZero()) {
+					CHILD(0).setToChild(1, true);
+					if(ct_comp == COMPARISON_NOT_EQUALS) ct_comp = COMPARISON_EQUALS;
+					else ct_comp = COMPARISON_NOT_EQUALS;
+					return true;
+				}
 			}
 			break;
 		}

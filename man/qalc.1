@@ -23,7 +23,7 @@ set the number base for results and, optionally, expressions
 .PP
 .TP 8
 .B \-c, \-\-color
-use colors to hightlight different elements of expressions and results
+use colors to highlight different elements of expressions and results
 .PP
 .TP 8
 .B \-e, \-\-exrates
@@ -121,7 +121,7 @@ Equivalent to set approximation try exact.
 .TP 8
 .B assume \fIassumptions\fP
 Set default assumptions for unknown variables (unknown, non-zero, positive, negative, non-positive, non-negative +
-number, real, rational, integer).
+number, real, rational, integer, boolean).
 .PP
 .TP 8
 .B base \fIbase\fP
@@ -212,7 +212,7 @@ Example: to bin
 .PP
 .TP 8
 .B variable \fIname expression\fP
-Create a variables with the specified name and expression.
+Create a variable with the specified name and expression.
 .br
 Example: variable var1 pi / 2.
 .PP
@@ -236,17 +236,17 @@ Clears the entire RPN stack.
 .PP
 .TP 8
 .B copy \fI[index]\fP
-Duplicates a value on the RPN stack to the top of the stack. If no index is specified, the top of the stack is duplicated. Index 1 is the top of stack and negative index values counts from the bottom of the stack.
+Duplicates a value on the RPN stack to the top of the stack. If no index is specified, the top of the stack is duplicated. Index 1 is the top of stack and negative index values count from the bottom of the stack.
 .PP
 .TP 8
 .B move \fIindex 1 index 2\fP
-Changes the position of a value on the RPN stack. Index 1 is the top of stack and negative index values counts from the bottom of the stack.
+Changes the position of a value on the RPN stack. Index 1 is the top of stack and negative index values count from the bottom of the stack.
 .br
 Example: move 2 4
 .PP
 .TP 8
 .B pop \fI[index]\fP
-Removes the top of the RPN stack or the value at the specified index. Index 1 is the top of stack and negative index values counts from the bottom of the stack.
+Removes the top of the RPN stack or the value at the specified index. Index 1 is the top of stack and negative index values count from the bottom of the stack.
 .PP
 .TP 8
 .B rotate \fI[direction]\fP
@@ -254,7 +254,7 @@ Rotates the RPN stack up (default) or down.
 .PP
 .TP 8
 .B swap \fI[index 1] [index 2]\fP
-Swaps position of values on the RPN stack. If no index is specified, the values on the top of the stack (index 1 and index 2) will be swapped and if only one index is specified, the value at this index will be swapped with the top value. Index 1 is the top of stack and negative index values counts from the bottom of the stack.
+Swaps position of values on the RPN stack. If no index is specified, the values on the top of the stack (index 1 and index 2) will be swapped and if only one index is specified, the value at this index will be swapped with the top value. Index 1 is the top of stack and negative index values count from the bottom of the stack.
 .br
 Example: swap 2 4
 .PP
@@ -298,7 +298,7 @@ Determines if unknown values will be assumed non-zero (x/x=1).
 Display a message after a value has been assumed non-zero.
 .PP
 .TP 8
-.B assumptions, ass \fI(unknown*, non-zero, positive, negative, non-positive, non-negative + number, real*, rational, integer)\fP
+.B assumptions, asm \fI(unknown*, non-zero, positive, negative, non-positive, non-negative + number, real*, rational, integer, boolean)\fP
 Default assumptions for unknown variables.
 .PP
 Calculation:
@@ -346,7 +346,7 @@ Enabled objects:
 .PP
 .TP 8
 .B unknowns \fI(on, off*)\fP
-Interprete undefined symbols in expressions as unknown variables.
+Interpret undefined symbols in expressions as unknown variables.
 .PP
 .TP 8
 .B variables, var \fI(on*, off)\fP
@@ -445,7 +445,7 @@ Determines whether halfway numbers are rounded upwards or towards the nearest ev
 .PP
 .TP 8
 .B scientific notation, exp \fI(0 = off, -1 = auto*, -3 = engineering, 1 = pure, 3 = scientific, >= 0)\fP
-Determines how scientific notation are used (e.g. 5 543 000 = 5.543E6).
+Determines how scientific notation is used (e.g. 5 543 000 = 5.543E6).
 .PP
 .TP 8
 .B show ending zeroes, zeroes \fI(on*, off)\fP
@@ -489,7 +489,7 @@ See syntax section.
 .PP
 .TP 8
 .B read precision, readprec \fI(0* = off, 1 = always, 2 = when decimals)\fP
-If activated, numbers be interpreted as approximate with precision equal to the number of significant digits (3.20 = 3.20+/-0.005).
+If activated, numbers are interpreted as approximate with precision equal to the number of significant digits (3.20 = 3.20+/-0.005).
 .PP
 Units:
 .PP
@@ -559,7 +559,7 @@ Mathematical entities:
 .PP
 .B Numbers
 .br
-These are the regular numbers composed by digits 0-9 and a decimal sign — a dot, or a comma if it is the default decimal point in the locale/language used. If comma is used as decimal sign, the dot is still kept as an alternative decimal sign, if not explicitely deactivated. Numbers include integers, real numbers, and complex numbers. The imaginary part of complex numbers are written with as regular number followed by the special variable "i" (can be changed to a "j"), which represents the square root of -1. Spaces between digits are ignored ("5  5 = 55"). "E" (or "e") can be considered as a shortcut for writing many zeroes and is equivalent to multiplication by 10 raised to the power of the right-hand value (e.g. "5E3 = 5000"). Sexagesimal numbers (and time) can be entered directly using colons (e.g. "5:30 = 5.5"). A number immediately preceeded "0b", "0o", "0d" or "0x" are interpreted as a number with base 2, 8, 12 or 16, respectively (e.g. "0x3f = 63").
+These are the regular numbers composed by digits 0-9 and a decimal sign — a dot, or a comma if it is the default decimal point in the locale/language used. If comma is used as decimal sign, the dot is still kept as an alternative decimal sign, if not explicitly deactivated. Numbers include integers, real numbers, and complex numbers. The imaginary part of complex numbers are written with as regular number followed by the special variable "i" (can be changed to a "j"), which represents the square root of -1. Spaces between digits are ignored ("5  5 = 55"). "E" (or "e") can be considered as a shortcut for writing many zeroes and is equivalent to multiplication by 10 raised to the power of the right-hand value (e.g. "5E3 = 5000"). Sexagesimal numbers (and time) can be entered directly using colons (e.g. "5:30 = 5.5"). A number immediately preceded "0b", "0o", "0d" or "0x" are interpreted as a number with base 2, 8, 12 or 16, respectively (e.g. "0x3f = 63").
 .PP
 .B Intervals
 .br
@@ -588,7 +588,7 @@ Unknowns are text strings without any associated value. These are temporary unkn
 .PP
 .B Date and Time
 .br
-Date/time values are specified using quoted text string (quotation marks are not needed for function arguments), using standard date and time format (YYYY-MM-DDTHH:MM:SS). Some local formats are also supported, but not recommended. The local time zone are used, unless a time zone is specified at the end of the time string (Z/UTC/GMT or +/-HH:MM). Date/time supports a small subset of arithmetic operations. The time units represents calender time, instead of average values, when added or subtracted to a date.
+Date/time values are specified using quoted text string (quotation marks are not needed for function arguments), using standard date and time format (YYYY-MM-DDTHH:MM:SS). Some local formats are also supported, but not recommended. The local time zone are used, unless a time zone is specified at the end of the time string (Z/UTC/GMT or +/-HH:MM). Date/time supports a small subset of arithmetic operations. The time units represents calendar time, instead of average values, when added or subtracted to a date.
 .PP
 .B Text
 .br
@@ -610,11 +610,11 @@ Operations and operators (word operators such as AND must be surrounded by space
 .PP
 .B Division (/)
 .PP
-.B Modulo (%, mod)
+.B Remainder (%, rem) and modulo (%%, mod)
 .br
 Returns the remainder after division.
 .PP
-.B Integer Division (//, div)
+.B Integer division (//, div)
 .br
 Rounds the result of division towards zero.
 .PP
@@ -626,23 +626,29 @@ Note that x^y^z equals x^(y^z), and not (x^y)^z. Note also that for non-integer 
 .PP
 .B Parenthesis ((, ))
 .PP
-.B Logical operators (!, ||, OR, &&, AND)
-.br
-Primarily used in conjunction with comparisons.
+.B Logical operators (!, NOT, ||, OR, &&, AND, XOR, NOR, NAND)
 .PP
 .B Bitwise operators (~, |, &, <<, >>, XOR)
 .PP
 .B Comparison operators (=, !=, <, <=, >, >=)
 .br
 Returns 1 if expression is true and 0 if false. The x variable is isolated if the expression does not evaluate as true or false. Primarily used for equations and inequalities.
+.PP
+.B Dot product (.)
+.PP
+.B Element-wise operators (.*, ./, .^)
+.PP
+.B Save operator (:=)
+.br
+Saves the expression to the right of the operator as a variable or function (e.g. var1:=5, func1():=x+y).
 .RE
 .PP
 .B Evaluation priority order:
-parenthesis, 10^x, exponentiation, functions, bitwise NOT, logical NOT, multiplication/division/modulo, addition/subtraction, bitwise NOT, bitwise shift, comparisons, bitwise AND, bitwise XOR, bitwise OR, logical AND, logical OR.
+parenthesis, 10^x, exponentiation, functions, bitwise NOT, logical NOT, multiplication/division/remainder, addition/subtraction, bitwise NOT, bitwise shift, comparisons, bitwise AND, bitwise XOR, bitwise OR, logical AND, logical OR.
 .PP
 The evaluation of \fIshort/implicit multiplication\fP without any multiplication sign (e.g. 5x, 5(2+3)), differs depending on the parsing mode. In the \fIconventional mode\fP implicit multiplication does not differ from explicit multiplication (12/2(1+2) = 12/2*3 = 18, 5x/5y = 5 * x/5 * y = xy). In the parse \fIimplicit multiplication first\fP mode, implicit multiplication is parsed before explicit multiplication (12/2(1+2) = 12/(2 * 3) = 2, 5x/5y = (5 * x)/(5 * y) = x/y). The default \fIadaptive mode\fP works as the parse implicit multiplication first mode, unless spaces are found (1/5x = 1/(5 * x), but 1/5 x = (1/5) * x). In the adaptive mode unit expressions are parsed separately (5 m/5 m/s = (5 * m)/(5 * (m/s)) = 1 s). Function arguments without parentheses are an exception, where implicit multiplication in front of variables and units is parsed first regardless of mode (sqrt 2x = sqrt(2x)).
 .PP
-In \fIchain mode\fP, expressions are calculated from left to right, ignoring standard order of operations, as the immediate execution mode of a traditional calculator (1+2*3 = (1+2)*3 = 9).
+In \fIchain mode\fP, expressions are calculated from left to right, ignoring standard order of operations, like the immediate execution mode of a traditional calculator (1+2*3 = (1+2)*3 = 9).
 .PP
 The \fI"to"-operator\fP is used for unit conversion and manipulation of how the result is presented. Place " to " or a right arrow (e.g. "->") followed by one of expressions/commands the below, at the end of an expression.
 .PP
@@ -723,7 +729,7 @@ prepend with + or - to force/disable use of mixed units
 .br
 - factors (factorize result)
 .PP
-Similarily \fIwhere\fP (or alternatively "/.") can be used at the end (but before "to"), for variable assignments, function replacements, etc. (e.g. "x+y where x=1 and y=2", "x^2=4 where x>0", and "sin(5) where sin()=cos()").
+Similarly \fIwhere\fP (or alternatively "/.") can be used at the end (but before "to"), for variable assignments, function replacements, etc. (e.g. "x+y where x=1 and y=2", "x^2=4 where x>0", and "sin(5) where sin()=cos()").
 .SH EXAMPLES
 Note that semicolon can be replaced with comma, if comma is not used as decimal or thousands separator.
 .PP
@@ -961,7 +967,7 @@ x+x^2+4 = 16
 x = 3 or x = -4
 .PP
 .TP 8
-x^2/(5 m) - hypot(x; 4 m) = 2 m where x>0
+x^2/(5 m) - hypot(x; 4 m) = 2 m where x > 0
 x = 7.1340411 m
 .PP
 .TP 8
@@ -1039,7 +1045,9 @@ limit(ln(1 + 4x)/(3^x - 1); 0)
 = [0; 2; 4]
 .PP
 .TP 8
-(1; 2; 3) * (4; 5; 6)
+(1; 2; 3).(4; 5; 6)
+= dot((1; 2; 3); (4; 5; 6))
+.br
 = 32 \fI(dot product)\fP
 .PP
 .TP 8
@@ -1047,12 +1055,12 @@ cross((1; 2; 3); (4; 5; 6))
 = [-3; 6; -3] \fI(cross product)\fP
 .PP
 .TP 8
-((1; 2; 3); (4; 5; 6)) * ((7; 8); (9; 10); (11; 12))
-= [[58; 64]; [139; 154]]
-.PP
-.TP 8
 hadamard([[1; 2; 3]; [4; 5; 6]]; [[7; 8; 9]; [10; 11; 12]])
 = [[7; 16; 27]; [40; 55; 72]] \fI(hadamard product)\fP
+.PP
+.TP 8
+((1; 2; 3); (4; 5; 6)) * ((7; 8); (9; 10); (11; 12))
+= [[58; 64]; [139; 154]] \fI(matrix multiplication)\fP
 .PP
 .TP 8
 ((1; 2); (3; 4))^-1

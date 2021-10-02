@@ -209,15 +209,43 @@ int DigammaFunction::calculate(MathStructure &mstruct, const MathStructure &varg
 	FR_FUNCTION(digamma)
 }
 BetaFunction::BetaFunction() : MathFunction("beta", 2, 2, SIGN_CAPITAL_BETA) {
-	setArgumentDefinition(1, new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false));
-	setArgumentDefinition(2, new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false));
+	NumberArgument *arg = new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false, false);
+	arg->setHandleVector(true);
+	setArgumentDefinition(1, arg);
+	arg = new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false, false);
+	arg->setHandleVector(true);
+	setArgumentDefinition(2, arg);
 }
-int BetaFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
-	mstruct = vargs[0];
-	mstruct.set(CALCULATOR->getFunctionById(FUNCTION_ID_GAMMA), &vargs[0], NULL);
-	MathStructure mstruct2(CALCULATOR->getFunctionById(FUNCTION_ID_GAMMA), &vargs[1], NULL);
+int BetaFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
+	if(vargs[0].isVector() || vargs[1].isVector()) return 0;
+	MathStructure m1(vargs[0]);
+	MathStructure m2(vargs[1]);
+	m1.eval(eo);
+	m2.eval(eo);
+	if(m1.isVector() || m2.isVector()) {
+		mstruct.setVector(&m1, &m2, NULL);
+		return -3;
+	}
+	if(!m1.isNumber() && m2.isInteger() && m2.number().isPositive() && m2.number() <= 13) {
+		mstruct = m1;
+		Number i(m2.number());
+		i--;
+		while(i.isPositive()) {
+			mstruct.multiply(m1, true);
+			mstruct.last() += i;
+			i--;
+		}
+		Number fac(m2.number());
+		fac--;
+		fac.factorial();
+		mstruct.inverse();
+		mstruct *= fac;
+		return 1;
+	}
+	mstruct.set(CALCULATOR->getFunctionById(FUNCTION_ID_GAMMA), &m1, NULL);
+	MathStructure mstruct2(CALCULATOR->getFunctionById(FUNCTION_ID_GAMMA), &m2, NULL);
 	mstruct *= mstruct2;
-	mstruct2[0] += vargs[0];
+	mstruct2[0] += m1;
 	mstruct /= mstruct2;
 	return 1;
 }
