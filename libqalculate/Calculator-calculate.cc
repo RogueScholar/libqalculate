@@ -820,6 +820,7 @@ void print_m(PrintOptions &po, const EvaluationOptions &evalops, string &str, ve
 			if(b_approx) {
 				results_v.pop_back();
 			} else {
+				if(cplx_angle) replace_result_cis(results_v.back());
 				if(po.use_unicode_signs) gsub(" ", " ", results_v.back());
 			}
 		}
@@ -835,6 +836,7 @@ void print_m(PrintOptions &po, const EvaluationOptions &evalops, string &str, ve
 				if(b_approx) {
 					results_v.pop_back();
 				} else {
+					if(cplx_angle) replace_result_cis(results_v.back());
 					if(po.use_unicode_signs) gsub(" ", " ", results_v.back());
 				}
 			}
@@ -937,7 +939,7 @@ void print_dual(const MathStructure &mresult, const string &original_expression,
 	bool do_exact = !mexact.isUndefined() && m.isApproximate();
 
 	// If parsed value is number (simple fractions are parsed as division) only show result as combined fraction
-	if(auto_frac != AUTOMATIC_FRACTION_OFF && po.base == 10 && po.base == evalops.parse_options.base && !m.isApproximate() && b_parsed && mparse.isNumber()) {
+	if(auto_frac != AUTOMATIC_FRACTION_OFF && po.base == 10 && po.base == evalops.parse_options.base && !m.isApproximate() && b_parsed && mparse.isNumber() && !mparse.isInteger()) {
 		po.number_fraction_format = FRACTION_COMBINED;
 	// with auto fractions show expressions with unknown variables/symbols only using simple fractions (if not parsed value contains decimals)
 	} else if((auto_frac == AUTOMATIC_FRACTION_AUTO || auto_frac == AUTOMATIC_FRACTION_SINGLE) && !m.isApproximate() && (test_fr_unknowns(m) || (m.containsType(STRUCT_ADDITION) && test_power_func(m))) && test_frac(m, false, -1) && (!b_parsed || !contains_decimal(mparse, &original_expression))) {
@@ -1081,6 +1083,7 @@ void print_dual(const MathStructure &mresult, const string &original_expression,
 			mexact2.format(po);
 			mexact2.removeDefaultAngleUnit(evalops);
 			string str = mexact2.print(po, format, colorize, tagtype);
+			if(cplx_angle) replace_result_cis(str);
 			if(!b_approx) {
 				results_v.push_back(str);
 			}
@@ -1094,7 +1097,7 @@ void print_dual(const MathStructure &mresult, const string &original_expression,
 }
 
 bool test_simplified(const MathStructure &m) {
-	if(m.isFunction() || (m.isVariable() && m.variable()->isKnown()) || (m.isUnit() && m.unit()->hasApproximateRelationToBase())) return false;
+	if(m.isFunction() || (m.isVariable() && m.variable()->isKnown()) || (m.isUnit() && (m.unit()->hasApproximateRelationToBase() || (m.unit()->isCurrency() && m.unit() != CALCULATOR->getLocalCurrency())))) return false;
 	for(size_t i = 0; i < m.size(); i++) {
 		if(!test_simplified(m[i])) return false;
 	}
@@ -1535,7 +1538,7 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 				evalops.parse_options.units_enabled = true;
 				evalops.auto_post_conversion = POST_CONVERSION_OPTIMAL_SI;
 				str_conv = "";
-			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "base", _("base"))) {
+			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "base", _c("units", "base"))) {
 				evalops.parse_options.units_enabled = true;
 				evalops.auto_post_conversion = POST_CONVERSION_BASE;
 				str_conv = "";
@@ -1560,7 +1563,7 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 						setCustomOutputBase(m.number());
 					}
 				}
-			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "mixed", _("mixed"))) {
+			} else if(EQUALS_IGNORECASE_AND_LOCAL(to_str, "mixed", _c("units", "mixed"))) {
 				evalops.parse_options.units_enabled = true;
 				evalops.auto_post_conversion = POST_CONVERSION_NONE;
 				evalops.mixed_units_conversion = MIXED_UNITS_CONVERSION_FORCE_INTEGER;
@@ -1655,6 +1658,9 @@ string Calculator::calculateAndPrint(string str, int msecs, const EvaluationOpti
 			if(evalops.auto_post_conversion == POST_CONVERSION_OPTIMAL) {
 				if(munit->isUnit() && u->referenceName() == "oF") {
 					u = getActiveUnit("oC");
+					if(u) mstruct.set(convert(mstruct, u, evalops, true, false));
+				} else if(munit->isUnit() && u->referenceName() == "oC") {
+					u = getActiveUnit("oF");
 					if(u) mstruct.set(convert(mstruct, u, evalops, true, false));
 				} else {
 					mstruct.set(convertToOptimalUnit(mstruct, evalops, true));
@@ -2526,6 +2532,14 @@ string Calculator::print(const MathStructure &mstruct, int msecs, const PrintOpt
 	MathStructure mstruct2(mstruct);
 	mstruct2.format(po);
 	string print_result = mstruct2.print(po);
+	stopControl();
+	return print_result;
+}
+string Calculator::print(const MathStructure &mstruct, int msecs, const PrintOptions &po, bool format, int colorize, int tagtype) {
+	startControl(msecs);
+	MathStructure mstruct2(mstruct);
+	mstruct2.format(po);
+	string print_result = mstruct2.print(po, format, colorize, tagtype);
 	stopControl();
 	return print_result;
 }

@@ -3,7 +3,7 @@ Qalculate! library and CLI
 
 ![Image of qalc](http://qalculate.github.io/images/qalc.png)
 
-Qalculate! is a multi-purpose cross-platform desktop calculator. It is simple to use but provides power and versatility normally reserved for complicated math packages, as well as useful tools for everyday needs (such as currency conversion and percent calculation). Features include a large library of customizable functions, unit calculations and conversion, symbolic calculations (including integrals and equations), arbitrary precision, uncertainty propagation, interval arithmetic, plotting, and a user-friendly interface (GTK+ and CLI).
+Qalculate! is a multi-purpose cross-platform desktop calculator. It is simple to use but provides power and versatility normally reserved for complicated math packages, as well as useful tools for everyday needs (such as currency conversion and percent calculation). Features include a large library of customizable functions, unit calculations and conversion, symbolic calculations (including integrals and equations), arbitrary precision, uncertainty propagation, interval arithmetic, plotting, and a user-friendly interface (GTK+, Qt, and CLI).
 
 ## Requirements
 * GMP and MPFR
@@ -43,7 +43,9 @@ If you run `qalc` without any mathematical expression the program will start in 
 A man page is also available (shown using the command `man qalc`, or online at https://qalculate.github.io/manual/qalc.html).
 
 ## Other Applications
-The main user interface for libqalculate is qalculate-gtk (https://github.com/Qalculate/qalculate-gtk).
+The main user interfaces for libqalculate are
+qalculate-gtk (https://github.com/Qalculate/qalculate-gtk) and
+qalculate-qt (https://github.com/Qalculate/qalculate-qt).
 
 Other software using libqalculate include
 * KDE Plasma Workspace (https://www.kde.org/workspaces/plasmadesktop/)
@@ -216,21 +218,21 @@ gcd(25x; 5x^2) _= 5x_
 1/(x^2+2x−3) to partial fraction _= 1/(4x − 4) − 1/(4x + 12)_
 
 x+x^2+4 = 16
-_= x = 3 or x = −4_
+_= (x = 3 or x = −4)_
 
-x^2/(5 m) − hypot(x; 4 m) = 2 m where x>0
-_x ≈ 7.1340411 m_
+x^2/(5 m) − hypot(x; 4 m) = 2 m where x > 0
+_= (x ≈ 7.1340411 m)_
 
 cylinder(20cm; x) = 20L _(calculates the height of a 20 L cylinder with radius of 20 cm)_
-_= x = (1 / (2π)) m_
-_= x ≈ 16 cm_
+_= (x = (1 / (2π)) m)_
+_= (x ≈ 16 cm)_
 
 asin(sqrt(x)) = 0.2
-_= x = sin(0.2)^2_
-_= x ≈ 0.039469503_
+_= (x = sin(0.2)^2)_
+_= (x ≈ 0.039469503)_
 
 x^2 > 25x
-_= x > 25 or x < 0_
+_= (x > 25 or x < 0)_
 
 solve(x = y+ln(y); y) _= lambertw(e^x)_
 
@@ -262,13 +264,13 @@ limit(ln(1 + 4x)/(3^x − 1); 0) _= 4 / ln(3)_
 
 (1; 2; 3) × 2 − 2 _= \[1 × 2 − 2; 2 × 2 − 2; 3 × 2 − 2\] = \[0; 2; 4\]_
 
-(1; 2; 3) × (4; 5; 6) _= 32 (dot product)_
+(1; 2; 3).(4; 5; 6) = dot((1; 2; 3); (4; 5; 6)) _= 32 (dot product)_
 
 cross((1; 2; 3); (4; 5; 6)) _= \[−3; 6; −3\] (cross product)_
 
-((1; 2; 3); (4; 5; 6)) × ((7; 8); (9; 10); (11; 12)) _= \[\[58; 64\]; \[139; 154\]\]_
-
 hadamard(\[\[1; 2; 3\]; \[4; 5; 6\]\]; \[\[7; 8; 9\]; \[10; 11; 12\]\]) _= \[\[7; 16; 27\]; \[40; 55; 72\]\] (hadamard product)_
+
+((1; 2; 3); (4; 5; 6)) × ((7; 8); (9; 10); (11; 12)) _= \[\[58; 64\]; \[139; 154\]\] (matrix multiplication)_
 
 ((1; 2); (3; 4))^-1 _= inverse(\[\[1; 2\]; \[3; 4\]\]) = \[\[−2; 1\]; \[1.5; −0.5\]\]_
 

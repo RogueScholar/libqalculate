@@ -16,7 +16,9 @@
 #include "util.h"
 #include "Calculator.h"
 #include "MathStructure.h"
+#include "MathStructure-support.h"
 #include "Number.h"
+#include "Unit.h"
 #include "BuiltinFunctions.h"
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
@@ -265,23 +267,25 @@ const MathStructure *DataProperty::getUnitStruct() {
 string DataProperty::getInputString(const string &valuestr) {
 	string str;
 	if(b_brackets && valuestr.length() > 1 && valuestr[0] == '[' && valuestr[valuestr.length() - 1] == ']') {
-		str = valuestr.substr(1, valuestr.length() - 2);
+		str = CALCULATOR->localizeExpression(valuestr.substr(1, valuestr.length() - 2));
 	} else {
-		str = valuestr;
+		str = CALCULATOR->localizeExpression(valuestr);
 	}
 	if(!sunit.empty()) {
 		str += " ";
-		str += sunit;
+		CompositeUnit cu("", "", "", sunit);
+		str += cu.print(false, true, CALCULATOR->messagePrintOptions().use_unicode_signs, CALCULATOR->messagePrintOptions().can_display_unicode_string_function, CALCULATOR->messagePrintOptions().can_display_unicode_string_arg);
 	}
 	return str;
 }
 string DataProperty::getDisplayString(const string &valuestr) {
-	string str = valuestr;
 	if(!sunit.empty()) {
+		string str = CALCULATOR->localizeExpression(valuestr);
 		str += " ";
-		str += sunit;
+		CompositeUnit cu("", "", "", sunit);
+		return str + cu.print(false, true, CALCULATOR->messagePrintOptions().use_unicode_signs, CALCULATOR->messagePrintOptions().can_display_unicode_string_function, CALCULATOR->messagePrintOptions().can_display_unicode_string_arg);
 	}
-	return str;
+	return CALCULATOR->localizeExpression(valuestr);
 }
 MathStructure *DataProperty::generateStruct(const string &valuestr, int is_approximate) {
 	MathStructure *mstruct = NULL;
@@ -444,7 +448,7 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 	} else if(sfile.empty()) {
 		return false;
 	} else if(sfile.find(FILE_SEPARATOR_CHAR) != string::npos) {
-		bool b = loadObjects(file_name, false);
+		bool b = !isLocal() && loadObjects(file_name, false);
 		size_t i = sfile.find_last_of(FILE_SEPARATOR_CHAR);
 		if(i != sfile.length() - 1) {
 			string filepath = buildPath(getLocalDataDir(), "definitions", "datasets", sfile.substr(i + 1, sfile.length() - (i + 1)));
@@ -467,7 +471,7 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 		}
 		return b;
 	} else {
-		bool b = loadObjects(buildPath(getGlobalDefinitionsDir(), sfile).c_str(), false);
+		bool b = !isLocal() && loadObjects(buildPath(getGlobalDefinitionsDir(), sfile).c_str(), false);
 		string filepath = buildPath(getLocalDataDir(), "definitions", "datasets", sfile);
 		if(b && !fileExists(filepath)) return true;
 		if(loadObjects(filepath.c_str(), true)) {
@@ -516,7 +520,7 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 	while(localebase.length() < 2) localebase += " ";
 
 #ifdef COMPILED_DEFINITIONS
-	if(!is_user_defs && !isLocal()) {
+	if(!is_user_defs) {
 		if(strcmp(file_name, "/planets.xml") == 0) {
 			doc = xmlParseMemory(planets_xml, strlen(planets_xml));
 		} else if(strcmp(file_name, "/elements.xml") == 0) {
@@ -532,7 +536,7 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 #endif
 
 	if(doc == NULL) {
-		if(!is_user_defs && !isLocal()) {
+		if(!is_user_defs) {
 			CALCULATOR->error(true, _("Unable to load data objects in %s."), file_name, NULL);
 		}
 		return false;
@@ -540,7 +544,7 @@ bool DataSet::loadObjects(const char *file_name, bool is_user_defs) {
 	cur = xmlDocGetRootElement(doc);
 	if(cur == NULL) {
 		xmlFreeDoc(doc);
-		if(!is_user_defs && !isLocal()) {
+		if(!is_user_defs) {
 			CALCULATOR->error(true, _("Unable to load data objects in %s."), file_name, NULL);
 		}
 		return false;

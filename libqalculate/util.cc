@@ -359,8 +359,12 @@ bool equalsIgnoreCase(const string &str1, const string &str2) {
 			}
 			if(!isequal) {
 				char *gstr1 = utf8_strdown(str1.c_str() + (sizeof(char) * i1));
+				if(!gstr1) return false;
 				char *gstr2 = utf8_strdown(str2.c_str() + (sizeof(char) * i2));
-				if(!gstr1 || !gstr2) return false;
+				if(!gstr2) {
+					free(gstr1);
+					return false;
+				}
 				bool b = strcmp(gstr1, gstr2) == 0;
 				free(gstr1);
 				free(gstr2);
@@ -402,8 +406,12 @@ bool equalsIgnoreCase(const string &str1, const char *str2) {
 			}
 			if(!isequal) {
 				char *gstr1 = utf8_strdown(str1.c_str() + (sizeof(char) * i1));
+				if(!gstr1) return false;
 				char *gstr2 = utf8_strdown(str2 + (sizeof(char) * i2));
-				if(!gstr1 || !gstr2) return false;
+				if(!gstr2) {
+					free(gstr1);
+					return false;
+				}
 				bool b = strcmp(gstr1, gstr2) == 0;
 				free(gstr1);
 				free(gstr2);
@@ -455,22 +463,27 @@ string getOldLocalDir() {
 #endif
 }
 string getLocalDir() {
+	const char *homedir;
+	if((homedir = getenv("QALCULATE_USER_DIR")) != NULL) {
+		return homedir;
+	}
 #ifdef _WIN32
-#	ifdef WIN_PORTABLE
 	char exepath[MAX_PATH];
 	GetModuleFileName(NULL, exepath, MAX_PATH);
 	string str(exepath);
 	str.resize(str.find_last_of('\\'));
+	str += "\\user";
+#	ifdef WIN_PORTABLE
 	_mkdir(str.c_str());
-	return str + "\\user";
+	return str;
 #	else
+	if(dirExists(str)) return str;
 	char path[MAX_PATH];
 	SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path);
-	string str = path;
+	str = path;
 	return str + "\\Qalculate";
 #	endif
 #else
-	const char *homedir;
 	if((homedir = getenv("XDG_CONFIG_HOME")) == NULL) {
 		return string(getpwuid(getuid())->pw_dir) + "/.config/qalculate";
 	}
@@ -478,22 +491,27 @@ string getLocalDir() {
 #endif
 }
 string getLocalDataDir() {
+	const char *homedir;
+	if((homedir = getenv("QALCULATE_USER_DIR")) != NULL) {
+		return homedir;
+	}
 #ifdef _WIN32
-#	ifdef WIN_PORTABLE
 	char exepath[MAX_PATH];
 	GetModuleFileName(NULL, exepath, MAX_PATH);
 	string str(exepath);
 	str.resize(str.find_last_of('\\'));
+	str += "\\user";
+#	ifdef WIN_PORTABLE
 	_mkdir(str.c_str());
-	return str + "\\user";
+	return str;
 #	else
+	if(dirExists(str)) return str;
 	char path[MAX_PATH];
 	SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path);
-	string str = path;
+	str = path;
 	return str + "\\Qalculate";
 #	endif
 #else
-	const char *homedir;
 	if((homedir = getenv("XDG_DATA_HOME")) == NULL) {
 		return string(getpwuid(getuid())->pw_dir) + "/.local/share/qalculate";
 	}
@@ -501,24 +519,30 @@ string getLocalDataDir() {
 #endif
 }
 string getLocalTmpDir() {
+	const char *homedir;
+	if((homedir = getenv("QALCULATE_USER_DIR")) != NULL) {
+		return homedir;
+	}
 #ifdef _WIN32
-#	ifdef WIN_PORTABLE
 	char exepath[MAX_PATH];
 	GetModuleFileName(NULL, exepath, MAX_PATH);
 	string str(exepath);
 	str.resize(str.find_last_of('\\'));
+#	ifdef WIN_PORTABLE
+	str += "\\tmp";
 	_mkdir(str.c_str());
-	return str + "\\tmp";
+	return str;
 #	else
+	str += "\\user";
+	if(dirExists(str)) return str;
 	char path[MAX_PATH];
 	SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path);
-	string str = path;
+	str = path;
 	str += "\\cache";
 	_mkdir(str.c_str());
 	return str + "\\Qalculate";
 #	endif
 #else
-	const char *homedir;
 	if((homedir = getenv("XDG_CACHE_HOME")) == NULL) {
 		return string(getpwuid(getuid())->pw_dir) + "/.cache/qalculate";
 	}
@@ -759,6 +783,8 @@ char *utf8_strdown(const char *str, int l) {
 		ucasemap_utf8ToLower(ucm, buffer, outlength, str, inlength, &err);
 		if(U_SUCCESS(err)) {
 			return buffer;
+		} else {
+			free(buffer);
 		}
 	}
 	return NULL;

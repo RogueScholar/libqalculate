@@ -124,6 +124,36 @@ int EvenFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, 
 	}
 	return -1;
 }
+
+bool represents_imaginary(const MathStructure &m, bool allow_units = true) {
+	switch(m.type()) {
+		case STRUCT_NUMBER: {return m.number().hasImaginaryPart() && !m.number().hasRealPart();}
+		case STRUCT_VARIABLE: {return m.variable()->isKnown() && represents_imaginary(((KnownVariable*) m.variable())->get(), allow_units);}
+		case STRUCT_ADDITION: {
+			for(size_t i = 0; i < m.size(); i++) {
+				if(!represents_imaginary(m[i])) {
+					return false;
+				}
+			}
+			return true;
+		}
+		case STRUCT_MULTIPLICATION: {
+			bool c = false;
+			for(size_t i = 0; i < m.size(); i++) {
+				if(represents_imaginary(m[i])) {
+					c = !c;
+				} else if(!m[i].representsReal(allow_units)) {
+					return false;
+				}
+			}
+			return c;
+		}
+		case STRUCT_UNIT: {return false;}
+		case STRUCT_POWER: {return (m[1].isNumber() && m[1].number().denominatorIsTwo() && m[0].representsNegative()) || (represents_imaginary(m[0]) && m[1].representsOdd());}
+		default: {return false;}
+	}
+}
+
 AbsFunction::AbsFunction() : MathFunction("abs", 1) {
 	Argument *arg = new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false, false);
 	arg->setHandleVector(true);
@@ -211,6 +241,41 @@ int AbsFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, c
 			return 1;
 		} else if(COMPARISON_IS_EQUAL_OR_GREATER(cr)) {
 			mstruct.negate();
+			return 1;
+		}
+	}
+	MathStructure m_im(CALCULATOR->getFunctionById(FUNCTION_ID_IM), &mstruct, NULL);
+	CALCULATOR->beginTemporaryStopMessages();
+	m_im.eval(eo);
+	if(!m_im.containsFunctionId(FUNCTION_ID_IM)) {
+		MathStructure m_re(CALCULATOR->getFunctionById(FUNCTION_ID_RE), &mstruct, NULL);
+		m_re.eval(eo);
+		if(!m_re.containsFunctionId(FUNCTION_ID_RE)) {
+			if(m_re.isZero()) {
+				mstruct = m_im;
+				mstruct.transform(this);
+				CALCULATOR->endTemporaryStopMessages(true);
+				return 1;
+			} else if(!m_im.isZero()) {
+				m_re ^= nr_two;
+				m_im ^= nr_two;
+				mstruct = m_re;
+				mstruct += m_im;
+				mstruct ^= nr_half;
+				CALCULATOR->endTemporaryStopMessages(true);
+				return 1;
+			}
+		}
+	}
+	CALCULATOR->endTemporaryStopMessages();
+	if(mstruct.isAddition()) {
+		MathStructure factor_mstruct(1, 1, 0);
+		MathStructure mnew;
+		if(factorize_find_multiplier(mstruct, mnew, factor_mstruct) && !factor_mstruct.isZero() && !mnew.isZero()) {
+			factor_mstruct.transform(this);
+			mstruct = mnew;
+			mstruct.transform(this);
+			mstruct.multiply(factor_mstruct);
 			return 1;
 		}
 	}
@@ -850,7 +915,10 @@ int BaseFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, 
 			eo2.approximation = APPROXIMATION_TRY_EXACT;
 			CALCULATOR->beginTemporaryStopMessages();
 			mstruct2.eval(eo2);
-			if(mstruct2.isVector() || mstruct2.isNumber()) {
+			if(mstruct2.isNumber() && (mstruct2.number() > 62 || mstruct2.number() < -62)) {
+				idigits = 3;
+				CALCULATOR->endTemporaryStopMessages();
+			} else if(mstruct2.isVector()) {
 				mstruct = mstruct2;
 				CALCULATOR->endTemporaryStopMessages(true);
 				if(mstruct.isVector()) return -2;
@@ -1132,6 +1200,29 @@ int ImFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, co
 		num.rem(4);
 		if(num == 3 || num == -1) mstruct.negate();
 		return 1;
+	} else if(mstruct.isPower() && mstruct[1].isNumber() && mstruct[1].number().denominatorIsTwo() && mstruct[0].isNumber() && !mstruct[0].number().hasRealPart() && mstruct[0].number().imaginaryPartIsNonZero()) {
+		Number nbase(mstruct[0].number().imaginaryPart());
+		bool b_neg = nbase.isNegative();
+		if(b_neg) nbase.negate();
+		mstruct[0].set(nbase, true);
+		mstruct[0].divide(nr_two);
+		if(!mstruct[1].number().numeratorIsOne()) {
+			Number nexp(mstruct[1].number());
+			mstruct[1].number() /= nexp.numerator();
+			if(nexp.isNegative()) {
+				mstruct.inverse();
+				b_neg = !b_neg;
+				mstruct *= nr_half;
+			}
+			nexp.trunc();
+			mstruct *= nbase;
+			mstruct.last().raise(nexp);
+			nexp /= 2;
+			nexp.trunc();
+			if(nexp.isOdd()) b_neg = !b_neg;
+		}
+		if(b_neg) mstruct.negate();
+		return 1;
 	} else if(mstruct.isMultiplication() && mstruct.size() > 0) {
 		if(mstruct[0].isNumber()) {
 			Number nr = mstruct[0].number();
@@ -1176,6 +1267,22 @@ int ImFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, co
 			mstruct.multiply_nocopy(mreal);
 			return 1;
 		}
+	} else if(mstruct.isAddition() && mstruct.size() > 1) {
+		for(size_t i = 0; i < mstruct.size();) {
+			if(mstruct[i].representsReal(true)) {
+				mstruct.delChild(i + 1);
+			} else {
+				mstruct[i].transform(this);
+				i++;
+			}
+		}
+		if(mstruct.size() == 0) mstruct.clear(true);
+		else if(mstruct.size() == 1) mstruct.setToChild(1, true);
+		return 1;
+	}
+	if(represents_imaginary(mstruct)) {
+		mstruct *= nr_minus_i;
+		return 1;
 	}
 	return -1;
 }
@@ -1209,8 +1316,34 @@ int ReFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, co
 		return 1;
 	} else if(mstruct.representsReal(true)) {
 		return 1;
+	} else if(represents_imaginary(mstruct, !eo.keep_zero_units)) {
+		mstruct.clear(true);
+		return 1;
 	} else if(mstruct.isPower() && mstruct[1].isNumber() && mstruct[1].number().denominatorIsTwo() && mstruct[0].representsNegative()) {
 		mstruct.clear(true);
+		return 1;
+	} else if(mstruct.isPower() && mstruct[1].isNumber() && mstruct[1].number().denominatorIsTwo() && mstruct[0].isNumber() && !mstruct[0].number().hasRealPart() && mstruct[0].number().imaginaryPartIsNonZero()) {
+		Number nbase(mstruct[0].number().imaginaryPart());
+		bool b_neg = nbase.isNegative();
+		if(b_neg) nbase.negate();
+		mstruct[0].set(nbase, true);
+		mstruct[0].divide(nr_two);
+		if(!mstruct[1].number().numeratorIsOne()) {
+			Number nexp(mstruct[1].number());
+			mstruct[1].number() /= nexp.numerator();
+			if(nexp.isNegative()) {
+				mstruct.inverse();
+				b_neg = !b_neg;
+				mstruct *= nr_half;
+			}
+			nexp.trunc();
+			mstruct *= nbase;
+			mstruct.last().raise(nexp);
+			nexp /= 2;
+			nexp.trunc();
+			if(nexp.isOdd()) b_neg = !b_neg;
+		}
+		if(b_neg) mstruct.negate();
 		return 1;
 	} else if(mstruct.isMultiplication() && mstruct.size() > 0) {
 		if(mstruct[0].isNumber()) {
@@ -1256,6 +1389,25 @@ int ReFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, co
 			mstruct.multiply_nocopy(mreal);
 			return 1;
 		}
+	} else if(mstruct.isAddition() && mstruct.size() > 1) {
+		bool b = false;
+		for(size_t i = 0; i < mstruct.size();) {
+			if(represents_imaginary(mstruct[i])) {
+				mstruct.delChild(i + 1);
+				b = true;
+			} else {
+				if(!mstruct[i].representsReal()) {
+					mstruct[i].transform(this);
+					b = true;
+				}
+				i++;
+			}
+		}
+		if(b) {
+			if(mstruct.size() == 0) mstruct.clear(true);
+			else if(mstruct.size() == 1) mstruct.setToChild(1, true);
+			return 1;
+		}
 	}
 	return -1;
 }
@@ -1273,6 +1425,18 @@ bool ReFunction::representsNonZero(const MathStructure &vargs, bool allow_units)
 bool ReFunction::representsEven(const MathStructure &vargs, bool allow_units) const {return vargs.size() == 1 && vargs[0].representsEven(allow_units);}
 bool ReFunction::representsOdd(const MathStructure &vargs, bool allow_units) const {return vargs.size() == 1 && vargs[0].representsOdd(allow_units);}
 bool ReFunction::representsUndefined(const MathStructure&) const {return false;}
+
+bool represents_imre(const MathStructure &m) {
+	switch(m.type()) {
+		case STRUCT_NUMBER: {return m.number().imaginaryPartIsNonZero() && m.number().realPartIsNonZero();}
+		case STRUCT_VARIABLE: {return m.variable()->isKnown() && represents_imre(((KnownVariable*) m.variable())->get());}
+		case STRUCT_POWER: {
+			return m[1].isNumber() && m[1].number().isRational() && !m[1].number().isInteger() && (m[0].representsComplex() || (!m[1].number().denominatorIsTwo() && m[0].representsNegative()));
+		}
+		default: {return false;}
+	}
+	return false;
+}
 
 ArgFunction::ArgFunction() : MathFunction("arg", 1) {
 	Argument *arg = new NumberArgument("", ARGUMENT_MIN_MAX_NONE, false, false);
@@ -1334,7 +1498,31 @@ int ArgFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, c
 				return 1;
 			}
 		}
-		if(mstruct.isPower() && mstruct[0].representsComplex() && mstruct[1].representsInteger()) {
+		if(mstruct.isMultiplication()) {
+			bool b = false;
+			if(mstruct.size() == 2) {
+				if(represents_imre(mstruct[0])) {
+					b = mstruct[1].representsComplex();
+				} else if(represents_imre(mstruct[1])) {
+					b = mstruct[0].representsComplex();
+				}
+			} else {
+				b = true;
+				for(size_t i = 0; i < mstruct.size(); i++) {
+					if(!represents_imre(mstruct[i])) {
+						b = false;
+					}
+				}
+			}
+			if(b) {
+				for(size_t i = 0; i < mstruct.size(); i++) {
+					mstruct[i].transform(this);
+				}
+				mstruct.setType(STRUCT_ADDITION);
+				return 1;
+			}
+		}
+		if(mstruct.isPower() && mstruct[0].representsNonZero() && mstruct[1].representsInteger()) {
 			mstruct.setType(STRUCT_MULTIPLICATION);
 			mstruct[0].transform(STRUCT_FUNCTION);
 			mstruct[0].setFunction(this);
@@ -1368,6 +1556,91 @@ int ArgFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, c
 			}
 			CALCULATOR->endTemporaryEnableIntervalArithmetic();
 		}
+		if(mstruct.isPower() && mstruct[0].isMinusOne() && mstruct[1].representsFraction() && mstruct[1].representsPositive()) {
+			mstruct[0] = CALCULATOR->getVariableById(VARIABLE_ID_PI);
+			mstruct.setType(STRUCT_MULTIPLICATION);
+			return true;
+		} else if(mstruct.isMultiplication() && mstruct.size() == 2 && mstruct[0].isMinusOne() && mstruct[1].isPower() && mstruct[1][0].isMinusOne() && mstruct[1][1].representsFraction() && mstruct[1][1].representsPositive()) {
+			mstruct[1][0] = CALCULATOR->getVariableById(VARIABLE_ID_PI);
+			mstruct[1][1].negate();
+			mstruct[1][1] += m_one;
+			mstruct[1].setType(STRUCT_MULTIPLICATION);
+			return true;
+		}
+		MathStructure m_im(CALCULATOR->getFunctionById(FUNCTION_ID_IM), &mstruct, NULL);
+		CALCULATOR->beginTemporaryStopMessages();
+		m_im.eval(eo);
+		if(!m_im.containsFunctionId(FUNCTION_ID_IM)) {
+			MathStructure m_re(CALCULATOR->getFunctionById(FUNCTION_ID_RE), &mstruct, NULL);
+			m_re.eval(eo);
+			if(!m_re.containsFunctionId(FUNCTION_ID_RE)) {
+				ComparisonResult cr_im = m_im.compare(m_zero);
+				ComparisonResult cr_re = m_re.compare(m_zero);
+				if(cr_im == COMPARISON_RESULT_EQUAL) {
+					if(cr_re == COMPARISON_RESULT_LESS) {
+						mstruct.clear();
+						CALCULATOR->endTemporaryStopMessages(true);
+						return 1;
+					} else if(cr_re == COMPARISON_RESULT_GREATER) {
+						switch(eo.parse_options.angle_unit) {
+							case ANGLE_UNIT_DEGREES: {mstruct.set(180, 1, 0); break;}
+							case ANGLE_UNIT_GRADIANS: {mstruct.set(200, 1, 0); break;}
+							case ANGLE_UNIT_RADIANS: {mstruct.set(CALCULATOR->getVariableById(VARIABLE_ID_PI)); break;}
+							default: {mstruct.set(CALCULATOR->getVariableById(VARIABLE_ID_PI)); if(CALCULATOR->getRadUnit()) mstruct *= CALCULATOR->getRadUnit();}
+						}
+						CALCULATOR->endTemporaryStopMessages(true);
+						return 1;
+					}
+				} else if(COMPARISON_IS_NOT_EQUAL(cr_im)) {
+					if(cr_re == COMPARISON_RESULT_EQUAL) {
+						int i_sgn = 0;
+						if(cr_im == COMPARISON_RESULT_LESS) i_sgn = 1;
+						else if(cr_im == COMPARISON_RESULT_GREATER) i_sgn = -1;
+						if(i_sgn != 0) {
+							switch(eo.parse_options.angle_unit) {
+								case ANGLE_UNIT_DEGREES: {mstruct.set(90, 1, 0); break;}
+								case ANGLE_UNIT_GRADIANS: {mstruct.set(100, 1, 0); break;}
+								case ANGLE_UNIT_RADIANS: {mstruct.set(CALCULATOR->getVariableById(VARIABLE_ID_PI)); mstruct.multiply(nr_half); break;}
+								default: {mstruct.set(CALCULATOR->getVariableById(VARIABLE_ID_PI)); mstruct.multiply(nr_half); if(CALCULATOR->getRadUnit()) mstruct *= CALCULATOR->getRadUnit();}
+							}
+							if(i_sgn < 0) mstruct.negate();
+							CALCULATOR->endTemporaryStopMessages(true);
+							return 1;
+						}
+					} else if(cr_re == COMPARISON_RESULT_GREATER) {
+						if(cr_im == COMPARISON_RESULT_GREATER) {
+							m_im.divide(m_re);
+							mstruct.set(CALCULATOR->getFunctionById(FUNCTION_ID_ATAN), &m_im, NULL);
+							switch(eo.parse_options.angle_unit) {
+								case ANGLE_UNIT_DEGREES: {mstruct.add(-180); break;}
+								case ANGLE_UNIT_GRADIANS: {mstruct.add(-200); break;}
+								case ANGLE_UNIT_RADIANS: {mstruct.subtract(CALCULATOR->getVariableById(VARIABLE_ID_PI)); break;}
+								default: {MathStructure msub(CALCULATOR->getVariableById(VARIABLE_ID_PI)); if(CALCULATOR->getRadUnit()) msub *= CALCULATOR->getRadUnit(); mstruct.subtract(msub);}
+							}
+							CALCULATOR->endTemporaryStopMessages(true);
+							return 1;
+						} else if(cr_im == COMPARISON_RESULT_LESS) {
+							m_im.divide(m_re);
+							mstruct.set(CALCULATOR->getFunctionById(FUNCTION_ID_ATAN), &m_im, NULL);
+							switch(eo.parse_options.angle_unit) {
+								case ANGLE_UNIT_DEGREES: {mstruct.add(180); break;}
+								case ANGLE_UNIT_GRADIANS: {mstruct.add(200); break;}
+								case ANGLE_UNIT_RADIANS: {mstruct.add(CALCULATOR->getVariableById(VARIABLE_ID_PI)); break;}
+								default: {MathStructure madd(CALCULATOR->getVariableById(VARIABLE_ID_PI)); if(CALCULATOR->getRadUnit()) madd *= CALCULATOR->getRadUnit(); mstruct.add(madd);}
+							}
+							CALCULATOR->endTemporaryStopMessages(true);
+							return 1;
+						}
+					} else if(cr_re == COMPARISON_RESULT_LESS) {
+						m_im.divide(m_re);
+						mstruct.set(CALCULATOR->getFunctionById(FUNCTION_ID_ATAN), &m_im, NULL);
+						CALCULATOR->endTemporaryStopMessages(true);
+						return 1;
+					}
+				}
+			}
+		}
+		CALCULATOR->endTemporaryStopMessages();
 		if(eo.approximation == APPROXIMATION_EXACT) {
 			msave = mstruct;
 			if(!test_eval(mstruct, eo)) {
