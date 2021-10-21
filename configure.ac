@@ -6,7 +6,7 @@ dnl  ----------------------
 dnl | initialize autotools |---------------------------------------------------
 dnl  ----------------------
 
-AC_INIT([libqalculate],[3.20.1])
+AC_INIT([libqalculate],[3.21.0])
 AC_CONFIG_SRCDIR(libqalculate/Calculator.cc)
 AM_INIT_AUTOMAKE
 AC_CONFIG_HEADERS(config.h)
@@ -27,6 +27,11 @@ AC_ARG_ENABLE(tests,
               [  --enable-tests	  Enable compiling test programs], 
               enable_tests=$enableval, 
               enable_tests="no")
+
+AC_ARG_ENABLE(unittests, 
+              [  --enable-unittests	  Enable compiling unittest runner], 
+              enable_unittests=$enableval, 
+              enable_unittests="yes")
 
 
 dnl  -------------------------------
@@ -83,7 +88,7 @@ QALCULATE_CURRENT=36
 
 dnl increment any time the source changes; set to 
 dnl  0 if you increment CURRENT
-QALCULATE_REVISION=1
+QALCULATE_REVISION=2
 
 dnl increment if any interfaces have been added; set to 0
 dnl  if any interfaces have been removed. removal has 
@@ -257,6 +262,12 @@ if test "x$enable_tests" = "xyes" ; then
 	QALCULATE_TEST="test$EXEEXT"
 fi
 AC_SUBST(QALCULATE_TEST)
+
+QALCULATE_UNITTEST=""
+if test "x$enable_unittests" = "xyes" ; then
+	QALCULATE_UNITTEST="unittest$EXEEXT"
+fi
+AC_SUBST(QALCULATE_UNITTEST)
 
 AC_SEARCH_LIBS([nanosleep],[rt posix4])
 

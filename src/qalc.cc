@@ -28,6 +28,9 @@
 #	include <windows.h>
 #	include <VersionHelpers.h>
 #endif
+#ifndef _WIN32
+#include <signal.h>
+#endif
 
 #include <libqalculate/MathStructure-support.h>
 
@@ -53,7 +56,7 @@ MathStructure *mstruct, *parsed_mstruct, mstruct_exact, prepend_mstruct;
 KnownVariable *vans[5], *v_memory;
 string result_text, parsed_text, original_expression;
 vector<string> alt_results;
-bool load_global_defs, fetch_exchange_rates_at_startup, first_time, save_mode_on_exit, save_defs_on_exit;
+bool load_global_defs, fetch_exchange_rates_at_startup, first_time, save_mode_on_exit, save_defs_on_exit, load_defaults = false;
 int auto_update_exchange_rates;
 PrintOptions printops, saved_printops;
 bool complex_angle_form = false, saved_caf = false;
@@ -89,10 +92,10 @@ struct timeval t_end;
 int dual_fraction = -1, saved_dual_fraction = -1;
 int dual_approximation = -1, saved_dual_approximation = -1;
 bool tc_set = false;
-
 bool ignore_locale = false;
-
-bool result_only;
+bool result_only = false, vertical_space = true;
+bool do_imaginary_j = false;
+int sigint_action = 1;
 
 static char buffer[100000];
 
@@ -435,6 +438,36 @@ void handle_exit() {
 	if(command_thread->running && (!command_thread->write(0) || !command_thread->write(NULL))) command_thread->cancel();
 	CALCULATOR->terminateThreads();
 }
+
+#ifndef _WIN32
+void sigint_handler(int) {
+	if(CALCULATOR->busy()) {
+		CALCULATOR->abort();
+		return;
+	}
+	bool b_interrupt = (sigint_action == 2);
+#ifdef HAVE_LIBREADLINE
+	if(rl_end > 0) {
+		b_interrupt = true;
+	}
+#endif
+	if(b_interrupt) {
+#	ifdef HAVE_LIBREADLINE
+		puts("> ");
+		rl_on_new_line();
+		rl_replace_line("", 0);
+		rl_redisplay();
+#	else
+		puts("");
+		fputs("> ", stdout);
+		fflush(stdout);
+#	endif
+	} else {
+		handle_exit();
+		exit(0);
+	}
+}
+#endif
 
 #ifdef HAVE_LIBREADLINE
 int rlcom_tab(int, int) {
@@ -940,6 +973,7 @@ void set_option(string str) {
 		int v = s2b(svalue); if(v < 0) {PUTS_UNICODE(_("Illegal value."));} else {printops.limit_implicit_multiplication = v; evalops.parse_options.limit_implicit_multiplication = v; expression_format_updated(true);}
 	//extra space next to operators
 	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "spacious", _("spacious")) || svar == "space") SET_BOOL_D(printops.spacious)
+	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "vertical space", _("vertical space")) || svar == "vspace") SET_BOOL(vertical_space)
 	else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "unicode", _("unicode")) || svar == "uni") {
 		int v = s2b(svalue);
 		if(v < 0) {
@@ -995,7 +1029,7 @@ void set_option(string str) {
 			PUTS_UNICODE(_("Illegal value."));
 		} else {
 			evalops.parse_options.parsing_mode = (ParsingMode) v;
-			if(evalops.parse_options.parsing_mode <= PARSING_MODE_CONVENTIONAL) implicit_question_asked = true;
+			if(evalops.parse_options.parsing_mode == PARSING_MODE_CONVENTIONAL || evalops.parse_options.parsing_mode == PARSING_MODE_IMPLICIT_MULTIPLICATION_FIRST) implicit_question_asked = true;
 			expression_format_updated(true);
 		}
 	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "update exchange rates", _("update exchange rates")) || svar == "upxrates") {
@@ -1336,6 +1370,27 @@ void set_option(string str) {
 			evalops.parse_options.read_precision = (ReadPrecisionMode) v;
 			expression_format_updated(true);
 		}
+#ifndef _WIN32
+	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "sigint action", _("sigint action")) || svar == "sigint") {
+		int v = -1;
+		if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "exit", _("exit"))) v = 1;
+		//kill process
+		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "kill", _("kill"))) v = 0;
+		//interupt process
+		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "interrupt", _("interrupt"))) v = 2;
+		else if(svalue.find_first_not_of(SPACES NUMBERS) == string::npos) {
+			v = s2i(svalue);
+		}
+		if(v < 0 || v > 2) {
+			PUTS_UNICODE(_("Illegal value."));
+		} else if(v != sigint_action) {
+			if(interactive_mode) {
+				if(sigint_action == 0) signal(SIGINT, sigint_handler);
+				else if(v == 0) signal(SIGINT, SIG_DFL);
+			}
+			sigint_action = v;
+		}
+#endif
 	} else {
 		if(i_underscore == string::npos) {
 			if(index != string::npos) {
@@ -1500,9 +1555,9 @@ int key_save(int, int) {
 	string title;
 	bool b = true;
 #ifdef HAVE_LIBREADLINE
-#if RL_VERSION_MAJOR >= 7
+#	if RL_VERSION_MAJOR >= 7
 	rl_clear_visible_line();
-#endif
+#	endif
 #endif
 	FPUTS_UNICODE(_("Name"), stdout);
 #ifdef HAVE_LIBREADLINE
@@ -1991,8 +2046,6 @@ void list_defs(bool in_interactive, char list_type = 0, string search_str = "") 
 	}
 }
 
-bool do_imaginary_j = false;
-
 int main(int argc, char *argv[]) {
 
 	string calc_arg;
@@ -2060,6 +2113,8 @@ int main(int argc, char *argv[]) {
 			fputs("\t", stdout); PUTS_UNICODE(_("set the number base for results and, optionally, expressions"));
 			fputs("\n\t-c, -color\n", stdout);
 			fputs("\t", stdout); PUTS_UNICODE(_("use colors to highlight different elements of expressions and results"));
+			fputs("\n\t-defaults\n", stdout);
+			fputs("\t", stdout); PUTS_UNICODE(_("load default settings"));
 #ifdef HAVE_LIBCURL
 			fputs("\n\t-e, -exrates\n", stdout);
 			fputs("\t", stdout); PUTS_UNICODE(_("update exchange rates"));
@@ -2212,6 +2267,8 @@ int main(int argc, char *argv[]) {
 				search_str = argv[i];
 				remove_blank_ends(search_str);
 			}
+		} else if(!calc_arg_begun && (svar == "-defaults" || svar == "--defaults")) {
+			load_defaults = true;
 		} else if(!calc_arg_begun && strcmp(argv[i], "-nounits") == 0) {
 			load_units = false;
 		} else if(!calc_arg_begun && strcmp(argv[i], "-nocurrencies") == 0) {
@@ -2476,6 +2533,10 @@ int main(int argc, char *argv[]) {
 	}
 #endif
 
+#ifndef _WIN32
+	if(interactive_mode && sigint_action > 0) signal(SIGINT, sigint_handler);
+#endif
+
 	string scom;
 	size_t slen, ispace;
 
@@ -2541,7 +2602,7 @@ int main(int argc, char *argv[]) {
 #else
 			fputs("> ", stdout);
 			if(!fgets(buffer, 100000, stdin)) {
-				str = "";
+				break;
 			} else if(!printops.use_unicode_signs && contains_unicode_char(buffer)) {
 				char *gstr = locale_to_utf8(buffer);
 				if(gstr) {
@@ -3303,7 +3364,7 @@ int main(int argc, char *argv[]) {
 				string base_str;
 				int cols = 0;
 				if(interactive_mode && !cfile) {
-					base_str = "\n  ";
+					if(vertical_space) base_str = "\n  ";
 #ifdef HAVE_LIBREADLINE
 					int rows = 0;
 					rl_get_screen_size(&rows, &cols);
@@ -3337,7 +3398,7 @@ int main(int argc, char *argv[]) {
 					base_str += result_text;
 				}
 				if(interactive_mode && !cfile) {
-					base_str += "\n";
+					if(vertical_space) base_str += "\n";
 					addLineBreaks(base_str, cols, true, 2, base_str.length());
 				}
 				PUTS_UNICODE(base_str.c_str());
@@ -3579,6 +3640,7 @@ int main(int argc, char *argv[]) {
 			PRINT_AND_COLON_TABS(_("spacious"), "space"); str += b2oo(printops.spacious, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("spell out logical"), "spellout"); str += b2oo(printops.spell_out_logical_operators, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("unicode"), "uni"); str += b2oo(printops.use_unicode_signs, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
+			PRINT_AND_COLON_TABS(_("vertical space"), "vspace"); str += b2oo(vertical_space, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 
 			CHECK_IF_SCREEN_FILLED_HEADING(_("Numerical Display"));
 
@@ -3790,6 +3852,14 @@ int main(int argc, char *argv[]) {
 			PRINT_AND_COLON_TABS(_("rpn"), ""); str += b2oo(rpn_mode, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("save definitions"), ""); str += b2yn(save_defs_on_exit, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("save mode"), ""); str += b2yn(save_mode_on_exit, false);
+#ifndef _WIN32
+			PRINT_AND_COLON_TABS(_("sigint action"), "sigint");
+			switch(sigint_action) {
+				case 1: {str += _("exit"); break;}
+				case 2: {str += _("interrupt"); break;}
+				default: {str += _("kill"); break;}
+			}
+#endif
 			puts("");
 		//qalc command
 		} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "help", _("help")) || str == "?") {
@@ -4377,6 +4447,7 @@ int main(int argc, char *argv[]) {
 				STR_AND_TABS_BOOL(_("spacious"), "space", _("Add extra space around operators."), printops.spacious);
 				STR_AND_TABS_BOOL(_("spell out logical"), "spellout", "", printops.spell_out_logical_operators);
 				STR_AND_TABS_BOOL(_("unicode"), "uni", _("Display Unicode characters."), printops.use_unicode_signs);
+				STR_AND_TABS_BOOL(_("vertical space"), "vspace", _("Add empty lines before and after result."), vertical_space);
 
 				CHECK_IF_SCREEN_FILLED_HEADING_S(_("Numerical Display"));
 
@@ -4548,6 +4619,9 @@ int main(int argc, char *argv[]) {
 				STR_AND_TABS_BOOL(_("rpn"), "", _("Activates the Reverse Polish Notation stack."), rpn_mode);
 				STR_AND_TABS_YESNO(_("save definitions"), "", _("Save functions, units, and variables on exit."), save_defs_on_exit);
 				STR_AND_TABS_YESNO(_("save mode"), "", _("Save settings on exit."), save_mode_on_exit);
+#ifndef _WIN32
+				STR_AND_TABS_2(_("sigint action"), "sigint", _("Determines how the SIGINT signal (Ctrl+C) is handled."), sigint_action, _("kill"), _("exit"), _("interrupt"));
+#endif
 				puts("");
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "assume", _("assume"))) {
 				puts("");
@@ -4817,6 +4891,9 @@ int main(int argc, char *argv[]) {
 			free(rlbuffer);
 		}
 #endif
+		if (cfile == stdin) {
+			fflush(stdout);
+		}
 	}
 	if(cfile && cfile != stdin) {
 		fclose(cfile);
@@ -5013,6 +5090,7 @@ bool ask_implicit() {
 	FPUTS_UNICODE(_("Parsing mode"), stdout);
 	implicit_question_asked = true;
 	ParsingMode pm_bak = evalops.parse_options.parsing_mode;
+	bool b_ret = false;
 	while(true) {
 #ifdef HAVE_LIBREADLINE
 		char *rlbuffer = readline(": ");
@@ -5044,12 +5122,14 @@ bool ask_implicit() {
 			FPUTS_UNICODE(_("Parsing mode"), stdout);
 		}
 	}
-	if(!interactive_mode) {
+	if(!interactive_mode && !load_defaults) {
 		saved_evalops.parse_options.parsing_mode = evalops.parse_options.parsing_mode;
 		save_preferences(false);
 	}
-	return pm_bak != evalops.parse_options.parsing_mode;
+	return b_ret && pm_bak != evalops.parse_options.parsing_mode;
 }
+
+int save_base = 10;
 
 void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_index, bool register_moved, bool noprint) {
 
@@ -5184,7 +5264,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 	b_busy = true;
 
 	if(has_printed) printf("\n");
-	if(goto_input) printf("\n");
+	if(goto_input && vertical_space) printf("\n");
 
 	if(register_moved) {
 		update_parse = true;
@@ -5222,6 +5302,23 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 			if(mstruct->isComparison() || mstruct->isLogicalAnd() || mstruct->isLogicalOr()) strout += LEFT_PARENTHESIS;
 			if(update_parse) {
 				strout += parsed_text;
+				if(((evalops.parse_options.base <= 36 && evalops.parse_options.base >= 2 && evalops.parse_options.base != BASE_DECIMAL && evalops.parse_options.base != BASE_HEXADECIMAL && evalops.parse_options.base != BASE_OCTAL && evalops.parse_options.base != BASE_BINARY) || evalops.parse_options.base == BASE_CUSTOM || (evalops.parse_options.base <= BASE_GOLDEN_RATIO && evalops.parse_options.base >= BASE_SQRT2)) && (interactive_mode || saved_evalops.parse_options.base == evalops.parse_options.base)) {
+					BEGIN_ITALIC(strout)
+					strout += " (";
+					//number base
+					strout += _("base: ");
+					switch(evalops.parse_options.base) {
+						case BASE_GOLDEN_RATIO: {strout += "golden"; break;}
+						case BASE_SUPER_GOLDEN_RATIO: {strout += "supergolden"; break;}
+						case BASE_E: {strout += "e"; break;}
+						case BASE_PI: {strout += "pi"; break;}
+						case BASE_SQRT2: {strout += "sqrt(2)"; break;}
+						case BASE_CUSTOM: {strout += CALCULATOR->customInputBase().print(CALCULATOR->messagePrintOptions()); break;}
+						default: {strout += i2s(evalops.parse_options.base);}
+					}
+					strout += ")";
+					END_ITALIC(strout)
+				}
 			} else {
 				strout += prev_result_text;
 			}
@@ -5253,6 +5350,25 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 		} else {
 			strout += result_text.c_str();
 		}
+		if(!result_only && save_base == printops.base && (interactive_mode || saved_printops.base == printops.base)) {
+			if((printops.base <= 36 && printops.base >= 2 && printops.base != BASE_DECIMAL && printops.base != BASE_HEXADECIMAL && printops.base != BASE_OCTAL && printops.base != BASE_BINARY) || printops.base == BASE_CUSTOM || (printops.base <= BASE_GOLDEN_RATIO && printops.base >= BASE_SQRT2)) {
+				BEGIN_ITALIC(strout)
+				strout += " (";
+				//number base
+				strout += _("base: ");
+				switch(printops.base) {
+					case BASE_GOLDEN_RATIO: {strout += "golden"; break;}
+					case BASE_SUPER_GOLDEN_RATIO: {strout += "supergolden"; break;}
+					case BASE_E: {strout += "e"; break;}
+					case BASE_PI: {strout += "pi"; break;}
+					case BASE_SQRT2: {strout += "sqrt(2)"; break;}
+					case BASE_CUSTOM: {strout += CALCULATOR->customOutputBase().print(CALCULATOR->messagePrintOptions()); break;}
+					default: {strout += i2s(printops.base);}
+				}
+				strout += ")";
+				END_ITALIC(strout)
+			}
+		}
 		if(goto_input) {
 			if(!result_only) {
 				if(i_result_u == 2 && i_result_u != i_result_u2) {
@@ -5269,7 +5385,7 @@ void setResult(Prefix *prefix, bool update_parse, bool goto_input, size_t stack_
 				}
 			}
 			addLineBreaks(strout, cols, true, result_only ? 2 : i_result_u, i_result);
-			strout += "\n";
+			if(vertical_space) strout += "\n";
 		}
 		PUTS_UNICODE(strout.c_str());
 	}
@@ -5607,7 +5723,7 @@ bool ask_tc() {
 			FPUTS_UNICODE(_("Temperature calculation mode"), stdout);
 		}
 	}
-	if(!interactive_mode) save_preferences(false);
+	if(!interactive_mode && !load_defaults) save_preferences(false);
 	return b_ret;
 }
 
@@ -5688,7 +5804,7 @@ bool ask_dot() {
 			FPUTS_UNICODE(_("Dot interpretation"), stdout);
 		}
 	}
-	if(!interactive_mode) save_preferences(false);
+	if(!interactive_mode && !load_defaults) save_preferences(false);
 	return b_ret;
 }
 
@@ -5701,7 +5817,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 	avoid_recalculation = false;
 	if(!interactive_mode) goto_input = false;
 
-	int save_base = printops.base;
+	save_base = printops.base;
 	bool save_pre = printops.use_unit_prefixes;
 	bool save_cur = printops.use_prefixes_for_currencies;
 	bool save_den = printops.use_denominator_prefix;
@@ -5781,7 +5897,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 					printops.base = BASE_FP128;
 				} else if(equalsIgnoreCase(to_str, "time") || equalsIgnoreCase(to_str, _("time"))) {
 					printops.base = BASE_TIME;
-				} else if(equalsIgnoreCase(str, "unicode")) {
+				} else if(equalsIgnoreCase(to_str, "unicode")) {
 					printops.base = BASE_UNICODE;
 				} else if(equalsIgnoreCase(to_str, "utc") || equalsIgnoreCase(to_str, "gmt")) {
 					printops.time_zone = TIME_ZONE_UTC;
@@ -6499,7 +6615,11 @@ void load_preferences() {
 
 	ignore_locale = false;
 
+	vertical_space = true;
+
 	adaptive_interval_display = true;
+
+	sigint_action = 1;
 
 	CALCULATOR->useIntervalArithmetic(true);
 
@@ -6520,6 +6640,8 @@ void load_preferences() {
 #else
 	colorize = 1;
 #endif
+
+	if(load_defaults && !interactive_mode) return;
 
 	FILE *file = NULL;
 #ifdef HAVE_LIBREADLINE
@@ -6559,14 +6681,14 @@ void load_preferences() {
 #endif
 
 
-	int version_numbers[] = {3, 20, 0};
+	int version_numbers[] = {3, 21, 0};
 
 	if(file) {
 		char line[10000];
 		string stmp, svalue, svar;
 		size_t i;
 		int v;
-		while(true) {
+		while(true && !load_defaults) {
 			if(fgets(line, 10000, file) == NULL) break;
 			stmp = line;
 			remove_blank_ends(stmp);
@@ -6582,6 +6704,8 @@ void load_preferences() {
 					save_mode_on_exit = v;
 				} else if(svar == "save_definitions_on_exit") {
 					save_defs_on_exit = v;
+				} else if(svar == "sigint_action") {
+					sigint_action = v;
 				} else if(svar == "ignore_locale") {
 					ignore_locale = v;
 				} else if(svar == "colorize") {
@@ -6628,6 +6752,8 @@ void load_preferences() {
 					printops.sort_options.minus_last = v;
 				} else if(svar == "spacious") {
 					printops.spacious = v;
+				} else if(svar == "vertical_space") {
+					vertical_space = v;
 				} else if(svar == "excessive_parenthesis") {
 					printops.excessive_parenthesis = v;
 				} else if(svar == "short_multiplication") {
@@ -6642,6 +6768,7 @@ void load_preferences() {
 						} else {
 							evalops.parse_options.parsing_mode = (ParsingMode) v;
 						}
+						if(v == PARSING_MODE_CONVENTIONAL || v == PARSING_MODE_IMPLICIT_MULTIPLICATION_FIRST) implicit_question_asked = true;
 					}
 				} else if(svar == "implicit_question_asked") {
 					implicit_question_asked = true;
@@ -6898,10 +7025,14 @@ bool save_preferences(bool mode) {
 	fprintf(file, "version=%s\n", VERSION);
 	fprintf(file, "save_mode_on_exit=%i\n", save_mode_on_exit);
 	fprintf(file, "save_definitions_on_exit=%i\n", save_defs_on_exit);
+#ifndef _WIN32
+	if(sigint_action != 1) fprintf(file, "sigint_action=%i\n", sigint_action);
+#endif
 	fprintf(file, "ignore_locale=%i\n", ignore_locale);
 	fprintf(file, "colorize=%i\n", colorize);
 	fprintf(file, "auto_update_exchange_rates=%i\n", auto_update_exchange_rates);
 	fprintf(file, "spacious=%i\n", printops.spacious);
+	fprintf(file, "vertical_space=%i\n", vertical_space);
 	fprintf(file, "excessive_parenthesis=%i\n", printops.excessive_parenthesis);
 	fprintf(file, "short_multiplication=%i\n", printops.short_multiplication);
 	fprintf(file, "use_unicode_signs=%i\n", printops.use_unicode_signs);
