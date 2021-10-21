@@ -28,6 +28,9 @@
 #	include <windows.h>
 #	include <VersionHelpers.h>
 #endif
+#ifndef _WIN32
+#include <signal.h>
+#endif
 
 #include <libqalculate/MathStructure-support.h>
 
@@ -53,7 +56,7 @@ MathStructure *mstruct, *parsed_mstruct, mstruct_exact, prepend_mstruct;
 KnownVariable *vans[5], *v_memory;
 string result_text, parsed_text, original_expression;
 vector<string> alt_results;
-bool load_global_defs, fetch_exchange_rates_at_startup, first_time, save_mode_on_exit, save_defs_on_exit;
+bool load_global_defs, fetch_exchange_rates_at_startup, first_time, save_mode_on_exit, save_defs_on_exit, load_defaults = false;
 int auto_update_exchange_rates;
 PrintOptions printops, saved_printops;
 bool complex_angle_form = false, saved_caf = false;
@@ -91,6 +94,8 @@ int dual_approximation = -1, saved_dual_approximation = -1;
 bool tc_set = false;
 bool ignore_locale = false;
 bool result_only = false, vertical_space = true;
+bool do_imaginary_j = false;
+int sigint_action = 1;
 
 static char buffer[100000];
 
@@ -433,6 +438,36 @@ void handle_exit() {
 	if(command_thread->running && (!command_thread->write(0) || !command_thread->write(NULL))) command_thread->cancel();
 	CALCULATOR->terminateThreads();
 }
+
+#ifndef _WIN32
+void sigint_handler(int) {
+	if(CALCULATOR->busy()) {
+		CALCULATOR->abort();
+		return;
+	}
+	bool b_interrupt = (sigint_action == 2);
+#ifdef HAVE_LIBREADLINE
+	if(rl_end > 0) {
+		b_interrupt = true;
+	}
+#endif
+	if(b_interrupt) {
+#	ifdef HAVE_LIBREADLINE
+		puts("> ");
+		rl_on_new_line();
+		rl_replace_line("", 0);
+		rl_redisplay();
+#	else
+		puts("");
+		fputs("> ", stdout);
+		fflush(stdout);
+#	endif
+	} else {
+		handle_exit();
+		exit(0);
+	}
+}
+#endif
 
 #ifdef HAVE_LIBREADLINE
 int rlcom_tab(int, int) {
@@ -1335,6 +1370,27 @@ void set_option(string str) {
 			evalops.parse_options.read_precision = (ReadPrecisionMode) v;
 			expression_format_updated(true);
 		}
+#ifndef _WIN32
+	} else if(EQUALS_IGNORECASE_AND_LOCAL(svar, "sigint action", _("sigint action")) || svar == "sigint") {
+		int v = -1;
+		if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "exit", _("exit"))) v = 1;
+		//kill process
+		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "kill", _("kill"))) v = 0;
+		//interupt process
+		else if(EQUALS_IGNORECASE_AND_LOCAL(svalue, "interrupt", _("interrupt"))) v = 2;
+		else if(svalue.find_first_not_of(SPACES NUMBERS) == string::npos) {
+			v = s2i(svalue);
+		}
+		if(v < 0 || v > 2) {
+			PUTS_UNICODE(_("Illegal value."));
+		} else if(v != sigint_action) {
+			if(interactive_mode) {
+				if(sigint_action == 0) signal(SIGINT, sigint_handler);
+				else if(v == 0) signal(SIGINT, SIG_DFL);
+			}
+			sigint_action = v;
+		}
+#endif
 	} else {
 		if(i_underscore == string::npos) {
 			if(index != string::npos) {
@@ -1499,9 +1555,9 @@ int key_save(int, int) {
 	string title;
 	bool b = true;
 #ifdef HAVE_LIBREADLINE
-#if RL_VERSION_MAJOR >= 7
+#	if RL_VERSION_MAJOR >= 7
 	rl_clear_visible_line();
-#endif
+#	endif
 #endif
 	FPUTS_UNICODE(_("Name"), stdout);
 #ifdef HAVE_LIBREADLINE
@@ -1990,8 +2046,6 @@ void list_defs(bool in_interactive, char list_type = 0, string search_str = "") 
 	}
 }
 
-bool do_imaginary_j = false;
-
 int main(int argc, char *argv[]) {
 
 	string calc_arg;
@@ -2059,6 +2113,8 @@ int main(int argc, char *argv[]) {
 			fputs("\t", stdout); PUTS_UNICODE(_("set the number base for results and, optionally, expressions"));
 			fputs("\n\t-c, -color\n", stdout);
 			fputs("\t", stdout); PUTS_UNICODE(_("use colors to highlight different elements of expressions and results"));
+			fputs("\n\t-defaults\n", stdout);
+			fputs("\t", stdout); PUTS_UNICODE(_("load default settings"));
 #ifdef HAVE_LIBCURL
 			fputs("\n\t-e, -exrates\n", stdout);
 			fputs("\t", stdout); PUTS_UNICODE(_("update exchange rates"));
@@ -2211,6 +2267,8 @@ int main(int argc, char *argv[]) {
 				search_str = argv[i];
 				remove_blank_ends(search_str);
 			}
+		} else if(!calc_arg_begun && (svar == "-defaults" || svar == "--defaults")) {
+			load_defaults = true;
 		} else if(!calc_arg_begun && strcmp(argv[i], "-nounits") == 0) {
 			load_units = false;
 		} else if(!calc_arg_begun && strcmp(argv[i], "-nocurrencies") == 0) {
@@ -2475,6 +2533,10 @@ int main(int argc, char *argv[]) {
 	}
 #endif
 
+#ifndef _WIN32
+	if(interactive_mode && sigint_action > 0) signal(SIGINT, sigint_handler);
+#endif
+
 	string scom;
 	size_t slen, ispace;
 
@@ -2540,7 +2602,7 @@ int main(int argc, char *argv[]) {
 #else
 			fputs("> ", stdout);
 			if(!fgets(buffer, 100000, stdin)) {
-				str = "";
+				break;
 			} else if(!printops.use_unicode_signs && contains_unicode_char(buffer)) {
 				char *gstr = locale_to_utf8(buffer);
 				if(gstr) {
@@ -3790,6 +3852,14 @@ int main(int argc, char *argv[]) {
 			PRINT_AND_COLON_TABS(_("rpn"), ""); str += b2oo(rpn_mode, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("save definitions"), ""); str += b2yn(save_defs_on_exit, false); CHECK_IF_SCREEN_FILLED_PUTS(str.c_str())
 			PRINT_AND_COLON_TABS(_("save mode"), ""); str += b2yn(save_mode_on_exit, false);
+#ifndef _WIN32
+			PRINT_AND_COLON_TABS(_("sigint action"), "sigint");
+			switch(sigint_action) {
+				case 1: {str += _("exit"); break;}
+				case 2: {str += _("interrupt"); break;}
+				default: {str += _("kill"); break;}
+			}
+#endif
 			puts("");
 		//qalc command
 		} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "help", _("help")) || str == "?") {
@@ -4549,6 +4619,9 @@ int main(int argc, char *argv[]) {
 				STR_AND_TABS_BOOL(_("rpn"), "", _("Activates the Reverse Polish Notation stack."), rpn_mode);
 				STR_AND_TABS_YESNO(_("save definitions"), "", _("Save functions, units, and variables on exit."), save_defs_on_exit);
 				STR_AND_TABS_YESNO(_("save mode"), "", _("Save settings on exit."), save_mode_on_exit);
+#ifndef _WIN32
+				STR_AND_TABS_2(_("sigint action"), "sigint", _("Determines how the SIGINT signal (Ctrl+C) is handled."), sigint_action, _("kill"), _("exit"), _("interrupt"));
+#endif
 				puts("");
 			} else if(EQUALS_IGNORECASE_AND_LOCAL(str, "assume", _("assume"))) {
 				puts("");
@@ -4818,6 +4891,9 @@ int main(int argc, char *argv[]) {
 			free(rlbuffer);
 		}
 #endif
+		if (cfile == stdin) {
+			fflush(stdout);
+		}
 	}
 	if(cfile && cfile != stdin) {
 		fclose(cfile);
@@ -5014,6 +5090,7 @@ bool ask_implicit() {
 	FPUTS_UNICODE(_("Parsing mode"), stdout);
 	implicit_question_asked = true;
 	ParsingMode pm_bak = evalops.parse_options.parsing_mode;
+	bool b_ret = false;
 	while(true) {
 #ifdef HAVE_LIBREADLINE
 		char *rlbuffer = readline(": ");
@@ -5045,11 +5122,11 @@ bool ask_implicit() {
 			FPUTS_UNICODE(_("Parsing mode"), stdout);
 		}
 	}
-	if(!interactive_mode) {
+	if(!interactive_mode && !load_defaults) {
 		saved_evalops.parse_options.parsing_mode = evalops.parse_options.parsing_mode;
 		save_preferences(false);
 	}
-	return pm_bak != evalops.parse_options.parsing_mode;
+	return b_ret && pm_bak != evalops.parse_options.parsing_mode;
 }
 
 int save_base = 10;
@@ -5646,7 +5723,7 @@ bool ask_tc() {
 			FPUTS_UNICODE(_("Temperature calculation mode"), stdout);
 		}
 	}
-	if(!interactive_mode) save_preferences(false);
+	if(!interactive_mode && !load_defaults) save_preferences(false);
 	return b_ret;
 }
 
@@ -5727,7 +5804,7 @@ bool ask_dot() {
 			FPUTS_UNICODE(_("Dot interpretation"), stdout);
 		}
 	}
-	if(!interactive_mode) save_preferences(false);
+	if(!interactive_mode && !load_defaults) save_preferences(false);
 	return b_ret;
 }
 
@@ -5820,7 +5897,7 @@ void execute_expression(bool goto_input, bool do_mathoperation, MathOperation op
 					printops.base = BASE_FP128;
 				} else if(equalsIgnoreCase(to_str, "time") || equalsIgnoreCase(to_str, _("time"))) {
 					printops.base = BASE_TIME;
-				} else if(equalsIgnoreCase(str, "unicode")) {
+				} else if(equalsIgnoreCase(to_str, "unicode")) {
 					printops.base = BASE_UNICODE;
 				} else if(equalsIgnoreCase(to_str, "utc") || equalsIgnoreCase(to_str, "gmt")) {
 					printops.time_zone = TIME_ZONE_UTC;
@@ -6542,6 +6619,8 @@ void load_preferences() {
 
 	adaptive_interval_display = true;
 
+	sigint_action = 1;
+
 	CALCULATOR->useIntervalArithmetic(true);
 
 	CALCULATOR->setTemperatureCalculationMode(TEMPERATURE_CALCULATION_HYBRID);
@@ -6561,6 +6640,8 @@ void load_preferences() {
 #else
 	colorize = 1;
 #endif
+
+	if(load_defaults && !interactive_mode) return;
 
 	FILE *file = NULL;
 #ifdef HAVE_LIBREADLINE
@@ -6607,7 +6688,7 @@ void load_preferences() {
 		string stmp, svalue, svar;
 		size_t i;
 		int v;
-		while(true) {
+		while(true && !load_defaults) {
 			if(fgets(line, 10000, file) == NULL) break;
 			stmp = line;
 			remove_blank_ends(stmp);
@@ -6623,6 +6704,8 @@ void load_preferences() {
 					save_mode_on_exit = v;
 				} else if(svar == "save_definitions_on_exit") {
 					save_defs_on_exit = v;
+				} else if(svar == "sigint_action") {
+					sigint_action = v;
 				} else if(svar == "ignore_locale") {
 					ignore_locale = v;
 				} else if(svar == "colorize") {
@@ -6942,6 +7025,9 @@ bool save_preferences(bool mode) {
 	fprintf(file, "version=%s\n", VERSION);
 	fprintf(file, "save_mode_on_exit=%i\n", save_mode_on_exit);
 	fprintf(file, "save_definitions_on_exit=%i\n", save_defs_on_exit);
+#ifndef _WIN32
+	if(sigint_action != 1) fprintf(file, "sigint_action=%i\n", sigint_action);
+#endif
 	fprintf(file, "ignore_locale=%i\n", ignore_locale);
 	fprintf(file, "colorize=%i\n", colorize);
 	fprintf(file, "auto_update_exchange_rates=%i\n", auto_update_exchange_rates);
