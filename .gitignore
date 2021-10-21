@@ -35,3 +35,5 @@ lokalize-scripts/
 main.lqa
 libqalculate.lokalize
 po-defs
+.vscode/c_cpp_properties.json
+.vscode/settings.json
