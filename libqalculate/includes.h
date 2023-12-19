@@ -30,8 +30,8 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#define QALCULATE_MAJOR_VERSION (3)
-#define QALCULATE_MINOR_VERSION (21)
+#define QALCULATE_MAJOR_VERSION (4)
+#define QALCULATE_MINOR_VERSION (9)
 #define QALCULATE_MICRO_VERSION (0)
 
 static std::string empty_string;
@@ -239,7 +239,8 @@ typedef enum {
 	PLOT_STYLE_HISTOGRAM,
 	PLOT_STYLE_STEPS,
 	PLOT_STYLE_CANDLESTICKS,
-	PLOT_STYLE_DOTS
+	PLOT_STYLE_DOTS,
+	PLOT_STYLE_POLAR
 } PlotStyle;
 
 /// Smoothing a plotted lines
@@ -300,6 +301,7 @@ typedef enum {
 	SORT_SCIENTIFIC				= 1 << 1
 } SortFlags;
 
+/// Special values for PrintOptions::base and ParseOptions::base
 #define BASE_ROMAN_NUMERALS	-1
 #define BASE_TIME		-2
 #define BASE_BINARY		2
@@ -314,6 +316,7 @@ typedef enum {
 #define BASE_LATITUDE_2		71
 #define BASE_LONGITUDE		72
 #define BASE_LONGITUDE_2	73
+/// Use Calculate::setCustomOutputBase() or Calculate::setCustomInputBase() to specify a number base which greater than 36, negative, or a non-integer
 #define BASE_CUSTOM		-3
 #define BASE_UNICODE		-4
 #define BASE_GOLDEN_RATIO	-5
@@ -321,6 +324,7 @@ typedef enum {
 #define BASE_PI			-7
 #define BASE_E			-8
 #define BASE_SQRT2		-9
+#define BASE_BINARY_DECIMAL	-20
 #define BASE_BIJECTIVE_26	-26
 #define BASE_FP16		-30
 #define BASE_FP32		-31
@@ -330,6 +334,7 @@ typedef enum {
 
 #define BASE_IS_SEXAGESIMAL(x) ((x >= BASE_SEXAGESIMAL && x <= BASE_SEXAGESIMAL_3) || (x >= BASE_LATITUDE && x <= BASE_LONGITUDE_2))
 
+/// Primary values for PrintOptions::min_exp
 #define EXP_BASE_3		-3
 #define EXP_PRECISION		-1
 #define EXP_NONE		0
@@ -344,17 +349,29 @@ typedef enum {
 	/// Display as fraction (ex. 4/3)
 	FRACTION_FRACTIONAL,
 	/// Display as an integer and a fraction (ex. 3 + 1/2)
-	FRACTION_COMBINED
+	FRACTION_COMBINED,
+	/// Display as fraction with denominator specified using Calculator::setFixedDenominator(). Both rational and non-rational numbers are rounded to match the selected denominator.
+	FRACTION_FRACTIONAL_FIXED_DENOMINATOR,
+	/// Display as an integer and a fraction with denominator specified using Calculator::setFixedDenominator(). Both rational and non-rational numbers are rounded to match the selected denominator.
+	FRACTION_COMBINED_FIXED_DENOMINATOR,
+	/// Display numbers in decimal format multiplied by percent
+	FRACTION_PERCENT,
+	/// Display numbers in decimal format multiplied by permille
+	FRACTION_PERMILLE,
+	/// Display numbers in decimal format multiplied by permyriad
+	FRACTION_PERMYRIAD
 } NumberFractionFormat;
 
 /// Options for ordering the parts of a mathematical expression/result before display
-static const struct SortOptions {
+struct SortOptions {
 	/// Put currency units before quantity. Default: true
 	bool prefix_currencies;
 	/// If true, avoid placing negative terms first. Default: true
 	bool minus_last;
 	SortOptions() : prefix_currencies(true), minus_last(true) {}
-} default_sort_options;
+};
+
+static const SortOptions default_sort_options;
 
 typedef enum {
 	MULTIPLICATION_SIGN_ASTERISK,
@@ -382,7 +399,9 @@ typedef enum {
 	INTERVAL_DISPLAY_PLUSMINUS,
 	INTERVAL_DISPLAY_MIDPOINT,
 	INTERVAL_DISPLAY_LOWER,
-	INTERVAL_DISPLAY_UPPER
+	INTERVAL_DISPLAY_UPPER,
+	INTERVAL_DISPLAY_CONCISE,
+	INTERVAL_DISPLAY_RELATIVE
 } IntervalDisplay;
 
 typedef enum {
@@ -402,10 +421,16 @@ typedef enum {
 	TIME_ZONE_CUSTOM
 } TimeZone;
 
+// temporary custom time zone value for truncation rounding in output
+#define TZ_TRUNCATE -21586
+// temporary custom time zone value for special duodecimal symbols in output
+#define TZ_DOZENAL -53172
+
 /// Options for formatting and display of mathematical structures/results.
-static const struct PrintOptions {
+struct PrintOptions {
+	/// Determines the minimum exponent with scientific notation. Values < -1 restricts the exponent to multiples of -min_exp, e.g. 20 000 is output as 20e3 (engineering notation) if min_exp is -3. The special value EXP_PRECISION (-1) uses the current precision to determine the minimum exponent. Default: EXP_PRECISION
 	int min_exp;
-	/// Number base for displaying numbers. Default: 10
+	/// Number base for displaying numbers. Specify a value between 2 and 36 or use one of the special values defined in includes.h (BASE_*). Default: 10
 	int base;
 	/// How prefixes for numbers in non-decimal bases will be displayed. Default: BASE_DISPLAY_NONE
 	BaseDisplay base_display;
@@ -491,7 +516,7 @@ static const struct PrintOptions {
 	bool spell_out_logical_operators;
 	/// Displays children of the structure with no higher precision than the parent. Default: true
 	bool restrict_to_parent_precision;
-	/// Restrict the length of numerators and demonitor as integers in decimal mode for fractional display of numbers. Default: false
+	/// Restrict the length of numerators and denominator as integers in decimal mode for fractional display of numbers. Default: false
 	bool restrict_fraction_length;
 	/// Transform exponentiation positive base and unit fraction exponent (if denominator < 10) to root function. Default: false
 	bool exp_to_root;
@@ -519,9 +544,11 @@ static const struct PrintOptions {
 	/// Returns the decimal sign used (default sign or decimalpoint_sign)
 	const std::string &decimalpoint() const;
 	/// Returns the digit grouping separator used
-} default_print_options;
+};
 
-static const struct InternalPrintStruct {
+static const PrintOptions default_print_options;
+
+struct InternalPrintStruct {
 	int depth, power_depth, division_depth;
 	bool wrap;
 	std::string *num, *den, *re, *im, *exp;
@@ -530,7 +557,9 @@ static const struct InternalPrintStruct {
 	int parent_precision;
 	long int *iexp;
 	InternalPrintStruct();
-} top_ips;
+};
+
+static const InternalPrintStruct top_ips;
 
 typedef enum {
 	/// Allow only exact results
@@ -563,7 +592,7 @@ typedef enum {
 	POST_CONVERSION_OPTIMAL_SI,
 	/// Convert to base units
 	POST_CONVERSION_BASE,
-	/// Convert to the the least amount of units. Non-SI units is kept (if optimal), but for conversion only SI units are used.
+	/// Convert to the least amount of units. Non-SI units is kept (if optimal), but for conversion only SI units are used.
 	POST_CONVERSION_OPTIMAL
 } AutoPostConversion;
 
@@ -588,7 +617,8 @@ typedef enum {
 	ANGLE_UNIT_NONE,
 	ANGLE_UNIT_RADIANS,
 	ANGLE_UNIT_DEGREES,
-	ANGLE_UNIT_GRADIANS
+	ANGLE_UNIT_GRADIANS,
+	ANGLE_UNIT_CUSTOM,
 } AngleUnit;
 
 typedef enum {
@@ -610,6 +640,8 @@ typedef enum {
 	PARSING_MODE_RPN
 } ParsingMode;
 
+#define PARSE_PERCENT_AS_ORDINARY_CONSTANT 0x10
+
 typedef enum {
 	/// Ignores uncertainties and uses the middle value of intervals
 	INTERVAL_CALCULATION_NONE,
@@ -620,7 +652,7 @@ typedef enum {
 } IntervalCalculation;
 
 /// Options for parsing expressions.
-static const struct ParseOptions {
+struct ParseOptions {
 	/// If variables will be parsed. Default: true
 	bool variables_enabled;
 	/// If functions will be parsed. Default: true
@@ -631,11 +663,11 @@ static const struct ParseOptions {
 	bool units_enabled;
 	/// If Reverse Polish Notation syntax will be used. Default: false (deprecated, use parsing_mode = PARSING_MODE_RPN instead)
 	bool rpn;
-	/// Base of parsed numbers. Default: 10
+	/// Base of parsed numbers. Specify a value between 2 and 36 or use one of the special values defined in includes.h (BASE_*). Default: 10
 	int base;
 	/// When implicit multiplication is limited variables, functions and units must be separated by a space, operator or parenthesis ("xy" does not equal "x * y").  Default: false
 	/**
-	* If the limit implicit multiplication mode is activated, the use of implicite multiplication when parsing expressions and displaying results will be limited to avoid confusion. For example, if this mode is not activated and "integrte(5x)" is accidently typed instead of "integrate(5x)", the expression is interpreted as "int(e * e * (5 * x) * gr * t)". If limit implicit multiplication is turned on to mistyped expression would instead show an error telling that "integrte" is not a valid variable, function or unit (unless unknowns is not enabled in which case the result will be "5 'integrate' * x".
+	* If the limit implicit multiplication mode is activated, the use of implicit multiplication when parsing expressions and displaying results will be limited to avoid confusion. For example, if this mode is not activated and "integrte(5x)" is accidently typed instead of "integrate(5x)", the expression is interpreted as "int(e * e * (5 * x) * gr * t)". If limit implicit multiplication is turned on to mistyped expression would instead show an error telling that "integrte" is not a valid variable, function or unit (unless unknowns is not enabled in which case the result will be "5 'integrate' * x".
 	*/
 	bool limit_implicit_multiplication;
 	/// If and when precisions will be read from number of digits in a number. Default: DONT_READ_PRECISION
@@ -652,7 +684,7 @@ static const struct ParseOptions {
 	MathStructure *unended_function;
 	/// Preserve the expression structure as much as possible. Default: false
 	bool preserve_format;
-	/// Default dataset. Used for object.property syntax without a preceeding data set. Default: NULL
+	/// Default dataset. Used for object.property syntax without a preceding data set. Default: NULL
 	DataSet *default_dataset;
 	/// Parsing mode. Default: PARSING_MODE_ADAPTIVE
 	ParsingMode parsing_mode;
@@ -663,15 +695,17 @@ static const struct ParseOptions {
 
 	ParseOptions();
 
-} default_parse_options;
+};
+
+static const ParseOptions default_parse_options;
 
 /// Options for calculation.
-static const struct EvaluationOptions {
+struct EvaluationOptions {
 	/// How exact the result must be. Default: TRY_EXACT
 	ApproximationMode approximation;
 	/// If units will be synced/converted to allow evaluation (ex. 1 min + 1 s=60 s+ 1 s = 61 s). Default: true
 	bool sync_units;
-	/// If units with complex/non-linear relations (ex. degress celsius and fahrenheit) will synced/converted. Default: true
+	/// If units with complex/non-linear relations (ex. degrees Celsius and Fahrenheit) will synced/converted. Default: true
 	bool sync_nonlinear_unit_relations;
 	/// If unit prefixes in original expression will be kept. Default: false
 	bool keep_prefixes;
@@ -681,7 +715,7 @@ static const struct EvaluationOptions {
 	bool calculate_functions;
 	/// If comparisons will be evaluated (ex. 5>2 => 1). Default: true
 	int test_comparisons;
-	/// If a varaible will be isolated to the left side in equations/comparisons (ex. x+y=2 => x=2-y). Default: true
+	/// If a variable will be isolated to the left side in equations/comparisons (ex. x+y=2 => x=2-y). Default: true
 	bool isolate_x;
 	/// If factors (and bases) containing addition will be expanded (ex. z(x+y)=zx+zy). Default: true
 	int expand;
@@ -725,9 +759,9 @@ static const struct EvaluationOptions {
 	IntervalCalculation interval_calculation;
 
 	EvaluationOptions();
+};
 
-} default_evaluation_options;
-
+static const EvaluationOptions default_evaluation_options;
 static EvaluationOptions default_user_evaluation_options;
 
 extern MathStructure m_undefined, m_empty_vector, m_empty_matrix, m_zero, m_one, m_minus_one, m_one_i;
@@ -786,6 +820,8 @@ extern Calculator *calculator;
 #define SIGN_PLUSMINUS			"±"
 
 #define THIN_SPACE " "
+#define NNBSP " "
+#define NBSP " "
 
 #define ID_WRAP_LEFT_CH		'{'
 #define ID_WRAP_RIGHT_CH	'}'

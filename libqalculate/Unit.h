@@ -41,7 +41,7 @@ class Unit : public ExpressionItem {
 
 	std::string ssystem, scountries;
 	bool b_si;
-	bool b_use_with_prefixes;
+	unsigned short b_use_with_prefixes;
 
   public:
 
@@ -71,14 +71,20 @@ class Unit : public ExpressionItem {
 	* @returns System string.
 	*/
 	const std::string &system() const;
-	/** Returns wether prefixes should be used with this unit or not.
+	/** Returns whether prefixes should be used with this unit or not.
 	*
 	* @returns true if the prefixes is appropriate for this unit.
 	*/
 	bool useWithPrefixesByDefault() const;
-	/** Sets wether prefixes are approriate with this unit or not.
+	int maxPreferredPrefix() const;
+	int minPreferredPrefix() const;
+	int defaultPrefix() const;
+	/** Sets whether prefixes are appropriate with this unit or not.
 	*/
 	void setUseWithPrefixesByDefault(bool use_with_prefixes);
+	void setMaxPreferredPrefix(int exp);
+	void setMinPreferredPrefix(int exp);
+	void setDefaultPrefix(int exp);
 	/** Returns if the unit is a currency (Euro is base unit).
 	*
 	* @returns true if the unit is a currency.
@@ -91,6 +97,7 @@ class Unit : public ExpressionItem {
 	* Equivalent to preferredName() for Unit and AliasUnit, but closer to MathStructure::print() for CompositeUnit (prints out base expression).
 	*/
 	virtual std::string print(bool plural_, bool short_, bool use_unicode = false, bool (*can_display_unicode_string_function) (const char*, void*) = NULL, void *can_display_unicode_string_arg = NULL) const;
+	virtual std::string print(const PrintOptions &po, bool format = false, int tagtype = 0, bool input = false, bool plural = true) const;
 	virtual const std::string &plural(bool return_singular_if_no_plural = true, bool use_unicode = false, bool (*can_display_unicode_string_function) (const char*, void*) = NULL, void *can_display_unicode_string_arg = NULL) const;
 	virtual const std::string &singular(bool return_abbreviation_if_no_singular = true, bool use_unicode = false, bool (*can_display_unicode_string_function) (const char*, void*) = NULL, void *can_display_unicode_string_arg = NULL) const;
 	virtual const std::string &abbreviation(bool return_singular_if_no_abbreviation = true, bool use_unicode = false, bool (*can_display_unicode_string_function) (const char*, void*) = NULL, void *can_display_unicode_string_arg = NULL) const;
@@ -251,6 +258,7 @@ class AliasUnit_Composite : public AliasUnit {
 	virtual void set(const ExpressionItem *item);
 
 	virtual std::string print(bool plural_, bool short_, bool use_unicode = false, bool (*can_display_unicode_string_function) (const char*, void*) = NULL, void *can_display_unicode_string_arg = NULL) const;
+	virtual std::string print(const PrintOptions &po, bool format = false, int tagtype = 0, bool input = false, bool plural = true) const;
 	virtual Prefix *prefix() const;
 	virtual int prefixExponent() const;
 	virtual void set(Unit *u, int exp = 1, Prefix *prefix_ = NULL);
@@ -265,10 +273,10 @@ class AliasUnit_Composite : public AliasUnit {
 * Composite units often have an alias unit associated with them, as they do not have a reference name on their own.
 * For example, a joule is defined as an alias defined in relation to a composite unit defined as "Newton * meter".
 *
-* The names of composite units is only used to reference the unit in definitions of other units.
+* The names of composite units are only used to reference the unit in definitions of other units.
 * They can not be used in expressions.
 *
-* Composite units is definited as a composition of units.
+* Composite units are defined as a composition of units.
 * The units, with prefixes and exponents, can either be added one by one with add() or
 * parsed from an expression (ex. "cm^3/g) with setBaseExpression().
 */
@@ -311,6 +319,7 @@ class CompositeUnit : public Unit {
 		* This is the representation of the unit in expressions.
 		*/
 		virtual std::string print(bool plural_, bool short_, bool use_unicode = false, bool (*can_display_unicode_string_function) (const char*, void*) = NULL, void *can_display_unicode_string_arg = NULL) const;
+		virtual std::string print(const PrintOptions &po, bool format = false, int tagtype = 0, bool input = false, bool plural = true) const;
 		virtual int subtype() const;
 		/** If this unit contains a sub/base unit with a relation to the specified unit.
 		 */

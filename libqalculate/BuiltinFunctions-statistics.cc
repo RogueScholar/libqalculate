@@ -16,6 +16,7 @@
 #include "MathStructure.h"
 #include "Number.h"
 #include "Calculator.h"
+#include "MathStructure-support.h"
 
 #include <sstream>
 #include <time.h>
@@ -32,14 +33,19 @@ TotalFunction::TotalFunction() : MathFunction("total", 1) {
 }
 int TotalFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
 	mstruct.clear();
+	bool b_calc = (eo.interval_calculation != INTERVAL_CALCULATION_VARIANCE_FORMULA && eo.interval_calculation != INTERVAL_CALCULATION_INTERVAL_ARITHMETIC) || !vargs[0].containsInterval(true, true, false, 1, true);
 	for(size_t index = 0; index < vargs[0].size(); index++) {
 		if(CALCULATOR->aborted()) return 0;
-		mstruct.calculateAdd(vargs[0][index], eo);
+		if(index == 0) mstruct = vargs[0][index];
+		else if(b_calc) mstruct.calculateAdd(vargs[0][index], eo);
+		else mstruct.add(vargs[0][index], true);
 	}
 	return 1;
 }
 PercentileFunction::PercentileFunction() : MathFunction("percentile", 2, 3) {
-	setArgumentDefinition(1, new VectorArgument(""));
+	Argument *varg = new VectorArgument("");
+	varg->setHandleVector(true);
+	setArgumentDefinition(1, varg);
 	NumberArgument *arg = new NumberArgument();
 	Number fr;
 	arg->setMin(&fr);
@@ -161,7 +167,9 @@ int PercentileFunction::calculate(MathStructure &mstruct, const MathStructure &v
 	return 1;
 }
 MinFunction::MinFunction() : MathFunction("min", 1) {
-	setArgumentDefinition(1, new VectorArgument(""));
+	Argument *arg = new VectorArgument("");
+	arg->setHandleVector(true);
+	setArgumentDefinition(1, arg);
 }
 int MinFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
 	ComparisonResult cmp;
@@ -204,7 +212,9 @@ int MinFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, c
 	return 0;
 }
 MaxFunction::MaxFunction() : MathFunction("max", 1) {
-	setArgumentDefinition(1, new VectorArgument(""));
+	Argument *arg = new VectorArgument("");
+	arg->setHandleVector(true);
+	setArgumentDefinition(1, arg);
 }
 int MaxFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
 	ComparisonResult cmp;
@@ -247,7 +257,9 @@ int MaxFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, c
 	return 0;
 }
 ModeFunction::ModeFunction() : MathFunction("mode", 1) {
-	setArgumentDefinition(1, new VectorArgument(""));
+	Argument *arg = new VectorArgument("");
+	arg->setHandleVector(true);
+	setArgumentDefinition(1, arg);
 }
 int ModeFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
 	if(vargs[0].size() <= 0) {
@@ -273,7 +285,7 @@ int ModeFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, 
 		}
 	}
 	for(size_t index = 0; index < is.size(); index++) {
-		if(is[index] > n) {
+		if(is[index] > n || (is[index] == n && comparison_is_equal_or_less(value->compare(*vargs_nodup[index])))) {
 			n = is[index];
 			value = vargs_nodup[index];
 		}
@@ -288,7 +300,10 @@ int ModeFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, 
 RandFunction::RandFunction() : MathFunction("rand", 0, 2) {
 	setArgumentDefinition(1, new IntegerArgument());
 	setDefaultValue(1, "0");
-	setArgumentDefinition(2, new IntegerArgument("", ARGUMENT_MIN_MAX_POSITIVE, true, true, INTEGER_TYPE_SIZE));
+	IntegerArgument *iarg = new IntegerArgument("", ARGUMENT_MIN_MAX_POSITIVE, true, true, INTEGER_TYPE_SIZE);
+	Number nr(1, 1, 7);
+	iarg->setMax(&nr);
+	setArgumentDefinition(2, iarg);
 	setDefaultValue(2, "1");
 }
 int RandFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
@@ -296,6 +311,7 @@ int RandFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, 
 	if(n > 1) {mstruct.clearVector(); mstruct.resizeVector(n, m_zero);}
 	Number nr;
 	for(size_t i = 0; i < n; i++) {
+		if(n > 1 && CALCULATOR->aborted()) return 0;
 		if(vargs[0].number().isZero() || vargs[0].number().isNegative()) {
 			nr.rand();
 		} else {
@@ -314,7 +330,10 @@ bool RandFunction::representsNonNegative(const MathStructure&, bool) const {retu
 RandnFunction::RandnFunction() : MathFunction("randnorm", 0, 3) {
 	setDefaultValue(1, "0");
 	setDefaultValue(2, "1");
-	setArgumentDefinition(3, new IntegerArgument("", ARGUMENT_MIN_MAX_POSITIVE, true, true, INTEGER_TYPE_SIZE));
+	IntegerArgument *iarg = new IntegerArgument("", ARGUMENT_MIN_MAX_POSITIVE, true, true, INTEGER_TYPE_SIZE);
+	Number nr(1, 1, 7);
+	iarg->setMax(&nr);
+	setArgumentDefinition(3, iarg);
 	setDefaultValue(3, "1");
 }
 int RandnFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
@@ -323,6 +342,7 @@ int RandnFunction::calculate(MathStructure &mstruct, const MathStructure &vargs,
 #if MPFR_VERSION_MAJOR < 4
 	Number nr_u, nr_v, nr_r2;
 	for(size_t i = 0; i < n; i++) {
+		if(n > 1 && CALCULATOR->aborted()) return 0;
 		do {
 			nr_u.rand(); nr_u *= 2; nr_u -= 1;
 			nr_v.rand(); nr_v *= 2; nr_v -= 1;
@@ -348,6 +368,7 @@ int RandnFunction::calculate(MathStructure &mstruct, const MathStructure &vargs,
 #else
 	Number nr;
 	for(size_t i = 0; i < n; i++) {
+		if(n > 1 && CALCULATOR->aborted()) return 0;
 		nr.randn();
 		if(n > 1) mstruct[i] = nr;
 		else mstruct = nr;
@@ -362,18 +383,22 @@ bool RandnFunction::representsNonComplex(const MathStructure&, bool) const {retu
 bool RandnFunction::representsNumber(const MathStructure&, bool) const {return true;}
 
 RandPoissonFunction::RandPoissonFunction() : MathFunction("randpoisson", 1, 2) {
-	setArgumentDefinition(1, new IntegerArgument("", ARGUMENT_MIN_MAX_NONNEGATIVE));
-	setDefaultValue(1, "0");
-	setArgumentDefinition(2, new IntegerArgument("", ARGUMENT_MIN_MAX_POSITIVE, true, true, INTEGER_TYPE_SIZE));
+	setArgumentDefinition(1, new IntegerArgument("", ARGUMENT_MIN_MAX_POSITIVE));
+	IntegerArgument *iarg = new IntegerArgument("", ARGUMENT_MIN_MAX_POSITIVE, true, true, INTEGER_TYPE_SIZE);
+	Number nr(1, 1, 7);
+	iarg->setMax(&nr);
+	setArgumentDefinition(2, iarg);
 	setDefaultValue(2, "1");
 }
 int RandPoissonFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions&) {
-	size_t n = (size_t) vargs[2].number().uintValue();
+	size_t n = (size_t) vargs[1].number().uintValue();
 	if(n > 1) {mstruct.clearVector(); mstruct.resizeVector(n, m_zero);}
-	Number nr_L(vargs[1].number());
+	Number nr_L(vargs[0].number());
+	nr_L.negate();
 	nr_L.exp();
 	Number nr_k, nr_p, nr_u;
 	for(size_t i = 0; i < n; i++) {
+		if(n > 1 && CALCULATOR->aborted()) return 0;
 		nr_k.clear(); nr_p = 1;
 		do {
 			nr_k++;

@@ -20,6 +20,8 @@
 #include "Variable.h"
 #include "BuiltinFunctions.h"
 
+#include <limits.h>
+
 using std::string;
 using std::vector;
 using std::cout;
@@ -112,10 +114,51 @@ const string &Unit::system() const {
 	return ssystem;
 }
 bool Unit::useWithPrefixesByDefault() const {
-	return b_use_with_prefixes;
+	return b_use_with_prefixes % 2;
+}
+int Unit::maxPreferredPrefix() const {
+	int exp = (b_use_with_prefixes % 62) / 2;
+	if(exp == 0) return INT_MAX;
+	if(exp > 16) return -exp + 16;
+	exp--;
+	return exp;
+}
+int Unit::minPreferredPrefix() const {
+	int exp = (b_use_with_prefixes % 1922) / 62;
+	if(exp == 0) return INT_MIN;
+	if(exp > 16) return -exp + 16;
+	exp--;
+	return exp;
+}
+int Unit::defaultPrefix() const {
+	int exp = b_use_with_prefixes / 1922;
+	if(exp > 15) return -exp + 15;
+	return exp;
 }
 void Unit::setUseWithPrefixesByDefault(bool use_with_prefixes) {
-	b_use_with_prefixes = use_with_prefixes;
+	b_use_with_prefixes = (use_with_prefixes ? 1 : 0) + (b_use_with_prefixes - (b_use_with_prefixes % 2));
+}
+void Unit::setMaxPreferredPrefix(int exp) {
+	if(exp == INT_MAX) {
+		exp = 0;
+	} else {
+		if(exp < 0) exp = -exp + 16;
+		else exp++;
+	}
+	b_use_with_prefixes = (b_use_with_prefixes % 2) + (exp * 2) + (b_use_with_prefixes - (b_use_with_prefixes % 62));
+}
+void Unit::setMinPreferredPrefix(int exp) {
+	if(exp == INT_MIN) {
+		exp = 0;
+	} else {
+		if(exp < 0) exp = -exp + 16;
+		else exp++;
+	}
+	b_use_with_prefixes = (b_use_with_prefixes % 62) + (exp * 62) + (b_use_with_prefixes - (b_use_with_prefixes % 1922));
+}
+void Unit::setDefaultPrefix(int exp) {
+	if(exp < 0) exp = -exp + 15;
+	b_use_with_prefixes = b_use_with_prefixes % 1922 + (exp * 1922);
 }
 bool Unit::isCurrency() const {
 	return baseUnit() == CALCULATOR->getUnitById(UNIT_ID_EURO);
@@ -130,6 +173,12 @@ void Unit::setCountries(string country_names) {
 }
 bool Unit::isUsedByOtherUnits() const {
 	return CALCULATOR->unitIsUsedByOtherUnits(this);
+}
+string Unit::print(const PrintOptions &po, bool format, int tagtype, bool input, bool plural) const {
+	if(input) {
+		preferredInputName(po.abbreviate_names, po.use_unicode_signs, plural, po.use_reference_names || (po.preserve_format && isCurrency()), po.can_display_unicode_string_function, po.can_display_unicode_string_arg).formattedName(TYPE_UNIT, !po.use_reference_names, format && tagtype == TAG_TYPE_HTML, format && tagtype == TAG_TYPE_TERMINAL && po.use_unicode_signs ? 1 : 0, !po.use_reference_names && !po.preserve_format, po.hide_underscore_spaces);
+	}
+	return preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, plural, po.use_reference_names || (po.preserve_format && isCurrency()), po.can_display_unicode_string_function, po.can_display_unicode_string_arg).formattedName(TYPE_UNIT, !po.use_reference_names, format && tagtype == TAG_TYPE_HTML, format && tagtype == TAG_TYPE_TERMINAL && po.use_unicode_signs ? 1 : 0, !po.use_reference_names && !po.preserve_format, po.hide_underscore_spaces);
 }
 string Unit::print(bool plural_, bool short_, bool use_unicode, bool (*can_display_unicode_string_function) (const char*, void*), void *can_display_unicode_string_arg) const {
 	return preferredName(short_, use_unicode, plural_, false, can_display_unicode_string_function, can_display_unicode_string_arg).name;
@@ -258,19 +307,39 @@ bool Unit::convert(Unit *u, MathStructure &mvalue, MathStructure &mexp) const {
 	} else if(u->baseUnit() == baseUnit()) {
 		u->convertToBaseUnit(mvalue, mexp);
 		convertFromBaseUnit(mvalue, mexp);
-		if(isCurrency() && u->isCurrency() && ((isBuiltin() && this != CALCULATOR->getUnitById(UNIT_ID_EURO)) || (u->isBuiltin() && u != CALCULATOR->getUnitById(UNIT_ID_EURO)))) {
-			int i = 1;
-			if(i < 4 && (u == CALCULATOR->getUnitById(UNIT_ID_BYN) || this == CALCULATOR->getUnitById(UNIT_ID_BYN))) i = (i == 3 ? 5 : 4);
-			if(i < 2 && (u == CALCULATOR->getUnitById(UNIT_ID_BTC) || this == CALCULATOR->getUnitById(UNIT_ID_BTC))) i = 2;
-			if(i < 5 && u->subtype() == SUBTYPE_ALIAS_UNIT) {
-				if(i < 2 && ((AliasUnit*) u)->firstBaseUnit() == CALCULATOR->getUnitById(UNIT_ID_BTC)) i = 2;
-				else if(i < 5 && ((AliasUnit*) u)->firstBaseUnit() != CALCULATOR->getUnitById(UNIT_ID_EURO)) i = (i == 4 ? 5 : 3);
-				else if(i < 4 && ((AliasUnit*) u)->firstBaseUnit() == CALCULATOR->getUnitById(UNIT_ID_BYN)) i = (i == 3 ? 5 : 4);
+		if(isCurrency() && u->isCurrency()) {
+			int i = 0;
+			if(u->subtype() == SUBTYPE_ALIAS_UNIT && u->isBuiltin()) {
+				Unit *u_parent = ((AliasUnit*) u)->firstBaseUnit();
+				if(u == CALCULATOR->getUnitById(UNIT_ID_BTC) || u_parent == CALCULATOR->getUnitById(UNIT_ID_BTC)) {
+					if(u == CALCULATOR->getUnitById(UNIT_ID_BTC) || this != CALCULATOR->getUnitById(UNIT_ID_BTC)) i = i | 0b0010;
+				} else if(u == CALCULATOR->getUnitById(UNIT_ID_BYN) || u_parent == CALCULATOR->getUnitById(UNIT_ID_BYN)) {
+					if(u == CALCULATOR->getUnitById(UNIT_ID_BYN) || this != CALCULATOR->getUnitById(UNIT_ID_BYN)) i = i | 0b1000;
+				} else if(u_parent == CALCULATOR->getUnitById(UNIT_ID_EURO) && !u->isHidden()) {
+					if(subtype() != SUBTYPE_ALIAS_UNIT || ((AliasUnit*) this)->firstBaseUnit() != u) i = i | 0b0001;
+				} else {
+					if(this == CALCULATOR->getUnitById(UNIT_ID_EURO)) i = i | 0b0001;
+					i = i | 0b0100;
+				}
 			}
-			if(i < 5 && subtype() == SUBTYPE_ALIAS_UNIT) {
-				if(i < 2 && ((AliasUnit*) this)->firstBaseUnit() == CALCULATOR->getUnitById(UNIT_ID_BTC)) i = 2;
-				else if(i < 5 && ((AliasUnit*) this)->firstBaseUnit() != CALCULATOR->getUnitById(UNIT_ID_EURO)) i = (i == 4 ? 5 : 3);
-				else if(i < 4 && ((AliasUnit*) this)->firstBaseUnit() == CALCULATOR->getUnitById(UNIT_ID_BYN)) i = (i == 3 ? 5 : 4);
+			if(subtype() == SUBTYPE_ALIAS_UNIT && isBuiltin()) {
+				Unit *u_parent = ((AliasUnit*) this)->firstBaseUnit();
+				if(this == CALCULATOR->getUnitById(UNIT_ID_BTC) || u_parent == CALCULATOR->getUnitById(UNIT_ID_BTC)) {
+					if(this == CALCULATOR->getUnitById(UNIT_ID_BTC) || u != CALCULATOR->getUnitById(UNIT_ID_BTC)) {
+						if(i & 0b0100) i = i | 0b0001;
+						i = i | 0b0010;
+					}
+				} else if(this == CALCULATOR->getUnitById(UNIT_ID_BYN) || u_parent == CALCULATOR->getUnitById(UNIT_ID_BYN)) {
+					if(this == CALCULATOR->getUnitById(UNIT_ID_BYN) || u != CALCULATOR->getUnitById(UNIT_ID_BYN)) {
+						if(i & 0b0100) i = i | 0b0001;
+						i = i | 0b1000;
+					}
+				} else if(u_parent == CALCULATOR->getUnitById(UNIT_ID_EURO) && !isHidden()) {
+					if(u->subtype() != SUBTYPE_ALIAS_UNIT || ((AliasUnit*) u)->firstBaseUnit() != this) i = i | 0b0001;
+				} else {
+					if((i & 0b1000) || (i & 0b0010) || u == CALCULATOR->getUnitById(UNIT_ID_EURO)) i = i | 0b0001;
+					i = i | 0b0100;
+				}
 			}
 			CALCULATOR->setExchangeRatesUsed(i);
 		}
@@ -549,8 +618,12 @@ MathStructure &AliasUnit::convertFromFirstBaseUnit(MathStructure &mvalue, MathSt
 				mstruct->setApproximate(true, true);
 			}
 			if(!mexp.isOne()) mstruct->raise(mexp);
-			if(mvalue.isOne()) mvalue.set_nocopy(*mstruct);
-			else mvalue.multiply_nocopy(mstruct, true);
+			if(mvalue.isOne()) {
+				mvalue.set_nocopy(*mstruct);
+				mstruct->unref();
+			} else {
+				mvalue.multiply_nocopy(mstruct, true);
+			}
 		}
 	}
 	return mvalue;
@@ -641,8 +714,12 @@ MathStructure &AliasUnit::convertToFirstBaseUnit(MathStructure &mvalue, MathStru
 			mstruct->setApproximate(true, true);
 		}
 		if(!mexp.isOne()) mstruct->raise(mexp);
-		if(mvalue.isOne()) mvalue.set_nocopy(*mstruct);
-		else mvalue.multiply_nocopy(mstruct, true);
+		if(mvalue.isOne()) {
+			mvalue.set_nocopy(*mstruct);
+			mstruct->unref();
+		} else {
+			mvalue.multiply_nocopy(mstruct, true);
+		}
 	}
 	if(i_exp != 1) mexp.multiply(i_exp);
 	return mvalue;
@@ -798,6 +875,19 @@ void AliasUnit_Composite::set(const ExpressionItem *item) {
 		ExpressionItem::set(item);
 	}
 }
+string AliasUnit_Composite::print(const PrintOptions &po, bool format, int tagtype, bool input, bool plural) const {
+	string str = "";
+	const ExpressionName *ename;
+	if(input) {
+		ename = &o_unit->preferredInputName(po.abbreviate_names, po.use_unicode_signs, plural, po.use_reference_names || (po.preserve_format && o_unit->isCurrency()), po.can_display_unicode_string_function, po.can_display_unicode_string_arg);
+		if(prefixv) str = prefixv->preferredInputName(ename->abbreviation, po.use_unicode_signs, plural, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name;
+	} else {
+		ename = &o_unit->preferredDisplayName(po.abbreviate_names, po.use_unicode_signs, plural, po.use_reference_names || (po.preserve_format && o_unit->isCurrency()), po.can_display_unicode_string_function, po.can_display_unicode_string_arg);
+		if(prefixv) str = prefixv->preferredDisplayName(ename->abbreviation, po.use_unicode_signs, plural, po.use_reference_names, po.can_display_unicode_string_function, po.can_display_unicode_string_arg).name;
+	}
+	str += ename->formattedName(TYPE_UNIT, !po.use_reference_names, format && tagtype == TAG_TYPE_HTML, format && tagtype == TAG_TYPE_TERMINAL && po.use_unicode_signs ? 1 : 0, !po.use_reference_names && !po.preserve_format, po.hide_underscore_spaces);
+	return str;
+}
 string AliasUnit_Composite::print(bool plural_, bool short_, bool use_unicode, bool (*can_display_unicode_string_function) (const char*, void*), void *can_display_unicode_string_arg) const {
 	string str = "";
 	const ExpressionName *ename = &o_unit->preferredName(short_, use_unicode, plural_, false, can_display_unicode_string_function, can_display_unicode_string_arg);
@@ -935,6 +1025,78 @@ void CompositeUnit::del(size_t index) {
 		units.erase(units.begin() + (index - 1));
 	}
 }
+string CompositeUnit::print(const PrintOptions &po, bool format, int tagtype, bool input, bool plural) const {
+	string str = "";
+	bool b = false, b2 = false;
+	for(size_t i = 0; i < units.size(); i++) {
+		if(units[i]->firstBaseExponent() != 0) {
+			if(!b && units[i]->firstBaseExponent() < 0 && i > 0) {
+				if(po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_DIVISION, po.can_display_unicode_string_arg))) {
+					str += SIGN_DIVISION;
+				} else if(!input && po.use_unicode_signs && po.division_sign == DIVISION_SIGN_DIVISION_SLASH && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_DIVISION_SLASH, po.can_display_unicode_string_arg))) {
+					str += " " SIGN_DIVISION_SLASH " ";
+				} else {
+					str += "/";
+				}
+				b = true;
+				if(i < units.size() - 1) {
+					b2 = true;
+					str += "(";
+				}
+			} else {
+				if(i > 0) {
+					if(po.use_unicode_signs && po.multiplication_sign == MULTIPLICATION_SIGN_DOT && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MULTIDOT, po.can_display_unicode_string_arg))) str += SIGN_MULTIDOT;
+					else if(po.use_unicode_signs && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MIDDLEDOT, po.can_display_unicode_string_arg))) str += SIGN_MIDDLEDOT;
+					else str += " ";
+				}
+			}
+			str += units[i]->print(po, format, tagtype, input, plural && i == 0 && units[i]->firstBaseExponent() > 0);
+			if(po.abbreviate_names && po.use_unicode_signs && units[i]->firstBaseExponent() != (b ? -1 : 1) && str.length() >= 2 && str[str.length() - 1] == (char) -80 && str[str.length() - 2] == (char) -62) {
+				str.erase(str.length() - 2, 2);
+				str += units[i]->print(po, format, tagtype, input);
+			}
+			if(b) {
+				if(units[i]->firstBaseExponent() != -1) {
+					if(format && tagtype == TAG_TYPE_HTML) {
+						str += "<sup>";
+						str += i2s(-units[i]->firstBaseExponent());
+						str += "</sup>";
+					} else if(po.use_unicode_signs && units[i]->firstBaseExponent() == -2 && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_POWER_2, po.can_display_unicode_string_arg))) str += SIGN_POWER_2;
+					else if(po.use_unicode_signs && units[i]->firstBaseExponent() == -3 && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_POWER_3, po.can_display_unicode_string_arg))) str += SIGN_POWER_3;
+					else {
+						str += "^";
+						str += i2s(-units[i]->firstBaseExponent());
+					}
+				}
+			} else {
+				if(units[i]->firstBaseExponent() != 1) {
+					if(format && tagtype == TAG_TYPE_HTML) {
+						str += "<sup>";
+						if(units[i]->firstBaseExponent() < 0 && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MINUS, po.can_display_unicode_string_arg))) {
+							str += SIGN_MINUS;
+							str += i2s(-units[i]->firstBaseExponent());
+						} else {
+							str += i2s(units[i]->firstBaseExponent());
+						}
+						str += "</sup>";
+					} else if(po.use_unicode_signs && units[i]->firstBaseExponent() == 2 && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_POWER_2, po.can_display_unicode_string_arg))) str += SIGN_POWER_2;
+					else if(po.use_unicode_signs && units[i]->firstBaseExponent() == 3 && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_POWER_3, po.can_display_unicode_string_arg))) str += SIGN_POWER_3;
+					else {
+						str += "^";
+						if(units[i]->firstBaseExponent() < 0 && (!po.can_display_unicode_string_function || (*po.can_display_unicode_string_function) (SIGN_MINUS, po.can_display_unicode_string_arg))) {
+							str += SIGN_MINUS;
+							str += i2s(-units[i]->firstBaseExponent());
+						} else {
+							str += i2s(units[i]->firstBaseExponent());
+						}
+					}
+				}
+			}
+		}
+	}
+	if(b2) str += ")";
+	return str;
+}
 string CompositeUnit::print(bool plural_, bool short_, bool use_unicode, bool (*can_display_unicode_string_function) (const char*, void*), void *can_display_unicode_string_arg) const {
 	string str = "";
 	bool b = false, b2 = false;
@@ -958,7 +1120,7 @@ string CompositeUnit::print(bool plural_, bool short_, bool use_unicode, bool (*
 			} else {
 				str += units[i]->print(false, short_, use_unicode, can_display_unicode_string_function, can_display_unicode_string_arg);
 			}
-			if(short_ && use_unicode && units[i]->firstBaseExponent() != (b ? -1 : 1) && str.length() >= 2 && str[str.length() - 1] == -80 && str[str.length() - 2] == -62) {
+			if(short_ && use_unicode && units[i]->firstBaseExponent() != (b ? -1 : 1) && str.length() >= 2 && str[str.length() - 1] == (char) -80 && str[str.length() - 2] == (char) -62) {
 				str.erase(str.length() - 2, 2);
 				str += units[i]->print(plural_ && i == 0 && units[i]->firstBaseExponent() > 0, short_, false, can_display_unicode_string_function, can_display_unicode_string_arg);
 			}
@@ -1143,15 +1305,17 @@ void CompositeUnit::setBaseExpression(string base_expression_) {
 	eo.do_polynomial_division = false;
 	eo.isolate_x = false;
 	ParseOptions po;
+	bool conversion_variant = !name().empty() && name()[0] == '0';
 	po.variables_enabled = true;
-	po.functions_enabled = false;
-	po.unknowns_enabled = true;
+	po.functions_enabled = conversion_variant;
+	po.unknowns_enabled = !conversion_variant;
+	if(name().length() >= 2 && name()[1] == '1') po.limit_implicit_multiplication = true;
 	MathStructure mstruct;
 	bool had_errors = false;
 	CALCULATOR->beginTemporaryStopMessages();
 	CALCULATOR->parse(&mstruct, base_expression_, po);
 	replace_variables(mstruct);
-	if(mstruct.containsType(STRUCT_VARIABLE, true)) {
+	if(!conversion_variant && mstruct.containsType(STRUCT_VARIABLE, true)) {
 		po.variables_enabled = false;
 		CALCULATOR->parse(&mstruct, base_expression_, po);
 	}
@@ -1171,7 +1335,7 @@ void CompositeUnit::setBaseExpression(string base_expression_) {
 				} else if(mstruct[i].isPower() && mstruct[i][0].isUnit() && mstruct[i][1].isInteger()) {
 					add(mstruct[i][0].unit(), mstruct[i][1].number().intValue(), mstruct[i][0].prefix());
 				} else if(mstruct[i].isMultiplication()) {
-					for(size_t i2 = 0; i2 < mstruct.size(); i2++) {
+					for(size_t i2 = 0; i2 < mstruct[i].size(); i2++) {
 						if(mstruct[i][i2].isUnit()) {
 							add(mstruct[i][i2].unit(), 1, mstruct[i][i2].prefix());
 						} else if(mstruct[i][i2].isPower() && mstruct[i][i2][0].isUnit() && mstruct[i][i2][1].isInteger()) {
@@ -1195,8 +1359,13 @@ void CompositeUnit::setBaseExpression(string base_expression_) {
 			break;
 		}
 	}
-	if(CALCULATOR->endTemporaryStopMessages() > 0) had_errors = true;
-	if(had_errors) CALCULATOR->error(false, _("Error(s) in unitexpression."), NULL);
+	if(conversion_variant && had_errors) {
+		CALCULATOR->endTemporaryStopMessages();
+		CALCULATOR->error(true, _("Error(s) in unitexpression."), NULL);
+	} else {
+		if(CALCULATOR->endTemporaryStopMessages() > 0) had_errors = true;
+		if(had_errors) CALCULATOR->error(false, _("Error(s) in unitexpression."), NULL);
+	}
 	setChanged(true);
 }
 void CompositeUnit::clear() {

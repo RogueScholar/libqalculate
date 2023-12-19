@@ -418,8 +418,8 @@ bool MathStructure::differentiate(const MathStructure &x_var, const EvaluationOp
 			} else if(o_function->id() == FUNCTION_ID_SININT && SIZE == 1) {
 				// Si(f)'=f'*sinc(f)
 				setFunctionId(FUNCTION_ID_SINC);
-				CHILD_UPDATED(0)
 				MathStructure mdiff(CHILD(0));
+				if(o_function->getDefaultValue(2) == "pi") CHILD(0) /= CALCULATOR->getVariableById(VARIABLE_ID_PI);
 				mdiff.differentiate(x_var, eo);
 				multiply(mdiff);
 			} else if(o_function->id() == FUNCTION_ID_COSINT && SIZE == 1) {
@@ -504,7 +504,7 @@ bool MathStructure::differentiate(const MathStructure &x_var, const EvaluationOp
 				add(nr_one);
 				mstruct.differentiate(x_var, eo);
 				multiply(mstruct, true);
-				if(CALCULATOR->getRadUnit()) divide(CALCULATOR->getRadUnit());
+				divide(CALCULATOR->getRadUnit());
 			} else if(o_function->id() == FUNCTION_ID_SINH && SIZE == 1) {
 				// sinh(f)'=f'*cosh(f)
 				setFunctionId(FUNCTION_ID_COSH);
@@ -589,11 +589,12 @@ bool MathStructure::differentiate(const MathStructure &x_var, const EvaluationOp
 				multiply(mstruct);
 			} else if(o_function->id() == FUNCTION_ID_SINC && SIZE == 1) {
 				// sinc(f)'=f'*(cos(f)/f-sin(f)/f^2)
+				if(o_function->getDefaultValue(2) == "pi") CHILD(0) *= CALCULATOR->getVariableById(VARIABLE_ID_PI);
 				MathStructure m_cos(CALCULATOR->getFunctionById(FUNCTION_ID_COS), &CHILD(0), NULL);
-				if(CALCULATOR->getRadUnit()) m_cos[0].multiply(CALCULATOR->getRadUnit());
+				m_cos[0].multiply(CALCULATOR->getRadUnit());
 				m_cos.divide(CHILD(0));
 				MathStructure m_sin(CALCULATOR->getFunctionById(FUNCTION_ID_SIN), &CHILD(0), NULL);
-				if(CALCULATOR->getRadUnit()) m_sin[0].multiply(CALCULATOR->getRadUnit());
+				m_sin[0].multiply(CALCULATOR->getRadUnit());
 				MathStructure mstruct(CHILD(0));
 				mstruct.raise(Number(-2, 1, 0));
 				m_sin.multiply(mstruct);
@@ -614,11 +615,11 @@ bool MathStructure::differentiate(const MathStructure &x_var, const EvaluationOp
 				CHILD(2) += m_one;
 			} else if(o_function->id() == FUNCTION_ID_DIFFERENTIATE && SIZE == 2 && CHILD(1) == x_var) {
 				// diff(f,x)'=diff(f,x,2)
-				APPEND(MathStructure(2, 1, 0));
+				addChild(MathStructure(2, 1, 0));
 			} else if(o_function->id() == FUNCTION_ID_DIFFERENTIATE && SIZE == 1 && x_var == CALCULATOR->getVariableById(VARIABLE_ID_X)) {
 				// diff(f)'=diff(f,x,2)
-				APPEND(x_var);
-				APPEND(MathStructure(2, 1, 0));
+				addChild(x_var);
+				addChild(MathStructure(2, 1, 0));
 			} else {
 				// calculate non-differentiable function and try again
 				if(!eo.calculate_functions || !calculateFunctions(eo, false)) {

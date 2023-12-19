@@ -54,10 +54,33 @@ int SumFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, c
 		nr.subtract(i_nr);
 		if(nr.isGreaterThan(100)) eo2.approximation = APPROXIMATION_APPROXIMATE;
 	}
+	MathStructure mbak(m1);
+	vector<Variable*> vars;
+	if(eo.interval_calculation == INTERVAL_CALCULATION_VARIANCE_FORMULA || eo.interval_calculation == INTERVAL_CALCULATION_INTERVAL_ARITHMETIC) {
+		while(true) {
+			Variable *v = NULL;
+			Variable *uv = find_interval_replace_var_comp(m1, eo, &v);
+			if(!uv) break;
+			if(v) m1.replace(v, uv);
+			vars.push_back(uv);
+		}
+	}
 	CALCULATOR->beginTemporaryStopMessages();
 	m1.eval(eo2);
+	if(calculate_userfunctions(m1, vargs[3], eo)) {
+		if(eo.interval_calculation == INTERVAL_CALCULATION_VARIANCE_FORMULA || eo.interval_calculation == INTERVAL_CALCULATION_INTERVAL_ARITHMETIC) {
+			while(true) {
+				Variable *v = NULL;
+				Variable *uv = find_interval_replace_var_comp(m1, eo, &v);
+				if(!uv) break;
+				if(v) m1.replace(v, uv);
+				vars.push_back(uv);
+			}
+		}
+		m1.calculatesub(eo2, eo2, true);
+	}
 	int im = 0;
-	if(CALCULATOR->endTemporaryStopMessages(NULL, &im) > 0 || im > 0) m1 = vargs[0];
+	if(CALCULATOR->endTemporaryStopMessages(NULL, &im) > 0 || im > 0) m1 = mbak;
 	eo2.calculate_functions = eo.calculate_functions;
 	eo2.expand = eo.expand;
 	mstruct.clear();
@@ -66,11 +89,12 @@ int SumFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, c
 	while(i_nr.isLessThanOrEqualTo(vargs[2].number())) {
 		if(CALCULATOR->aborted()) {
 			if(!started) {
+				for(size_t i = 0; i < vars.size(); i++) vars[i]->destroy();
 				return 0;
 			} else if(i_nr != vargs[2].number()) {
 				MathStructure mmin(i_nr);
 				mstruct.add(MathStructure(this, &vargs[0], &mmin, &vargs[2], &vargs[3], NULL), true);
-				return 1;
+				break;
 			}
 		}
 		mstruct_calc.set(m1);
@@ -84,6 +108,11 @@ int SumFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, c
 			started = true;
 		}
 		i_nr += 1;
+	}
+	for(size_t i = 0; i < vars.size(); i++) {
+		if(vars[i]->isKnown()) mstruct.replace(vars[i], ((KnownVariable*) vars[i])->get());
+		else mstruct.replace(vars[i], ((UnknownVariable*) vars[i])->interval());
+		vars[i]->destroy();
 	}
 	return 1;
 
@@ -111,10 +140,33 @@ int ProductFunction::calculate(MathStructure &mstruct, const MathStructure &varg
 		nr.subtract(i_nr);
 		if(nr.isGreaterThan(100)) eo2.approximation = APPROXIMATION_APPROXIMATE;
 	}
+	MathStructure mbak(m1);
+	vector<Variable*> vars;
+	if(eo.interval_calculation == INTERVAL_CALCULATION_VARIANCE_FORMULA || eo.interval_calculation == INTERVAL_CALCULATION_INTERVAL_ARITHMETIC) {
+		while(true) {
+			Variable *v = NULL;
+			Variable *uv = find_interval_replace_var_comp(m1, eo, &v);
+			if(!uv) break;
+			if(v) m1.replace(v, uv);
+			vars.push_back(uv);
+		}
+	}
 	CALCULATOR->beginTemporaryStopMessages();
 	m1.eval(eo2);
+	if(calculate_userfunctions(m1, vargs[3], eo)) {
+		if(eo.interval_calculation == INTERVAL_CALCULATION_VARIANCE_FORMULA || eo.interval_calculation == INTERVAL_CALCULATION_INTERVAL_ARITHMETIC) {
+			while(true) {
+				Variable *v = NULL;
+				Variable *uv = find_interval_replace_var_comp(m1, eo, &v);
+				if(!uv) break;
+				if(v) m1.replace(v, uv);
+				vars.push_back(uv);
+			}
+		}
+		m1.calculatesub(eo2, eo2, true);
+	}
 	int im = 0;
-	if(CALCULATOR->endTemporaryStopMessages(NULL, &im) || im > 0) m1 = vargs[0];
+	if(CALCULATOR->endTemporaryStopMessages(NULL, &im) || im > 0) m1 = mbak;
 	eo2.calculate_functions = eo.calculate_functions;
 	eo2.expand = eo.expand;
 	mstruct.clear();
@@ -123,11 +175,12 @@ int ProductFunction::calculate(MathStructure &mstruct, const MathStructure &varg
 	while(i_nr.isLessThanOrEqualTo(vargs[2].number())) {
 		if(CALCULATOR->aborted()) {
 			if(!started) {
+				for(size_t i = 0; i < vars.size(); i++) vars[i]->destroy();
 				return 0;
 			} else if(i_nr != vargs[2].number()) {
 				MathStructure mmin(i_nr);
 				mstruct.multiply(MathStructure(this, &vargs[0], &mmin, &vargs[2], &vargs[3], NULL), true);
-				return 1;
+				break;
 			}
 		}
 		mstruct_calc.set(m1);
@@ -141,6 +194,11 @@ int ProductFunction::calculate(MathStructure &mstruct, const MathStructure &varg
 			started = true;
 		}
 		i_nr += 1;
+	}
+	for(size_t i = 0; i < vars.size(); i++) {
+		if(vars[i]->isKnown()) mstruct.replace(vars[i], ((KnownVariable*) vars[i])->get());
+		else mstruct.replace(vars[i], ((UnknownVariable*) vars[i])->interval());
+		vars[i]->destroy();
 	}
 	return 1;
 
@@ -682,7 +740,27 @@ int solve_equation(MathStructure &mstruct, const MathStructure &m_eqn, const Mat
 
 }
 
+bool test_functions_comparison(const MathStructure &m, const EvaluationOptions &eo) {
+	for(size_t i = 0; i < m.size(); i++) {
+		if(test_functions_comparison(m[i], eo)) return true;
+	}
+	if(m.isFunction() && m.function()->subtype() == SUBTYPE_USER_FUNCTION) {
+		CALCULATOR->beginTemporaryStopMessages();
+		MathStructure mtest;
+		mtest.eval(eo);
+		CALCULATOR->endTemporaryStopMessages();
+		if(mtest.containsType(STRUCT_COMPARISON, false, true, true) > 0) return true;
+	} else if(m.isVariable() && m.variable()->isKnown()) {
+		return test_functions_comparison(((KnownVariable*) m.variable())->get(), eo);
+	}
+	return false;
+}
 int SolveFunction::calculate(MathStructure &mstruct, const MathStructure &vargs, const EvaluationOptions &eo) {
+	if(vargs[0].containsType(STRUCT_COMPARISON, false, true, true) <= 0 && !test_functions_comparison(vargs[0], eo)) {
+		MathStructure m(vargs[0]);
+		m.transform(COMPARISON_EQUALS, m_zero);
+		return solve_equation(mstruct, m, vargs[1], eo);
+	}
 	return solve_equation(mstruct, vargs[0], vargs[1], eo);
 }
 
@@ -725,21 +803,21 @@ int SolveMultipleFunction::calculate(MathStructure &mstruct, const MathStructure
 
 	MathStructure mv; mv.clearVector();
 	MathStructure mand; mand.resizeVector(eorder.size(), mv);
+	if(mand.size() < eorder.size()) return 0;
 
 	for(size_t i = 0; i < eorder.size(); i++) {
 		MathStructure msolve(vargs[0][eorder[i]]);
 		EvaluationOptions eo2 = eo;
 		eo2.isolate_var = &vargs[1][i];
 		for(size_t i2 = 0; i2 < i; i2++) {
-			size_t index = eorder[i2];
-			if(mstruct[index].isVector()) {
+			if(mstruct[i2].isVector()) {
 				msolve.transform(STRUCT_LOGICAL_OR);
-				for(size_t i4 = 1; i4 < mstruct[index].size(); i4++) msolve.addChild(msolve[0]);
-				for(size_t i4 = 0; i4 < mstruct[index].size(); i4++) {
-					msolve[i4].replace(vargs[1][i2], mstruct[index][i4]);
+				for(size_t i4 = 1; i4 < mstruct[i2].size(); i4++) msolve.addChild(msolve[0]);
+				for(size_t i4 = 0; i4 < mstruct[i2].size(); i4++) {
+					msolve[i4].replace(vargs[1][i2], mstruct[i2][i4]);
 				}
 			} else {
-				msolve.replace(vargs[1][i2], mstruct[index]);
+				msolve.replace(vargs[1][i2], mstruct[i2]);
 			}
 		}
 		msolve.eval(eo2);
@@ -830,12 +908,13 @@ int SolveMultipleFunction::calculate(MathStructure &mstruct, const MathStructure
 		for(size_t i2 = 0; i2 < i; i2++) {
 			for(size_t i3 = 0; i3 <= i; i3++) {
 				if(i2 != i3) {
-					size_t index1 = eorder[i2];
+					size_t index1 = i2;
 					size_t index2 = i3;
 					if(mstruct[index2].isVector()) {
 						MathStructure m;
 						m.clearVector();
 						m.resizeVector(mstruct[index2].size(), mstruct[index1]);
+						if(m.size() < mstruct[index2].size()) return 0;
 						for(size_t i4 = 0; i4 < mstruct[index2].size(); i4++) {
 							m[i4].replace(vargs[1][index2], mstruct[index2][i4]);
 						}
@@ -850,13 +929,16 @@ int SolveMultipleFunction::calculate(MathStructure &mstruct, const MathStructure
 
 	for(size_t i = 0; i < mstruct.size(); i++) {
 		if(mstruct[i].isVector()) {
+			vector<bool> b_eval;
+			b_eval.resize(mstruct[i].size(), false);
 			for(size_t i2 = 0; i2 < mstruct[i].size(); i2++) {
 				for(size_t i3 = 0; i3 < mand[i].size(); i3++) {
-					mand[i][i3][0] = mstruct[i][i2];
+					MathStructure mtest(mand[i][i3]);
+					mtest[0] = mstruct[i][i2];
 					CALCULATOR->beginTemporaryStopMessages();
-					mand[i][i3].eval(eo);
+					mtest.eval(eo);
 					CALCULATOR->endTemporaryStopMessages();
-					if(!mand[i][i3].isOne()) {
+					if(!mtest.isOne()) {
 						CALCULATOR->error(true, _("Unable to isolate %s."), format_and_print(vargs[1][i]).c_str(), NULL);
 						return 0;
 					}
@@ -865,7 +947,20 @@ int SolveMultipleFunction::calculate(MathStructure &mstruct, const MathStructure
 					ComparisonResult cr = mstruct[i][i2].compare(mstruct[i][i3]);
 					if(cr == COMPARISON_RESULT_EQUAL || cr == COMPARISON_RESULT_EQUAL_LIMITS) {
 						mstruct[i].delChild(i3 + 1);
+						b_eval.erase(b_eval.begin() + i3);
 					} else {
+						if(cr == COMPARISON_RESULT_UNKNOWN && (!b_eval[i2] || !b_eval[i3])) {
+							if(!b_eval[i2]) mstruct[i][i2].eval(eo);
+							if(!b_eval[i3]) mstruct[i][i3].eval(eo);
+							b_eval[i2] = true;
+							b_eval[i3] = true;
+							ComparisonResult cr = mstruct[i][i2].compare(mstruct[i][i3]);
+							if(cr == COMPARISON_RESULT_EQUAL || cr == COMPARISON_RESULT_EQUAL_LIMITS) {
+								mstruct[i].delChild(i3 + 1);
+								b_eval.erase(b_eval.begin() + i3);
+								continue;
+							}
+						}
 						i3++;
 					}
 				}
@@ -1179,6 +1274,21 @@ bool dsolve(MathStructure &m_eqn, const EvaluationOptions &eo, const MathStructu
 	}
 	return false;
 }
+void protect_mdiff(MathStructure &m, const MathStructure &mdiff, const EvaluationOptions &eo, bool b_top = true) {
+	if(m == mdiff) {
+		m.setProtected(true);
+	} else {
+		for(size_t i = 0; i < m.size(); i++) {
+			protect_mdiff(m[i], mdiff, eo, false);
+		}
+	}
+	if(b_top && eo.isolate_x) {
+		EvaluationOptions eo2 = eo;
+		eo2.isolate_var = &mdiff;
+		m.eval(eo2);
+		m.setProtected(true);
+	}
+}
 
 DSolveFunction::DSolveFunction() : MathFunction("dsolve", 1, 3) {
 	setDefaultValue(2, "undefined");
@@ -1213,6 +1323,7 @@ int DSolveFunction::calculate(MathStructure &mstruct, const MathStructure &vargs
 	if(m_diff[2].number().intValue() != 1) {
 		CALCULATOR->error(true, _("Unable to solve differential equation."), NULL);
 		mstruct = m_eqn;
+		protect_mdiff(mstruct, m_diff, eo);
 		return -1;
 	}
 	m_eqn.isolate_x(eo2, m_diff);
@@ -1241,12 +1352,14 @@ int DSolveFunction::calculate(MathStructure &mstruct, const MathStructure &vargs
 	}
 	if(m_eqn.contains(m_diff)) {
 		CALCULATOR->error(true, _("Unable to solve differential equation."), NULL);
+		protect_mdiff(mstruct, m_diff, eo);
 		return -1;
 	}
 	m_eqn.calculatesub(eo2, eo2, true);
 	MathStructure msolve(m_eqn);
 	if(solve_equation(msolve, m_eqn, m_diff[0], eo, true, m_diff[1], MathStructure(CALCULATOR->getVariableById(VARIABLE_ID_C)), vargs[2], vargs[1]) <= 0) {
 		CALCULATOR->error(true, _("Unable to solve differential equation."), NULL);
+		protect_mdiff(mstruct, m_diff, eo);
 		return -1;
 	}
 	mstruct = msolve;
@@ -1272,14 +1385,23 @@ int NewtonRaphsonFunction::calculate(MathStructure &mstruct, const MathStructure
 		mstruct = mfunc;
 		ret = -1;
 	}
+	EvaluationOptions eo2 = eo;
+	eo2.expand = false;
 	bool compare_with_1 = false;
-	calculate_userfunctions(mfunc, vargs[3], eo);
+	calculate_userfunctions(mfunc, vargs[2], eo);
 	MathStructure mdiff(mfunc);
 	mdiff.differentiate(vargs[2], eo);
 	if(mdiff.containsFunction(CALCULATOR->getFunctionById(FUNCTION_ID_DIFFERENTIATE))) return ret;
 	mfunc /= mdiff;
 	Number nr_prec(1, 1, vargs[3].number() <= 0 ? -(PRECISION - vargs[3].number().intValue()) : -vargs[3].number().intValue());
 	int precbak = PRECISION;
+	KnownVariable *v = new KnownVariable("", "", m_zero);
+	v->setTitle("\b");
+	if(!mfunc.replace(vargs[2], v)) {
+		v->destroy();
+		return ret;
+	}
+	v->destroy();
 	nrf_begin:
 	CALCULATOR->beginTemporaryStopMessages();
 	Number x_i(vargs[1].number()), x_itest;
@@ -1290,8 +1412,9 @@ int NewtonRaphsonFunction::calculate(MathStructure &mstruct, const MathStructure
 	while(true) {
 		if(CALCULATOR->aborted()) break;
 		x_if = mfunc;
-		x_if.replace(vargs[2], x_i);
-		x_if.eval(eo);
+		v->set(x_i);
+		v->setName(format_and_print(x_i));
+		x_if.eval(eo2);
 		if(!x_if.isNumber()) break;
 		if(x_if.isZero() && x_i.isZero()) {ret = 1; break;}
 		if(iter > 0) x_itest = x_if.number();
@@ -1299,7 +1422,7 @@ int NewtonRaphsonFunction::calculate(MathStructure &mstruct, const MathStructure
 		if(iter > 0) {
 			if(x_i.hasImaginaryPart()) {
 				if((x_itest.realPart() < nr_prec && x_itest.imaginaryPart() < nr_prec) || (!x_i.isNonZero() && (x_i.realPart() < nr_prec && x_i.imaginaryPart() < nr_prec && x_if.number().realPart() < nr_prec && x_if.number().imaginaryPart() < nr_prec))) {
-					x_i.setUncertainty(x_if.number());
+					x_i.setUncertainty(x_if.number(), !CALCULATOR->usesIntervalArithmetic());
 					ret = 1;
 					break;
 				}
@@ -1307,7 +1430,7 @@ int NewtonRaphsonFunction::calculate(MathStructure &mstruct, const MathStructure
 					compare_with_1 = true;
 				}
 				int prec = x_i.precision(true);
-				if(!x_i.isNonZero() || (prec >= 0 && prec < precbak && PRECISION * 5 < 1000)) {
+				if((!x_i.isNonZero() || (prec >= 0 && prec < precbak)) && PRECISION * 5 < 1000) {
 					if(!compare_with_1 && x_i.realPart().isFraction() && x_i.imaginaryPart().isFraction() && (x_itest.realPart() > Number(9, 10) || x_itest.imaginaryPart() > Number(9, 10))) {
 						compare_with_1 = true;
 					}
@@ -1317,7 +1440,7 @@ int NewtonRaphsonFunction::calculate(MathStructure &mstruct, const MathStructure
 				}
 			} else {
 				if(x_itest < nr_prec || (!x_i.isNonZero() && x_i < nr_prec && x_if.number() < nr_prec)) {
-					x_i.setUncertainty(x_if.number());
+					x_i.setUncertainty(x_if.number(), !CALCULATOR->usesIntervalArithmetic());
 					ret = 1;
 					break;
 				}
@@ -1325,7 +1448,7 @@ int NewtonRaphsonFunction::calculate(MathStructure &mstruct, const MathStructure
 					compare_with_1 = true;
 				}
 				int prec = x_i.precision(true);
-				if(!x_i.isNonZero() || (prec >= 0 && prec < precbak && PRECISION * 5 < 1000)) {
+				if((!x_i.isNonZero() || (prec >= 0 && prec < precbak)) && PRECISION * 5 < 1000) {
 					if(!compare_with_1 && x_i.isFraction() && x_itest > Number(9, 10)) {
 						compare_with_1 = true;
 					}
@@ -1337,7 +1460,7 @@ int NewtonRaphsonFunction::calculate(MathStructure &mstruct, const MathStructure
 		}
 		iter++;
 		if(iter > max_iter) {
-			x_i.setUncertainty(x_if.number());
+			x_i.setUncertainty(x_if.number(), !CALCULATOR->usesIntervalArithmetic());
 			int prec = x_i.precision(true);
 			if(prec < 5) break;
 			ret = 1;
@@ -1369,17 +1492,27 @@ int SecantMethodFunction::calculate(MathStructure &mstruct, const MathStructure 
 		mstruct = mfunc;
 		ret = -1;
 	}
+	EvaluationOptions eo2 = eo;
+	eo2.expand = false;
 	bool compare_with_1 = false;
 	calculate_userfunctions(mfunc, vargs[3], eo);
 	Number nr_prec(1, 1, vargs[4].number() <= 0 ? -(PRECISION - vargs[4].number().intValue()) : -vargs[4].number().intValue());
 	int precbak = PRECISION;
+	KnownVariable *v = new KnownVariable("", "", m_zero);
+	v->setTitle("\b");
+	if(!mfunc.replace(vargs[3], v)) {
+		v->destroy();
+		return ret;
+	}
+	v->destroy();
 	secm_begin:
 	CALCULATOR->beginTemporaryStopMessages();
 	Number x0(vargs[1].number());
 	x0.setToFloatingPoint();
 	MathStructure m_if(mfunc);
-	m_if.replace(vargs[3], x0);
-	m_if.eval(eo);
+	v->set(x0);
+	v->setName(format_and_print(x0));
+	m_if.eval(eo2);
 	Number x_i(vargs[2].number()), x_itest, x_fi;
 	if(m_if.isNumber()) {
 		Number f0(m_if.number());
@@ -1389,8 +1522,9 @@ int SecantMethodFunction::calculate(MathStructure &mstruct, const MathStructure 
 		while(true) {
 			if(CALCULATOR->aborted()) break;
 			m_if = mfunc;
-			m_if.replace(vargs[3], x_i);
-			m_if.eval(eo);
+			v->set(x_i);
+			v->setName(format_and_print(x_i));
+			m_if.eval(eo2);
 			if(!m_if.isNumber() || !x0.negate() || !x0.add(x_i) || !f0.negate() || !f0.add(m_if.number()) || !x0.divide(f0) || !x0.multiply(m_if.number())) break;
 			x_fi = x0;
 			x0 = x_i;
@@ -1401,7 +1535,7 @@ int SecantMethodFunction::calculate(MathStructure &mstruct, const MathStructure 
 			if(iter > 0) {
 				if(x_i.hasImaginaryPart()) {
 					if((x_itest.realPart() < nr_prec && x_itest.imaginaryPart() < nr_prec) || (!x_i.isNonZero() && (x_i.realPart() < nr_prec && x_i.imaginaryPart() < nr_prec && x_fi.realPart() < nr_prec && x_fi.imaginaryPart() < nr_prec))) {
-						x_i.setUncertainty(x_fi);
+						x_i.setUncertainty(x_fi, !CALCULATOR->usesIntervalArithmetic());
 						ret = 1;
 						break;
 					}
@@ -1409,7 +1543,7 @@ int SecantMethodFunction::calculate(MathStructure &mstruct, const MathStructure 
 						compare_with_1 = true;
 					}
 					int prec = x_i.precision(true);
-					if(!x_i.isNonZero() || (prec >= 0 && prec < precbak && PRECISION * 5 < 1000)) {
+					if((!x_i.isNonZero() || (prec >= 0 && prec < precbak)) && PRECISION * 5 < 1000) {
 						if(!compare_with_1 && x_i.realPart().isFraction() && x_i.imaginaryPart().isFraction() && (x_itest.realPart() > Number(9, 10) || x_itest.imaginaryPart() > Number(9, 10))) {
 							compare_with_1 = true;
 						}
@@ -1419,7 +1553,7 @@ int SecantMethodFunction::calculate(MathStructure &mstruct, const MathStructure 
 					}
 				} else {
 					if(x_itest < nr_prec || (!x_i.isNonZero() && x_i < nr_prec && x_fi < nr_prec)) {
-						x_i.setUncertainty(x_fi);
+						x_i.setUncertainty(x_fi, !CALCULATOR->usesIntervalArithmetic());
 						ret = 1;
 						break;
 					}
@@ -1427,7 +1561,7 @@ int SecantMethodFunction::calculate(MathStructure &mstruct, const MathStructure 
 						compare_with_1 = true;
 					}
 					int prec = x_i.precision(true);
-					if(!x_i.isNonZero() || (prec >= 0 && prec < precbak && PRECISION * 5 < 1000)) {
+					if((!x_i.isNonZero() || (prec >= 0 && prec < precbak)) && PRECISION * 5 < 1000) {
 						if(!compare_with_1 && x_i.isFraction() && x_itest > Number(9, 10)) {
 							compare_with_1 = true;
 						}
@@ -1439,7 +1573,7 @@ int SecantMethodFunction::calculate(MathStructure &mstruct, const MathStructure 
 			}
 			iter++;
 			if(iter > max_iter) {
-				x_i.setUncertainty(x_fi);
+				x_i.setUncertainty(x_fi, !CALCULATOR->usesIntervalArithmetic());
 				int prec = x_i.precision(true);
 				if(prec < 5) break;
 				ret = 1;

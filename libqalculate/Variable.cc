@@ -469,7 +469,13 @@ const MathStructure &KnownVariable::get() {
 			m->numberUpdated();
 		} else {
 			m->setAborted();
-			CALCULATOR->parse(m, sexpression, po);
+			if(b_local && !CALCULATOR->conciseUncertaintyInputEnabled()) {
+				CALCULATOR->setConciseUncertaintyInputEnabled(true);
+				CALCULATOR->parse(m, sexpression, po);
+				CALCULATOR->setConciseUncertaintyInputEnabled(false);
+			} else {
+				CALCULATOR->parse(m, sexpression, po);
+			}
 		}
 		if(!sunit.empty() && (!CALCULATOR->variableUnitsEnabled() || sunit != "auto")) {
 			m->removeType(STRUCT_UNIT);
@@ -531,31 +537,25 @@ bool KnownVariable::representsBoolean() {return get().representsBoolean();}
 bool KnownVariable::representsNonMatrix() {return get().representsNonMatrix();}
 bool KnownVariable::representsScalar() {return get().representsScalar();}
 
-DynamicVariable::DynamicVariable(string cat_, string name_, string title_, bool is_local, bool is_builtin, bool is_active) : KnownVariable(cat_, name_, MathStructure(), title_, is_local, is_builtin, is_active) {
-	mstruct = NULL; mstruct_alt = NULL;
-	calculated_precision = -1;
+DynamicVariable::DynamicVariable(string cat_, string name_, string title_, bool is_local, bool is_builtin, bool is_active) : KnownVariable(cat_, name_, "", title_, is_local, is_builtin, is_active) {
+	b_expression = false;
 	always_recalculate = false;
 	setApproximate();
 	setChanged(false);
 }
 DynamicVariable::DynamicVariable(const DynamicVariable *variable) {
-	mstruct = NULL; mstruct_alt = NULL;
 	set(variable);
 	setApproximate();
 	setChanged(false);
 	always_recalculate = false;
 }
 DynamicVariable::DynamicVariable() : KnownVariable() {
-	mstruct = NULL; mstruct_alt = NULL;
 	calculated_precision = -1;
 	setApproximate();
 	setChanged(false);
 	always_recalculate = false;
 }
-DynamicVariable::~DynamicVariable() {
-	if(mstruct) delete mstruct;
-	if(mstruct_alt) delete mstruct_alt;
-}
+DynamicVariable::~DynamicVariable() {}
 void DynamicVariable::set(const ExpressionItem *item) {
 	ExpressionItem::set(item);
 }
@@ -658,6 +658,7 @@ void NowVariable::calculate(MathStructure &m) const {
 #include <fstream>
 
 void UptimeVariable:: calculate(MathStructure &m) const {
+#ifndef DISABLE_INSECURE
 	Number nr;
 #	ifdef __linux__
 	std::ifstream proc_uptime("/proc/uptime", std::ios::in);
@@ -677,6 +678,7 @@ void UptimeVariable:: calculate(MathStructure &m) const {
 	m = nr;
 	Unit *u = CALCULATOR->getUnit("s");
 	if(u) m *= u;
+#endif
 }
 UptimeVariable::UptimeVariable() : DynamicVariable("", "uptime") {
 	setApproximate(false);

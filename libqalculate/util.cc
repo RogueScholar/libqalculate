@@ -17,7 +17,9 @@
 
 #include <string.h>
 #include <time.h>
-#include <iconv.h>
+#ifdef HAVE_ICONV
+#	include <iconv.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sstream>
@@ -47,6 +49,8 @@
 #endif
 
 using std::string;
+using std::endl;
+using std::cout;
 using std::vector;
 using std::ifstream;
 using std::ofstream;
@@ -192,9 +196,21 @@ const char *b2oo(bool b, bool capital) {
 	return _("off");
 }
 long int s2i(const string& str) {
+	if(str.find(' ') != string::npos) {
+		string str2 = str;
+		remove_blanks(str2);
+		return strtol(str2.c_str(), NULL, 10);
+	}
 	return strtol(str.c_str(), NULL, 10);
 }
 long int s2i(const char *str) {
+	for(size_t i = 0; i < strlen(str); i++) {
+		if(str[i] == ' ') {
+			string str2 = str;
+			remove_blanks(str2);
+			return strtol(str2.c_str(), NULL, 10);
+		}
+	}
 	return strtol(str, NULL, 10);
 }
 void *s2p(const string& str) {
@@ -304,7 +320,16 @@ int gcd(int i1, int i2) {
 size_t unicode_length(const string &str) {
 	size_t l = str.length(), l2 = 0;
 	for(size_t i = 0; i < l; i++) {
-		if(str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
+		if((signed char) str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
+			l2++;
+		}
+	}
+	return l2;
+}
+size_t unicode_length(const string &str, size_t l) {
+	size_t l2 = 0;
+	for(size_t i = 0; i < l; i++) {
+		if((signed char) str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
 			l2++;
 		}
 	}
@@ -313,19 +338,27 @@ size_t unicode_length(const string &str) {
 size_t unicode_length(const char *str) {
 	size_t l = strlen(str), l2 = 0;
 	for(size_t i = 0; i < l; i++) {
-		if(str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
+		if((signed char) str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
 			l2++;
 		}
 	}
 	return l2;
 }
-
+size_t unicode_length(const char *str, size_t l) {
+	size_t l2 = 0;
+	for(size_t i = 0; i < l; i++) {
+		if((signed char) str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
+			l2++;
+		}
+	}
+	return l2;
+}
 bool text_length_is_one(const string &str) {
 	if(str.empty()) return false;
 	if(str.length() == 1) return true;
-	if(str[0] >= 0) return false;
+	if((signed char) str[0] >= 0) return false;
 	for(size_t i = 1; i < str.length(); i++) {
-		if(str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
+		if((signed char) str[i] > 0 || (unsigned char) str[i] >= 0xC0) {
 			return false;
 		}
 	}
@@ -336,15 +369,15 @@ bool equalsIgnoreCase(const string &str1, const string &str2) {
 	if(str1.empty() || str2.empty()) return false;
 	for(size_t i1 = 0, i2 = 0; i1 < str1.length() || i2 < str2.length(); i1++, i2++) {
 		if(i1 >= str1.length() || i2 >= str2.length()) return false;
-		if((str1[i1] < 0 && i1 + 1 < str1.length()) || (str2[i2] < 0 && i2 + 1 < str2.length())) {
+		if(((signed char) str1[i1] < 0 && i1 + 1 < str1.length()) || ((signed char) str2[i2] < 0 && i2 + 1 < str2.length())) {
 			size_t iu1 = 1, iu2 = 1;
-			if(str1[i1] < 0) {
-				while(iu1 + i1 < str1.length() && str1[i1 + iu1] < 0) {
+			if((signed char) str1[i1] < 0) {
+				while(iu1 + i1 < str1.length() && (signed char) str1[i1 + iu1] < 0) {
 					iu1++;
 				}
 			}
-			if(str2[i2] < 0) {
-				while(iu2 + i2 < str2.length() && str2[i2 + iu2] < 0) {
+			if((signed char) str2[i2] < 0) {
+				while(iu2 + i2 < str2.length() && (signed char) str2[i2 + iu2] < 0) {
 					iu2++;
 				}
 			}
@@ -378,20 +411,19 @@ bool equalsIgnoreCase(const string &str1, const string &str2) {
 	}
 	return true;
 }
-
 bool equalsIgnoreCase(const string &str1, const char *str2) {
 	if(str1.empty() || strlen(str2) == 0) return false;
 	for(size_t i1 = 0, i2 = 0; i1 < str1.length() || i2 < strlen(str2); i1++, i2++) {
 		if(i1 >= str1.length() || i2 >= strlen(str2)) return false;
-		if((str1[i1] < 0 && i1 + 1 < str1.length()) || (str2[i2] < 0 && i2 + 1 < strlen(str2))) {
+		if(((signed char) str1[i1] < 0 && i1 + 1 < str1.length()) || ((signed char) str2[i2] < 0 && i2 + 1 < strlen(str2))) {
 			size_t iu1 = 1, iu2 = 1;
-			if(str1[i1] < 0) {
-				while(iu1 + i1 < str1.length() && str1[i1 + iu1] < 0) {
+			if((signed char) str1[i1] < 0) {
+				while(iu1 + i1 < str1.length() && (signed char) str1[i1 + iu1] < 0) {
 					iu1++;
 				}
 			}
-			if(str2[i2] < 0) {
-				while(iu2 + i2 < strlen(str2) && str2[i2 + iu2] < 0) {
+			if((signed char) str2[i2] < 0) {
+				while(iu2 + i2 < strlen(str2) && (signed char) str2[i2 + iu2] < 0) {
 					iu2++;
 				}
 			}
@@ -424,6 +456,60 @@ bool equalsIgnoreCase(const string &str1, const char *str2) {
 		}
 	}
 	return true;
+}
+
+string sub_suffix_html(const string &name) {
+	size_t i = name.rfind('_');
+	bool b = (i == string::npos || i == name.length() - 1 || i == 0);
+	size_t i2 = 1;
+	string str;
+	if(b) {
+		if(is_in(NUMBERS, name[name.length() - 1])) {
+			while(name.length() > i2 + 1 && is_in(NUMBERS, name[name.length() - 1 - i2])) {
+				i2++;
+			}
+		} else {
+			while((signed char) name[name.length() - i2] < 0 && (unsigned char) name[name.length() - i2] < 0xC0 && i2 < name.length()) {
+				i2++;
+			}
+		}
+		str += name.substr(0, name.length() - i2);
+	} else {
+		str += name.substr(0, i);
+	}
+	str += "<sub>";
+	if(b) {
+		str += name.substr(name.length() - i2, i2);
+	} else {
+		str += name.substr(i + 1, name.length() - (i + 1));
+	}
+	str += "</sub>";
+	return str;
+}
+string sub_suffix(const string &name, const string &tag_begin, const string &tag_end) {
+	size_t i = name.rfind('_');
+	bool b = (i == string::npos || i == name.length() - 1 || i == 0);
+	size_t i2 = 1;
+	string str;
+	if(b) {
+		if(is_in(NUMBERS, name[name.length() - 1])) {
+			while(name.length() > i2 + 1 && is_in(NUMBERS, name[name.length() - 1 - i2])) {
+				i2++;
+			}
+		} else {
+			while((signed char) name[name.length() - i2] < 0 && (unsigned char) name[name.length() - i2] < 0xC0 && i2 < name.length()) {
+				i2++;
+			}
+		}
+		str += name.substr(0, name.length() - i2);
+	} else {
+		str += name.substr(0, i);
+	}
+	str += tag_begin;
+	if(b) str += name.substr(name.length() - i2, i2);
+	else str += name.substr(i + 1, name.length() - (i + 1));
+	str += tag_end;
+	return str;
 }
 
 void parse_qalculate_version(string qalculate_version, int *qalculate_version_numbers) {
@@ -735,6 +821,7 @@ bool removeDir(string dirpath) {
 }
 
 char *locale_from_utf8(const char *str) {
+#ifdef HAVE_ICONV
 	iconv_t conv = iconv_open("", "UTF-8");
 	if(conv == (iconv_t) -1) return NULL;
 	size_t inlength = strlen(str);
@@ -748,8 +835,12 @@ char *locale_from_utf8(const char *str) {
 	memset(buffer, 0, 4);
 	if(err == (size_t) -1) {free(dest); return NULL;}
 	return dest;
+#else
+	return NULL;
+#endif
 }
 char *locale_to_utf8(const char *str) {
+#ifdef HAVE_ICONV
 	iconv_t conv = iconv_open("UTF-8", "");
 	if(conv == (iconv_t) -1) return NULL;
 	size_t inlength = strlen(str);
@@ -763,6 +854,9 @@ char *locale_to_utf8(const char *str) {
 	memset(buffer, 0, 4 * sizeof(char));
 	if(err == (size_t) -1) {free(dest); return NULL;}
 	return dest;
+#else
+	return NULL;
+#endif
 }
 char *utf8_strdown(const char *str, int l) {
 #ifdef HAVE_ICU
@@ -789,6 +883,36 @@ char *utf8_strdown(const char *str, int l) {
 		else {free(buffer); return NULL;}
 		err = U_ZERO_ERROR;
 		ucasemap_utf8ToLower(ucm, buffer, outlength, str, inlength, &err);
+		if(U_SUCCESS(err)) {
+			return buffer;
+		} else {
+			free(buffer);
+		}
+	}
+	return NULL;
+#else
+	return NULL;
+#endif
+}
+
+char *utf8_strup(const char *str, int l) {
+#ifdef HAVE_ICU
+	if(!ucm) return NULL;
+	UErrorCode err = U_ZERO_ERROR;
+	size_t inlength = l <= 0 ? strlen(str) : (size_t) l;
+	size_t outlength = inlength + 4;
+	char *buffer = (char*) malloc(outlength * sizeof(char));
+	if(!buffer) return NULL;
+	int32_t length = ucasemap_utf8ToUpper(ucm, buffer, outlength, str, inlength, &err);
+	if(U_SUCCESS(err)) {
+		return buffer;
+	} else if(err == U_BUFFER_OVERFLOW_ERROR) {
+		outlength = length + 4;
+		char *buffer_realloc = (char*) realloc(buffer, outlength * sizeof(char));
+		if(buffer_realloc) buffer = buffer_realloc;
+		else {free(buffer); return NULL;}
+		err = U_ZERO_ERROR;
+		ucasemap_utf8ToUpper(ucm, buffer, outlength, str, inlength, &err);
 		if(U_SUCCESS(err)) {
 			return buffer;
 		} else {

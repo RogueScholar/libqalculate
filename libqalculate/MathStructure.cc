@@ -53,8 +53,10 @@ size_t MathStructure::refcount() const {
 inline void MathStructure::init() {
 	m_type = STRUCT_NUMBER;
 	b_approx = false;
+	b_plural = false;
 	i_precision = -1;
 	i_ref = 1;
+	ct_comp = COMPARISON_EQUALS;
 	function_value = NULL;
 	b_protected = false;
 	o_variable = NULL;
@@ -97,7 +99,6 @@ MathStructure::MathStructure(const MathStructure &o) {
 		}
 		case STRUCT_UNIT: {
 			o_unit = o.unit();
-			o_prefix = o.prefix();
 			if(o_unit) o_unit->ref();
 			b_plural = o.isPlural();
 			break;
@@ -108,6 +109,7 @@ MathStructure::MathStructure(const MathStructure &o) {
 		}
 		default: {}
 	}
+	o_prefix = o.prefix();
 	b_protected = o.isProtected();
 	for(size_t i = 0; i < o.size(); i++) {
 		APPEND_COPY((&o[i]))
@@ -203,7 +205,12 @@ MathStructure::MathStructure(const Number &o) {
 	i_precision = o_number.precision();
 }
 MathStructure::~MathStructure() {
-	clear();
+	if(function_value) function_value->unref();
+	if(o_function) o_function->unref();
+	if(o_variable) o_variable->unref();
+	if(o_unit) o_unit->unref();
+	if(o_datetime) delete o_datetime;
+	for(size_t i = 0; i < v_subs.size(); i++) {v_subs[i]->unref();}
 }
 
 void MathStructure::set(const MathStructure &o, bool merge_precision) {
@@ -297,7 +304,6 @@ void MathStructure::set_nocopy(MathStructure &o, bool merge_precision) {
 		}
 		case STRUCT_UNIT: {
 			o_unit = o.unit();
-			o_prefix = o.prefix();
 			if(o_unit) o_unit->ref();
 			b_plural = o.isPlural();
 			break;
@@ -308,6 +314,7 @@ void MathStructure::set_nocopy(MathStructure &o, bool merge_precision) {
 		}
 		default: {}
 	}
+	o_prefix = o.prefix();
 	b_protected = o.isProtected();
 	for(size_t i = 0; i < o.size(); i++) {
 		APPEND_REF((&o[i]))
@@ -572,6 +579,7 @@ void MathStructure::clear(bool preserve_precision) {
 	o_prefix = NULL;
 	b_plural = false;
 	b_protected = false;
+	b_parentheses = false;
 	CLEAR;
 	if(!preserve_precision) {
 		i_precision = -1;
@@ -660,9 +668,7 @@ Prefix *MathStructure::unit_exp_prefix() const {
 	return NULL;
 }
 void MathStructure::setPrefix(Prefix *p) {
-	if(isUnit()) {
-		o_prefix = p;
-	}
+	o_prefix = p;
 }
 bool MathStructure::isPlural() const {
 	return b_plural;
@@ -704,7 +710,7 @@ bool MathStructure::isAborted() const {return m_type == STRUCT_ABORTED;}
 bool MathStructure::isEmptySymbol() const {return m_type == STRUCT_SYMBOLIC && s_sym.empty();}
 bool MathStructure::isVector() const {return m_type == STRUCT_VECTOR;}
 bool MathStructure::isMatrix() const {
-	if(m_type != STRUCT_VECTOR || SIZE < 1 || CHILD(0).size() == 0) return false;
+	if(m_type != STRUCT_VECTOR || SIZE < 1) return false;
 	for(size_t i = 0; i < SIZE; i++) {
 		if(!CHILD(i).isVector() || (i > 0 && CHILD(i).size() != CHILD(i - 1).size())) return false;
 	}
@@ -1133,7 +1139,7 @@ bool MathStructure::representsNonZero(bool allow_units) const {
 			return true;
 		}
 		case STRUCT_POWER: {
-			return (CHILD(0).representsNonZero(allow_units) && ((CHILD(1).isNumber() && !CHILD(1).number().includesInfinity()) || (!CHILD(1).isNumber() && CHILD(1).representsNumber(true)))) || (!CHILD(0).isApproximatelyZero() && CHILD(1).representsNonPositive());
+			return (CHILD(0).representsNonZero(allow_units) && CHILD(1).representsNumber(true)) || (((!CHILD(0).isApproximatelyZero() && CHILD(1).representsNonPositive()) || CHILD(1).representsNegative()) && CHILD(0).representsNumber(allow_units) && CHILD(1).representsNumber(true));
 		}
 		default: {return false;}
 	}
@@ -1154,6 +1160,9 @@ bool MathStructure::representsZero(bool allow_units) const {
 		case STRUCT_MULTIPLICATION: {
 			for(size_t i = 0; i < SIZE; i++) {
 				if(CHILD(i).representsZero(allow_units)) {
+					for(size_t i2 = 0; i2 < SIZE; i2++) {
+						if(i2 != i && CHILD(i2).representsUndefined(true, true, true)) return false;
+					}
 					return true;
 				}
 			}
@@ -1373,7 +1382,6 @@ void MathStructure::transform(StructureType mtype, const MathStructure &o) {
 	m_type = mtype;
 	APPEND_POINTER(struct_this);
 	APPEND_POINTER(struct_o);
-	b_parentheses = false;
 }
 void MathStructure::transform(StructureType mtype, const Number &o) {
 	MathStructure *struct_this = new MathStructure();
@@ -1382,7 +1390,6 @@ void MathStructure::transform(StructureType mtype, const Number &o) {
 	m_type = mtype;
 	APPEND_POINTER(struct_this);
 	APPEND_NEW(o);
-	b_parentheses = false;
 }
 void MathStructure::transform(StructureType mtype, int i) {
 	MathStructure *struct_this = new MathStructure();
@@ -1391,7 +1398,6 @@ void MathStructure::transform(StructureType mtype, int i) {
 	m_type = mtype;
 	APPEND_POINTER(struct_this);
 	APPEND_POINTER(new MathStructure(i, 1, 0));
-	b_parentheses = false;
 }
 void MathStructure::transform(StructureType mtype, Unit *u) {
 	MathStructure *struct_this = new MathStructure();
@@ -1400,7 +1406,6 @@ void MathStructure::transform(StructureType mtype, Unit *u) {
 	m_type = mtype;
 	APPEND_POINTER(struct_this);
 	APPEND_NEW(u);
-	b_parentheses = false;
 }
 void MathStructure::transform(StructureType mtype, Variable *v) {
 	MathStructure *struct_this = new MathStructure();
@@ -1409,7 +1414,6 @@ void MathStructure::transform(StructureType mtype, Variable *v) {
 	m_type = mtype;
 	APPEND_POINTER(struct_this);
 	APPEND_NEW(v);
-	b_parentheses = false;
 }
 void MathStructure::transform(StructureType mtype, string sym) {
 	MathStructure *struct_this = new MathStructure();
@@ -1418,7 +1422,6 @@ void MathStructure::transform(StructureType mtype, string sym) {
 	m_type = mtype;
 	APPEND_POINTER(struct_this);
 	APPEND_NEW(sym);
-	b_parentheses = false;
 }
 void MathStructure::transform_nocopy(StructureType mtype, MathStructure *o) {
 	MathStructure *struct_this = new MathStructure();
@@ -1427,7 +1430,6 @@ void MathStructure::transform_nocopy(StructureType mtype, MathStructure *o) {
 	m_type = mtype;
 	APPEND_POINTER(struct_this);
 	APPEND_POINTER(o);
-	b_parentheses = false;
 }
 void MathStructure::transform(StructureType mtype) {
 	MathStructure *struct_this = new MathStructure();
@@ -1435,17 +1437,14 @@ void MathStructure::transform(StructureType mtype) {
 	clear(true);
 	m_type = mtype;
 	APPEND_POINTER(struct_this);
-	b_parentheses = false;
 }
 void MathStructure::transform(MathFunction *o) {
 	transform(STRUCT_FUNCTION);
 	setFunction(o);
-	b_parentheses = false;
 }
 void MathStructure::transformById(int id) {
 	transform(STRUCT_FUNCTION);
 	setFunctionId(id);
-	b_parentheses = false;
 }
 void MathStructure::transform(ComparisonType ctype, const MathStructure &o) {
 	MathStructure *struct_o = new MathStructure(o);
@@ -1456,7 +1455,6 @@ void MathStructure::transform(ComparisonType ctype, const MathStructure &o) {
 	ct_comp = ctype;
 	APPEND_POINTER(struct_this);
 	APPEND_POINTER(struct_o);
-	b_parentheses = false;
 }
 void transform(ComparisonType ctype, const MathStructure &o);
 void MathStructure::add(const MathStructure &o, MathOperation op, bool append) {
@@ -1882,7 +1880,7 @@ bool MathStructure::equals(const MathStructure &o, bool allow_interval, bool all
 			return o_unit == o.unit() && p1 == p2;
 		}
 		case STRUCT_COMPARISON: {if(ct_comp != o.comparisonType()) return false; break;}
-		case STRUCT_FUNCTION: {if(o_function != o.function()) return false; break;}
+		case STRUCT_FUNCTION: {if(o_function != o.function() || o_function->args() == 0) return false; break;}
 		case STRUCT_LOGICAL_OR: {}
 		case STRUCT_LOGICAL_XOR: {}
 		case STRUCT_LOGICAL_AND: {
@@ -1914,7 +1912,7 @@ bool MathStructure::equals(const MathStructure &o, bool allow_interval, bool all
 		}
 		default: {}
 	}
-	if(SIZE < 1) return false;
+	if(SIZE < 1) return true;
 	for(size_t i = 0; i < SIZE; i++) {
 		if(!CHILD(i).equals(o[i], allow_interval)) return false;
 	}
@@ -1926,7 +1924,7 @@ bool MathStructure::equals(const Number &o, bool allow_interval, bool allow_infi
 }
 bool MathStructure::equals(int i) const {
 	if(m_type != STRUCT_NUMBER) return false;
-	return o_number.equals(Number(i, 1, 0));
+	return o_number.equals((long int) i);
 }
 bool MathStructure::equals(Unit *u) const {
 	if(m_type != STRUCT_UNIT) return false;
@@ -1956,6 +1954,7 @@ bool remove_rad_unit(MathStructure &m, const EvaluationOptions &eo, bool top) {
 			return true;
 		} else if(m.unit()->containsRelativeTo(CALCULATOR->getRadUnit())) {
 			if(m.convert(CALCULATOR->getRadUnit())) {
+				m.calculatesub(eo, eo, true);
 				return remove_rad_unit(m, eo, false);
 			}
 		}
@@ -1972,7 +1971,15 @@ bool remove_rad_unit(MathStructure &m, const EvaluationOptions &eo, bool top) {
 	return false;
 }
 
+bool contains_unknown_possibly_with_unit(MathStructure &m) {
+	if(m.isUnknown()) return m.containsRepresentativeOfType(STRUCT_UNIT, true, true) != 0;
+	for(size_t i = 0; i < m.size(); i++) {
+		if(contains_unknown_possibly_with_unit(m[i])) return true;
+	}
+	return false;
+}
 int compare_check_incompability(MathStructure *mtest) {
+	if(contains_unknown_possibly_with_unit(*mtest)) return -1;
 	int incomp = 0;
 	int unit_term_count = 0;
 	int not_unit_term_count = 0;
@@ -2340,7 +2347,7 @@ size_t MathStructure::countTotalChildren(bool count_function_as_one) const {
 	if((m_type == STRUCT_FUNCTION && count_function_as_one) || SIZE == 0) return 1;
 	size_t count = 0;
 	for(size_t i = 0; i < SIZE; i++) {
-		count += CHILD(i).countTotalChildren() + 1;
+		count += CHILD(i).countTotalChildren(count_function_as_one) + 1;
 	}
 	return count;
 }
@@ -2453,14 +2460,27 @@ StructureType MathStructure::type() const {
 	return m_type;
 }
 
-bool contains_angle_unit(const MathStructure &m, const ParseOptions &po) {
-	if(m.isUnit() && m.unit()->baseUnit() == CALCULATOR->getRadUnit()->baseUnit()) return true;
-	if(m.isVariable() && m.variable()->isKnown()) return contains_angle_unit(((KnownVariable*) m.variable())->get(), po);
-	if(m.isFunction()) return po.angle_unit == ANGLE_UNIT_NONE && (m.function()->id() == FUNCTION_ID_ASIN || m.function()->id() == FUNCTION_ID_ACOS || m.function()->id() == FUNCTION_ID_ATAN);
-	for(size_t i = 0; i < m.size(); i++) {
-		if(contains_angle_unit(m[i], po)) return true;
+int contains_angle_unit(const MathStructure &m, const ParseOptions &po, int check_functions) {
+	if(m.isUnit() && m.unit()->baseUnit() == CALCULATOR->getRadUnit()->baseUnit() && m.unit()->baseExponent() == 1) return 1;
+	if(m.isVariable() && m.variable()->isKnown()) return contains_angle_unit(((KnownVariable*) m.variable())->get(), po, check_functions);
+	if(m.isFunction()) {
+		if(m.function()->id() == FUNCTION_ID_ASIN || m.function()->id() == FUNCTION_ID_ACOS || m.function()->id() == FUNCTION_ID_ATAN || m.function()->id() == FUNCTION_ID_ATAN2 || m.function()->id() == FUNCTION_ID_ARG) {
+			if(NO_DEFAULT_ANGLE_UNIT(po.angle_unit)) return 1;
+			return 0;
+		}
+		if(!check_functions) return 0;
+		if(m.containsType(STRUCT_UNIT, false, true, true) == 0) return 0;
+		if(check_functions > 1 && m.size() == 0) return -1;
 	}
-	return false;
+	int ret = 0;
+	for(size_t i = 0; i < m.size(); i++) {
+		if(!m.isFunction() || !m.function()->getArgumentDefinition(i + 1) || m.function()->getArgumentDefinition(i + 1)->type() != ARGUMENT_TYPE_ANGLE) {
+			int ret_i = contains_angle_unit(m[i], po, check_functions);
+			if(ret_i != 0) ret = ret_i;
+			if(ret_i > 0) break;
+		}
+	}
+	return ret;
 }
 
 int MathStructure::contains(const MathStructure &mstruct, bool structural_only, bool check_variables, bool check_functions, bool loose_equals) const {
@@ -2501,11 +2521,15 @@ int MathStructure::contains(const MathStructure &mstruct, bool structural_only, 
 	return 0;
 }
 size_t MathStructure::countOccurrences(const MathStructure &mstruct) const {
+	return countOccurrences(mstruct, false);
+}
+size_t MathStructure::countOccurrences(const MathStructure &mstruct, bool check_variables) const {
 	if(mstruct.isUnit() && mstruct.prefix() == NULL && m_type == STRUCT_UNIT && mstruct.unit() == o_unit) return 1;
 	if(equals(mstruct, true, true)) return 1;
+	if(check_variables && m_type == STRUCT_VARIABLE && o_variable->isKnown()) return ((KnownVariable*) o_variable)->get().countOccurrences(mstruct, true);
 	size_t i_occ = 0;
 	for(size_t i = 0; i < SIZE; i++) {
-		i_occ += CHILD(i).countOccurrences(mstruct);
+		i_occ += CHILD(i).countOccurrences(mstruct, check_variables);
 	}
 	return i_occ;
 }
@@ -2781,9 +2805,9 @@ int MathStructure::containsType(StructureType mtype, bool structural_only, bool 
 			}
 			if(mtype == STRUCT_UNIT) {
 				if(o_function->id() == FUNCTION_ID_STRIP_UNITS) return 0;
-				if(o_function->subtype() == SUBTYPE_USER_FUNCTION || o_function->id() == FUNCTION_ID_REGISTER || o_function->id() == FUNCTION_ID_STACK || o_function->id() == FUNCTION_ID_LOAD) return -1;
-				// (eo.parse_options.angle_unit == ANGLE_UNIT_NONE && (o_function->id() == FUNCTION_ID_ASIN || o_function->id() == FUNCTION_ID_ACOS || o_function->id() == FUNCTION_ID_ATAN || o_function->id() == FUNCTION_ID_RADIANS_TO_DEFAULT_ANGLE_UNIT))
-				if(o_function->id() == FUNCTION_ID_LOG || o_function->id() == FUNCTION_ID_LOGN || o_function->id() == FUNCTION_ID_ARG || o_function->id() == FUNCTION_ID_GAMMA || o_function->id() == FUNCTION_ID_BETA || o_function->id() == FUNCTION_ID_FACTORIAL || o_function->id() == FUNCTION_ID_BESSELJ || o_function->id() == FUNCTION_ID_BESSELY || o_function->id() == FUNCTION_ID_ERF || o_function->id() == FUNCTION_ID_ERFI || o_function->id() == FUNCTION_ID_ERFC || o_function->id() == FUNCTION_ID_LOGINT || o_function->id() == FUNCTION_ID_POLYLOG || o_function->id() == FUNCTION_ID_EXPINT || o_function->id() == FUNCTION_ID_SININT || o_function->id() == FUNCTION_ID_COSINT || o_function->id() == FUNCTION_ID_SINHINT || o_function->id() == FUNCTION_ID_COSHINT || o_function->id() == FUNCTION_ID_FRESNEL_C || o_function->id() == FUNCTION_ID_FRESNEL_S || o_function->id() == FUNCTION_ID_SIGNUM || o_function->id() == FUNCTION_ID_HEAVISIDE || o_function->id() == FUNCTION_ID_LAMBERT_W || o_function->id() == FUNCTION_ID_SINC || o_function->id() == FUNCTION_ID_SIN || o_function->id() == FUNCTION_ID_COS || o_function->id() == FUNCTION_ID_TAN || o_function->id() == FUNCTION_ID_SINH || o_function->id() == FUNCTION_ID_COSH || o_function->id() == FUNCTION_ID_TANH || o_function->id() == FUNCTION_ID_ASINH || o_function->id() == FUNCTION_ID_ACOSH || o_function->id() == FUNCTION_ID_ATANH || o_function->id() == FUNCTION_ID_ASIN || o_function->id() == FUNCTION_ID_ACOS || o_function->id() == FUNCTION_ID_ATAN) return 0;
+				if(o_function->subtype() == SUBTYPE_USER_FUNCTION || o_function->subtype() == SUBTYPE_DATA_SET || o_function->id() == FUNCTION_ID_REGISTER || o_function->id() == FUNCTION_ID_STACK || o_function->id() == FUNCTION_ID_LOAD) return -1;
+				// (NO_DEFAULT_ANGLE_UNIT(eo.parse_options.angle_unit) && (o_function->id() == FUNCTION_ID_ASIN || o_function->id() == FUNCTION_ID_ACOS || o_function->id() == FUNCTION_ID_ATAN || o_function->id() == FUNCTION_ID_RADIANS_TO_DEFAULT_ANGLE_UNIT || o_function->id() == FUNCTION_ID_ARG || o_function->id() == FUNCTION_ID_ATAN2))
+				if(o_function->id() == FUNCTION_ID_LOG || o_function->id() == FUNCTION_ID_LOGN || o_function->id() == FUNCTION_ID_GAMMA || o_function->id() == FUNCTION_ID_BETA || o_function->id() == FUNCTION_ID_FACTORIAL || o_function->id() == FUNCTION_ID_BESSELJ || o_function->id() == FUNCTION_ID_BESSELY || o_function->id() == FUNCTION_ID_ERF || o_function->id() == FUNCTION_ID_ERFI || o_function->id() == FUNCTION_ID_ERFC || o_function->id() == FUNCTION_ID_LOGINT || o_function->id() == FUNCTION_ID_POLYLOG || o_function->id() == FUNCTION_ID_EXPINT || o_function->id() == FUNCTION_ID_SININT || o_function->id() == FUNCTION_ID_COSINT || o_function->id() == FUNCTION_ID_SINHINT || o_function->id() == FUNCTION_ID_COSHINT || o_function->id() == FUNCTION_ID_FRESNEL_C || o_function->id() == FUNCTION_ID_FRESNEL_S || o_function->id() == FUNCTION_ID_SIGNUM || o_function->id() == FUNCTION_ID_HEAVISIDE || o_function->id() == FUNCTION_ID_LAMBERT_W || o_function->id() == FUNCTION_ID_SINC || o_function->id() == FUNCTION_ID_SIN || o_function->id() == FUNCTION_ID_COS || o_function->id() == FUNCTION_ID_TAN || o_function->id() == FUNCTION_ID_SINH || o_function->id() == FUNCTION_ID_COSH || o_function->id() == FUNCTION_ID_TANH || o_function->id() == FUNCTION_ID_ASINH || o_function->id() == FUNCTION_ID_ACOSH || o_function->id() == FUNCTION_ID_ATANH || o_function->id() == FUNCTION_ID_ASIN || o_function->id() == FUNCTION_ID_ACOS || o_function->id() == FUNCTION_ID_ATAN) return 0;
 				int ret = 0;
 				for(size_t i = 0; i < SIZE; i++) {
 					int ret_i = CHILD(i).containsType(mtype, false, check_variables, check_functions);
@@ -2878,10 +2902,31 @@ void MathStructure::findAllUnknowns(MathStructure &unknowns_vector) {
 	}
 }
 bool MathStructure::replace(const MathStructure &mfrom, const MathStructure &mto, bool once_only, bool exclude_function_arguments) {
+	return replace(mfrom, mto, once_only, exclude_function_arguments, false);
+}
+bool MathStructure::replace(const MathStructure &mfrom, const MathStructure &mto, bool once_only, bool exclude_function_arguments, bool replace_in_variables) {
 	if(b_protected) b_protected = false;
 	if(equals(mfrom, true, true)) {
 		set(mto);
 		return true;
+	}
+	if(replace_in_variables && m_type == STRUCT_VARIABLE && o_variable->isKnown()) {
+		if(((KnownVariable*) o_variable)->get().contains(mfrom, !exclude_function_arguments, true, false, true) > 0) {
+			MathStructure m(((KnownVariable*) o_variable)->get());
+			if(!m.isAborted() && m.replace(mfrom, mto, once_only, exclude_function_arguments, true)) {
+				if(!o_variable->isRegistered()) {
+					Variable *v = CALCULATOR->getActiveVariable(o_variable->referenceName());
+					if(v->isKnown() && ((KnownVariable*) v)->get().equals(m, true, true)) {
+						set(v);
+						return true;
+					}
+				}
+				KnownVariable *var = new KnownVariable("", o_variable->referenceName(), m);
+				set(var);
+				var->destroy();
+				return true;
+			}
+		}
 	}
 	if(mfrom.size() > 0 && mfrom.type() == m_type && SIZE > mfrom.size() && (mfrom.isAddition() || mfrom.isMultiplication() || mfrom.isLogicalAnd() || mfrom.isLogicalOr())) {
 		bool b = true;
@@ -2902,7 +2947,7 @@ bool MathStructure::replace(const MathStructure &mfrom, const MathStructure &mto
 			}
 			if(SIZE == 1) setToChild(1);
 			else if(SIZE == 0) clear();
-			else if(!once_only) replace(mfrom, mto, once_only, exclude_function_arguments);
+			else if(!once_only) replace(mfrom, mto, once_only, exclude_function_arguments, replace_in_variables);
 			if(mfrom.isAddition()) add(mto);
 			else if(mfrom.isMultiplication()) multiply(mto);
 			else if(mfrom.isLogicalAnd()) transform(STRUCT_LOGICAL_AND, mto);
@@ -2913,7 +2958,7 @@ bool MathStructure::replace(const MathStructure &mfrom, const MathStructure &mto
 	if(exclude_function_arguments && m_type == STRUCT_FUNCTION) return false;
 	bool b = false;
 	for(size_t i = 0; i < SIZE; i++) {
-		if(CHILD(i).replace(mfrom, mto, once_only, exclude_function_arguments)) {
+		if(CHILD(i).replace(mfrom, mto, once_only, exclude_function_arguments, replace_in_variables)) {
 			b = true;
 			CHILD_UPDATED(i);
 			if(once_only) return true;
@@ -3075,18 +3120,25 @@ const MathStructure &MathStructure::find_x_var() const {
 bool MathStructure::inParentheses() const {return b_parentheses;}
 void MathStructure::setInParentheses(bool b) {b_parentheses = b;}
 
-bool flattenMultiplication(MathStructure &mstruct) {
+bool flattenMultiplication(MathStructure &mstruct, bool recursive) {
 	bool retval = false;
-	for(size_t i = 0; i < mstruct.size();) {
-		if(mstruct[i].isMultiplication()) {
-			for(size_t i2 = 0; i2 < mstruct[i].size(); i2++) {
-				mstruct[i][i2].ref();
-				mstruct.insertChild_nocopy(&mstruct[i][i2], i + i2 + 2);
+	if(recursive) {
+		for(size_t i = 0; i < mstruct.size(); i++) {
+			if(flattenMultiplication(mstruct[i], true)) retval = true;
+		}
+	}
+	if(mstruct.isMultiplication()) {
+		for(size_t i = 0; i < mstruct.size();) {
+			if(mstruct[i].isMultiplication()) {
+				for(size_t i2 = 0; i2 < mstruct[i].size(); i2++) {
+					mstruct[i][i2].ref();
+					mstruct.insertChild_nocopy(&mstruct[i][i2], i + i2 + 2);
+				}
+				mstruct.delChild(i + 1);
+				retval = true;
+			} else {
+				i++;
 			}
-			mstruct.delChild(i + 1);
-			retval = true;
-		} else {
-			i++;
 		}
 	}
 	return retval;

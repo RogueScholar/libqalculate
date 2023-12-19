@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<QALCULATE version="3.20.0">
+<QALCULATE version="4.8.0">
   <category>
     <_title>Matrices &amp; Vectors</_title>
     <builtin_function name="vector">
@@ -14,7 +14,8 @@
     <builtin_function name="genvector">
       <_title>Generate Vector</_title>
       <_names>r:genvector</_names>
-      <_description>Returns a vector generated from a function with a variable (default x) running from min to max. The fourth argument is either the requested number of elements if the sixth argument is false (default) or the step between each value of the variable.</_description>
+      <example>$name(x^2, 1, 5) = [1  4  9  16  25]</example>
+      <_description>Returns a vector generated from a function with a variable (default x) running from min to max. The 4th argument is either the step between each value of the variable, if the 6th argument is 1 or if the value is 1 (default), negative, or not an integer and the 6th argument is -1 (default), or the number of elements.</_description>
       <argument index="1">
         <_title>Function</_title>
       </argument>
@@ -38,7 +39,7 @@
       <_title>Sort</_title>
       <_names>r:sort</_names>
       <_description>Returns a sorted vector.</_description>
-      <example>$name([6, 1, 4]) = [1, 4, 6]</example>
+      <example>$name([6  1  4]) = [1  4  6]</example>
       <argument index="1">
         <_title>Vector</_title>
       </argument>
@@ -50,7 +51,7 @@
       <_title>Rank</_title>
       <_names>r:rank</_names>
       <_description>Returns a vector with values of elements replaced with their mutual ranks.</_description>
-      <example>$name([6, 1, 4]) = [3, 1, 2]</example>
+      <example>$name([6  1  4]) = [3  1  2]</example>
       <argument index="1">
         <_title>Vector</_title>
       </argument>
@@ -249,9 +250,9 @@
         <_title>Column</_title>
       </argument>
     </builtin_function>
-    <builtin_function name="inverse">
+    <builtin_function name="inv">
       <_title>Matrix Inverse</_title>
-      <_names>r:inverse</_names>
+      <_names>r:inv,r:inverse</_names>
       <_description>Calculates the inverse of a matrix. The inverse is the matrix that multiplied by the original matrix equals the identity matrix (AB = BA = I).</_description>
       <argument index="1">
         <_title>Matrix</_title>
@@ -293,20 +294,9 @@
         <_title>Value</_title>
       </argument>
     </builtin_function>
-    <builtin_function name="hadamard">
-      <_title>Hadamard Product</_title>
-      <_names>r:hadamard</_names>
-      <_description>Mulitplies each separate element in matrix 1 with the corresponding element in matrix 2.</_description>
-      <argument index="1">
-        <_title>Matrix 1</_title>
-      </argument>
-      <argument index="2">
-        <_title>Matrix 2</_title>
-      </argument>
-    </builtin_function>
     <builtin_function name="rk">
       <_title>Matrix Rank</_title>
-      <_names>r:rk</_names>
+      <_names>ra:rk</_names>
       <argument index="1">
         <_title>Matrix</_title>
       </argument>
@@ -318,11 +308,31 @@
         <_title>Matrix</_title>
       </argument>
     </builtin_function>
+    <builtin_function name="horzcat">
+      <_title>Concatenate Horizontally</_title>
+      <names>r:horzcat</names>
+      <argument index="1">
+        <_title>Matrix 1</_title>
+      </argument>
+      <argument index="2">
+        <_title>Matrix 2</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="vertcat">
+      <_title>Concatenate Vertically</_title>
+      <names>r:vertcat</names>
+      <argument index="1">
+        <_title>Matrix 1</_title>
+      </argument>
+      <argument index="2">
+        <_title>Matrix 2</_title>
+      </argument>
+    </builtin_function>
     <builtin_function name="entrywise">
       <_title>Entrywise Function</_title>
       <_names>r:entrywise</_names>
       <_description>Calculates a new matrix or vector using each separate element in matrix/vector 1 and the corresponding (in the same row and column) elements in matrix/vector 2. An unlimited number of matrices/vectors can be specified, with each matrix/vector argument followed by the corresponding variable used in the function argument.</_description>
-      <example>$name(x / y, [4, 10, 12], x, [2, 2, 4], y) = [2, 5, 3]</example>
+      <example>$name(x / y, [4  10  12], x, [2  2  4], y) = [2  5  3]</example>
       <argument index="1">
         <_title>Function</_title>
       </argument>
@@ -354,9 +364,12 @@
     </builtin_function>
     <builtin_function name="times">
       <_title>Element-wise Multiplication</_title>
-      <_names>r:multiply,times</_names>
+      <_names>r:multiply,times,hadamard</_names>
       <argument index="1">
-        <_title>Factors</_title>
+        <_title>Factor 1</_title>
+      </argument>
+      <argument index="2">
+        <_title>Factor 2</_title>
       </argument>
     </builtin_function>
     <builtin_function name="rdivide">
@@ -383,7 +396,7 @@
       <_title>Cross Product</_title>
       <_names>r:cross</_names>
       <_description>Calculates the cross product of two 3-dimensional vectors.</_description>
-      <expression>[(element(\x,2)*element(\y,3))-(element(\x,3)*element(\y,2)),(element(\x,3)*element(\y,1))-(element(\x,1)*element(\y,3)),(element(\x,1)*element(\y,2))-(element(\x,2)*element(\y,1))]</expression>
+      <expression>((element(\x,2)*element(\y,3))-(element(\x,3)*element(\y,2)),(element(\x,3)*element(\y,1))-(element(\x,1)*element(\y,3)),(element(\x,1)*element(\y,2))-(element(\x,2)*element(\y,1)))</expression>
       <argument type="vector" index="1">
         <_title>Vector 1</_title>
         <condition>dimension(\x)==3</condition>
@@ -393,6 +406,16 @@
         <condition>dimension(\x)==3</condition>
       </argument>
     </function>
+    <builtin_function name="kron">
+      <_title>Kronecker Product</_title>
+      <_names>r:kron</_names>
+      <argument index="1">
+        <_title>Matrix 1</_title>
+      </argument>
+      <argument index="2">
+        <_title>Matrix 2</_title>
+      </argument>
+    </builtin_function>
   </category>
   <category>
     <_title>Combinatorics</_title>
@@ -461,29 +484,29 @@
     <function>
       <_title>Permutations (Variations)</_title>
       <_names>r:perm,variations</_names>
-      <expression>\x!/(\x-\y)!</expression>
+      <expression>if(\y>\x,0,\x!/(\x-\y)!)</expression>
       <_description>Returns the number of possible arrangements of an ordered list with a number of objects to choose from and a list size. If there are three objects (1, 2 and 3) that are put in a list with two positions, the alternatives are [1, 2], [2, 1], [1, 3], [3, 1], [2, 3] and [3, 2], and thus the number of permutations is 6.</_description>
       <argument type="integer" index="1">
         <_title>Objects</_title>
-        <min>1</min>
+        <min>0</min>
       </argument>
       <argument type="integer" index="2">
         <_title>Size</_title>
-        <min>1</min>
+        <min>0</min>
       </argument>
     </function>
     <function>
       <_title>Combinations</_title>
       <_names>r:comb</_names>
-      <expression>\x!/(\y!*(\x-\y)!)</expression>
+      <expression>if(\y>\x,0,\x!/(\y!*(\x-\y)!))</expression>
       <_description>Returns the number of possible arrangements of an unordered list with a number of objects to choose from and a list size. If there are three objects (1, 2 and 3) that are put in a list with place for two, the alternatives are [1, 2], [1, 3], and [2, 3], and thus the number of combinations is 3.</_description>
       <argument type="integer" index="1">
         <_title>Objects</_title>
-        <min>1</min>
+        <min>0</min>
       </argument>
       <argument type="integer" index="2">
         <_title>Size</_title>
-        <min>1</min>
+        <min>0</min>
       </argument>
     </function>
     <function>
@@ -553,6 +576,24 @@
           <_title>Denominator</_title>
         </argument>
       </builtin_function>
+      <builtin_function name="powmod">
+        <_title>Modular Exponentiation</_title>
+	<_description>Finds the modular inverse for negative exponents, and is otherwise equivalent to mod(a^b, c). For negative exponents the greatest common divisor of the numerator and the denominator must be 1.</_description>
+        <_names>r:powmod,power_mod</_names>
+        <argument index="1">
+          <_title>Numerator</_title>
+        </argument>
+	<argument index="2">
+          <_title>Exponent</_title>
+        </argument>
+        <argument index="3">
+          <_title>Denominator</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="parallel">
+        <_title>Parallel Sum</_title>
+        <_names>r:parallel</_names>
+      </builtin_function>
       <function>
         <_title>Integer Division</_title>
         <_names>r:div</_names>
@@ -572,15 +613,6 @@
         <expression>-\x</expression>
         <argument type="free" index="1">
           <_title>Value</_title>
-        </argument>
-      </function>
-      <function>
-        <_title>Reciprocal</_title>
-        <_names>r:inv</_names>
-        <expression>\x^(-1)</expression>
-        <argument type="free" index="1">
-          <_title>Value</_title>
-          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -679,24 +711,87 @@
         </argument>
       </builtin_function>
     </category>
+    <category>
+      <_title>Prime Numbers</_title>
+      <builtin_function name="nthprime">
+        <_title>Nth Prime Number</_title>
+        <_names>r:nthprime</_names>
+        <argument index="1">
+          <_title>Index (n)</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="primePi">
+        <_title>Prime Counting Function</_title>
+	<_description>Returns the number of prime numbers less than or equal to the specified number.</_description>
+        <_names>r:primePi,ou:prime&#x3C0;,o:prime_pi</_names>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="nextprime">
+        <_title>Next Prime Number</_title>
+	<_description>Returns the next prime number greater than or equal to the specified number.</_description>
+        <_names>r:nextprime</_names>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="prevprime">
+        <_title>Previous Prime Number</_title>
+	<_description>Returns the largest prime number smaller than or equal to the specified number.</_description>
+	<_description></_description>
+        <_names>r:prevprime</_names>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="isprime">
+        <_title>Is Prime Number</_title>
+        <_names>r:isprime</_names>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="primes">
+        <_title>Prime Numbers Less Than or Equal</_title>
+	<_description>Returns a vector containing all the prime numbers less than or equal to the specified number.</_description>
+        <_names>r:primes</_names>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+      </builtin_function>
+    </category>
     <builtin_function name="gcd">
       <_title>Greatest Common Divisor</_title>
       <_names>rc:gcd,c:GCD</_names>
       <argument index="1">
-        <_title>1st value</_title>
+        <_title>Value 1</_title>
       </argument>
       <argument index="2">
-        <_title>2nd value</_title>
+        <_title>Value 2</_title>
+      </argument>
+      <argument index="3">
+        <_title>Value 3</_title>
       </argument>
     </builtin_function>
     <builtin_function name="lcm">
       <_title>Least Common Multiple</_title>
       <_names>r:lcm</_names>
       <argument index="1">
-        <_title>1st value</_title>
+        <_title>Value 1</_title>
       </argument>
       <argument index="2">
-        <_title>2nd value</_title>
+        <_title>Value 2</_title>
+      </argument>
+      <argument index="3">
+        <_title>Value 3</_title>
+      </argument>
+    </builtin_function>
+    <builtin_function name="divisors">
+      <_title>Divisors</_title>
+      <_names>r:divisors</_names>
+      <argument index="1">
+        <_title>Value</_title>
       </argument>
     </builtin_function>
     <builtin_function name="bernoulli">
@@ -722,10 +817,10 @@
       <_title>Fibonacci Number</_title>
       <_names>r:fibonacci</_names>
       <_description>Returns the n-th term of the Fibonacci sequence.</_description>
-      <expression>(golden^\x−(1−golden)^\x)/sqrt(5)</expression>
-      <argument type="integer" index="1">
+      <subfunction precalculate="true">\x</subfunction>
+      <expression>if(isInteger(\1),(golden^\1−(1−golden)^\1)/sqrt(5),(golden^\x-cos(\x*pi*rad)*golden^(-\x))/sqrt(5))</expression>
+      <argument type="number" index="1">
         <_title>Index (n)</_title>
-        <min>0</min>
         <test>false</test>
       </argument>
     </function>
@@ -780,6 +875,25 @@
           <_title>Value</_title>
         </argument>
       </builtin_function>
+      <function>
+        <_title>Clip</_title>
+        <_names>r:clip</_names>
+        <_description>Clips or limits the input value to be between the lower and upper bounds.</_description>
+        <expression>min(max(\x, \Y{-infinity}), \Z{infinity})</expression>
+        <condition>\y&lt;=\z</condition>
+        <argument type="free" index="1">
+          <_title>Value</_title>
+          <handle_vector>true</handle_vector>
+        </argument>
+        <argument type="number" index="2">
+          <_title>Lower bound</_title>
+          <complex_allowed>false</complex_allowed>
+        </argument>
+        <argument type="number" index="3">
+          <_title>Upper bound</_title>
+          <complex_allowed>false</complex_allowed>
+        </argument>
+      </function>
     </category>
     <category>
       <_title>Number Bases</_title>
@@ -841,6 +955,17 @@
         <_description>Returns a value from an expression in bijective base-26. Conversion in the opposite direction is also supported.</_description>
         <argument index="1">
           <_title>Bijective base-26 number</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="bcd">
+        <_title>Binary-Coded Decimal (BCD)</_title>
+        <_names>r:bcd</_names>
+        <argument index="1">
+          <_title>Binary-coded decimal number</_title>
+        </argument>
+	<argument index="2">
+	  <!-- Packed binary-coded decimal -->
+          <_title>Packed</_title>
         </argument>
       </builtin_function>
     </category>
@@ -939,7 +1064,7 @@
     </builtin_function>
     <function>
       <_title>Kronecker Delta</_title>
-      <_names>r:kronecker</_names>
+      <_names>r:kronecker,kronecker_delta</_names>
       <_description>Returns 0 if i != j and 1 if i = j.</_description>
       <expression>\x=\Y{0}</expression>
       <argument type="number" index="1">
@@ -1395,6 +1520,9 @@
       <argument index="3">
         <_title>Number of exponent bits</_title>
       </argument>
+      <argument index="4">
+        <_title>Position of sign bit</_title>
+      </argument>
     </builtin_function>
     <builtin_function name="floatBits">
       <_title>IEEE 754 Floating-Point Bits</_title>
@@ -1408,6 +1536,9 @@
       </argument>
       <argument index="3">
         <_title>Number of exponent bits</_title>
+      </argument>
+      <argument index="4">
+        <_title>Position of sign bit</_title>
       </argument>
     </builtin_function>
     <builtin_function name="floatError">
@@ -1423,6 +1554,9 @@
       <argument index="3">
         <_title>Number of exponent bits</_title>
       </argument>
+      <argument index="4">
+        <_title>Position of sign bit</_title>
+      </argument>
     </builtin_function>
     <builtin_function name="floatParts">
       <_title>IEEE 754 Floating-Point Components</_title>
@@ -1437,6 +1571,9 @@
       <argument index="3">
         <_title>Number of exponent bits</_title>
       </argument>
+      <argument index="4">
+        <_title>Position of sign bit</_title>
+      </argument>
     </builtin_function>
     <builtin_function name="floatValue">
       <_title>IEEE 754 Floating-Point Value</_title>
@@ -1450,6 +1587,9 @@
       </argument>
       <argument index="3">
         <_title>Number of exponent bits</_title>
+      </argument>
+      <argument index="4">
+        <_title>Position of sign bit</_title>
       </argument>
     </builtin_function>
     <builtin_function name="roman">
@@ -1478,6 +1618,45 @@
       </argument>
     </builtin_function>
     <function>
+      <_title>Convert to/from Q Format (Fixed Point)</_title>
+      <_names>r:qFormat</_names>
+      <expression>if((\A{0}=0&amp;&amp;isInteger(\x)),if(\Z{0}=0,\x/2^\y,\x/2^\z),if([\Z{0}==0,abs(\x)&gt;2^\y],[round(\x*2^\y),sgn(\x)*2^(\y+\z)+warning("overflow")],round(\x*2^\z)))</expression>
+      <condition>\z=0||abs(\x)&lt;=2^(\y+\z)</condition>
+      <_description>Converts to or from fixed point number. Corresponds to Qm.n format where m is the second argument and n is the third argument. m does not include the sign bit. If the value is an integer, and the fourth argument is false, the value is converted from fixed point, otherwise to.</_description>
+      <argument type="number" index="1">
+        <_title>Value</_title>
+        <handle_vector>true</handle_vector>
+      </argument>
+      <argument type="integer" index="2">
+        <_title>Bits (integer part)</_title>
+        <min>0</min>
+      </argument>
+      <argument type="integer" index="3">
+        <_title>Bits (fraction part)</_title>
+        <min>0</min>
+      </argument>
+      <argument type="boolean" index="4">
+        <_title>Always convert to</_title>
+      </argument>
+    </function>
+    <function>
+      <_title>Q Format Error (Fixed Point)</_title>
+      <_names>r:qError</_names>
+      <expression>abs(\x-qFormat(qNum(\x,\y,\Z{0}),\y,\z))</expression>
+      <argument type="number" index="1">
+        <_title>Value</_title>
+        <handle_vector>true</handle_vector>
+      </argument>
+      <argument type="integer" index="2">
+        <_title>Bits (integer part)</_title>
+        <min>0</min>
+      </argument>
+      <argument type="integer" index="3">
+        <_title>Bits (fraction part)</_title>
+        <min>0</min>
+      </argument>
+    </function>
+    <function>
       <_title>Body Mass Index (BMI)</_title>
       <_names>-r:bmi</_names>
       <_description>Calculates the Body Mass Index. The resulting BMI-value is sometimes interpreted as follows (although varies with age, sex, etc.):&#10;&#10;Underweight &lt; 18.5&#10;Normal weight 18.5-25&#10;Overweight 25-30&#10;Obesity &gt; 30&#10;&#10;Note that you must use units for weight (ex. 59kg) and length (ex. 174cm).</_description>
@@ -1497,7 +1676,7 @@
       <_names>r:raid</_names>
       <_description>Calculates RAID array disk capacity usable for data storage. If the combination of number of disks and RAID level is invalid, zero is returned. Supported RAID levels are 0, 1, 2, 3, 4, 5, 6, 1+0/10, 0+1, 5+0/50, 6+0/60, and 1+6. Stripes are optional and only used for nested RAID levels (except 1+0).</_description>
       <example>$name(4, 12, 5) = 12</example>
-      <expression>if([\x="0",\x="1"||\x="1E",\x="2",\x="3"||\x="4"||\x="5",\x="6",\x="10"||\x="1+0",\x="01"||\x="0+1",\x="1+6",\x="50"||\x="5+0",\x="60"||\x="6+0"],[\z*\y,if(\z&gt;=2,\y,0),if(\z&gt;=3,(\z-log(\z+1,2))*\y,0),if(\z&gt;=3,(\z-1)*\y,0),if(\z&gt;=4,(\z-2)*\y,0),if(\z&gt;=4&amp;&amp;even(\z),\z/2*\y,0),if(\z&gt;=4,\z/\A{2}*\y,0),if(\z&gt;=8,(\A-2)*\y,0),if(\z&gt;=6,(\z-\A)*\y,0),if(\z&gt;=8,(\z-\A*2)*\y,0)],error("Unknown RAID level"),1)</expression>
+      <expression>if((\x="0",\x="1"||\x="1E",\x="2",\x="3"||\x="4"||\x="5",\x="6",\x="10"||\x="1+0",\x="01"||\x="0+1",\x="1+6",\x="50"||\x="5+0",\x="60"||\x="6+0"),(\z*\y,if(\z&gt;=2,\y,0),if(\z&gt;=3,(\z-log(\z+1,2))*\y,0),if(\z&gt;=3,(\z-1)*\y,0),if(\z&gt;=4,(\z-2)*\y,0),if(\z&gt;=4&amp;&amp;even(\z),\z/2*\y,0),if(\z&gt;=4,\z/\A{2}*\y,0),if(\z&gt;=8,(\A-2)*\y,0),if(\z&gt;=6,(\z-\A)*\y,0),if(\z&gt;=8,(\z-\A*2)*\y,0)),error("Unknown RAID level"),1)</expression>
       <argument type="text" index="1">
         <_title>RAID level</_title>
       </argument>
@@ -1518,10 +1697,10 @@
       <_names>r:ramlatency</_names>
       <example>$name(3600, 18) = 10 ns</example>
       <expression>(\A{2}*\y+(\Z{1}-1))/if(isNumber(\x),\x*MHz,\x)</expression>
-      <argument type="free" index="2">
+      <argument type="free" index="1">
         <_title>Data Rate</_title>
       </argument>
-      <argument type="number" index="1">
+      <argument type="number" index="2">
         <_title>CAS Latency</_title>
         <min include_equals="false">0</min>
       </argument>
@@ -1529,7 +1708,7 @@
         <_title>Word</_title>
         <min>1</min>
       </argument>
-      <argument type="integer" index="3">
+      <argument type="integer" index="4">
         <_title>Transfers per Clock Cycle</_title>
         <min>1</min>
       </argument>
@@ -1539,7 +1718,7 @@
       <_names>r:dof</_names>
       <_description>Returns the estimated distance between the nearest and the farthest objects that are in acceptably sharp focus in a photo. Enter focal length (e.g. 50 mm) and distance (e.g. 5 m) with units, and f-stop without unit (2.8, 4.0, 5.6, etc.). Specify either a cicle of confusion diameter limit (e.g. 0.05 mm) or the sensor size of the camera - 0="35mm", 1="APS-H", 2="APS-CN" (Nikon, Pentax, Sony), 3="APS-C" (Canon), 4="4/3" (Four Thirds System), or 5='1"' (Nikon 1, Sony RX10, Sony RX100) - for a diameter based on d/1500.</_description>
       <example>$name(50 mm, 2.8, 2 m, "APS-C") ≈ 161 mm</example>
-      <expression approximate="true">2*\z^2*\y*if([\A{0}=0||\a="35mm"||\a="35 mm"||\a=35mm,\a=1||\a="APS-H",\a=2||\a="APC-CN",\a=3||\a="APS-C",\a=4||\a="3/4"||\a=3/4,\a=5||\a='1"'||\a="1"||\a=1in||\a=1],[0.029mm,0.023mm,0.019mm,0.018mm,0.015mm,0.011mm],\a,1))/\x^2</expression>
+      <expression approximate="true">2*\z^2*\y*if((\A{0}=0||\a="35mm"||\a="35 mm"||\a=35mm,\a=1||\a="APS-H",\a=2||\a="APC-CN",\a=3||\a="APS-C",\a=4||\a="3/4"||\a=3/4,\a=5||\a='1"'||\a="1"||\a=1in||\a=1),(0.029mm,0.023mm,0.019mm,0.018mm,0.015mm,0.011mm),\a,1))/\x^2</expression>
       <argument type="free" index="1">
         <_title>Focal Length</_title>
       </argument>
@@ -1558,7 +1737,7 @@
       <_title>American Wire Gauge Cross-Section Area</_title>
       <_names>r:awg</_names>
       <_description>For gauges larger than 0000 (4/0), please use negative values (00=-1, 000=-2, 0000=-3, 00000=-4, etc). For conversion to AWG, use an equation (e.g. awg(x) = 20 mm^2).</_description>
-      <expression>25*8464^((36-if([\x="0000"||\x="4/0",\x="000"||\x="3/0",\x="00"||\x="2/0",\x="1/0"],[-3,-2,-1,0],dec(\x),1))/39)*cmil</expression>
+      <expression>25*8464^((36-if((\x="0000"||\x="4/0",\x="000"||\x="3/0",\x="00"||\x="2/0",\x="1/0"),(-3,-2,-1,0),dec(\x),1))/39)*cmil</expression>
       <argument type="text" index="1">
         <title>AWG</title>
       </argument>
@@ -1567,7 +1746,7 @@
       <_title>American Wire Gauge Diameter</_title>
       <_names>r:awgd</_names>
       <_description>For gauges larger than 0000 (4/0), please use negative values (00=-1, 000=-2, 0000=-3, 00000=-4, etc). For conversion to AWG, use an equation (e.g. awgd(x) = 5 mm).</_description>
-      <expression>1.27E-4*92^((36-if([\x="0000"||\x="4/0",\x="000"||\x="3/0",\x="00"||\x="2/0",\x="1/0"],[-3,-2,-1,0],dec(\x),1))/39)*m</expression>
+      <expression>1.27E-4*92^((36-if((\x="0000"||\x="4/0",\x="000"||\x="3/0",\x="00"||\x="2/0",\x="1/0"),(-3,-2,-1,0),dec(\x),1))/39)*m</expression>
       <argument type="text" index="1">
         <title>AWG</title>
       </argument>
@@ -1579,7 +1758,7 @@
       <example>$name("A") = 0.234 in; $name(4.4 mm) = 17</example>
       <subfunction precalculate="true">if(isNumber(\x),\x,\x/in)</subfunction>
       <subfunction precalculate="true">[0.413,0.404,0.397,0.386,0.377,0.368,0.358,0.348,0.339,0.332,0.323,0.316,0.302,0.295,0.290,0.281,0.277,0.272,0.266,0.261,0.257,0.250,0.246,0.242,0.238,0.234,0.228,0.221,0.213,0.209,0.2055,0.204,0.201,0.199,0.196,0.1935,0.191,0.189,0.185,0.182,0.180,0.177,0.173,0.1695,0.166,0.161,0.159,0.157,0.154,0.152,0.1495,0.147,0.144,0.1405,0.136,0.1285,0.120,0.116,0.113,0.111,0.110,0.1065,0.104,0.1015,0.0995,0.098,0.096,0.0935,0.089,0.086,0.082,0.081,0.0785,0.076,0.073,0.070,0.067,0.0635,0.0595,0.055,0.052,0.0465,0.043,0.042,0.041,0.040,0.039,0.038,0.037,0.036,0.035,0.033,0.032,0.031,0.0292,0.028,0.026,0.025,0.024,0.0225,0.021,0.020,0.018,0.016,0.0145,0.0135,0.013,0.0125,0.012,0.0115,0.011,0.0105,0.010,0.0095,0.0091,0.0087,0.0083,0.0079,0.0075,0.0071,0.0067,0.0063,0.0059,0.0055,0.0051,0.0047,0.0043,0.0039,0.0035,0.0031,0.0027,0.0023,0.0019]</subfunction>
-      <expression>if([isInteger(\x),isNumber(\1),len(\x)=1&amp;&amp;code(\x)&lt;91&amp;&amp;code(\x)&gt;64],[if(\x&gt;107||\x&lt;1,undefined,element(\2,\x+26)*in),if(sum(\1&gt;(element(\2,"i")+element(\2,"i"+1))/2,1,132,"i")&gt;106,char(sum(\1&gt;(element(\2,"i")+element(\2,"i"+1))/2,1,132,"i")-42),107-sum(\1&gt;(element(\2,"i")+element(\2,"i"+1))/2,1,132,"i")),element(\2,26-(code(\x)-65))*in],undefined, 1)</expression>
+      <expression>if((isInteger(\x),isNumber(\1),len(\x)=1&amp;&amp;code(\x)&lt;91&amp;&amp;code(\x)&gt;64),(if(\x&gt;107||\x&lt;1,undefined,element(\2,\x+26)*in),if(sum(\1&gt;(element(\2,"i")+element(\2,"i"+1))/2,1,132,"i")&gt;106,char(sum(\1&gt;(element(\2,"i")+element(\2,"i"+1))/2,1,132,"i")-42),107-sum(\1&gt;(element(\2,"i")+element(\2,"i"+1))/2,1,132,"i")),element(\2,26-(code(\x)-65))*in),undefined, 1)</expression>
       <argument index="1">
         <title>Diameter or Gauge</title>
       </argument>
@@ -1708,6 +1887,7 @@
         <expression>dimension(\x)</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
     </category>
@@ -1740,8 +1920,8 @@
       <builtin_function name="randpoisson">
         <_title>Poisson Distributed Random Number</_title>
         <_names>r:randpoisson</_names>
-        <argument index="1">
-          <_title>Mean</_title>
+	<argument index="1">
+          <_title>Rate (λ)</_title>
         </argument>
         <argument index="2">
           <_title>Number of values</_title>
@@ -1750,7 +1930,7 @@
       <function>
         <_title>Uniformly Distributed Random Number</_title>
         <_names>r:randuniform</_names>
-        <expression>\x*rand(0,\Z{1})+(\y-\x)</expression>
+        <expression>\x+rand(0,\Z{1})*(\y-\x)</expression>
         <condition>\x&lt;=\y</condition>
         <argument type="number" index="1">
           <_title>Lower limit</_title>
@@ -1817,6 +1997,7 @@
         <expression>total(\x)/dimension(\x)</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1825,6 +2006,7 @@
         <expression>dimension(\x)/csum(1,-1,0,"y"+1/"x","x","y",\x)</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1833,6 +2015,7 @@
         <expression>abs(csum(1,-1,1,"y"*"x","x","y",\x)^(1/dimension(\x)))</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1856,6 +2039,7 @@
         <expression>(element(\1,\2-\3)*\3+element(\1,\3+1)*\3+total(limits(\1,\3+1,\2-\3)))/\2</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
         <argument type="free" index="2">
           <_title>Winsorized percentage (at each end)</_title>
@@ -1881,6 +2065,7 @@
         <expression>abs((csum(1,-1,0,"y"+"x"^2,"x","y",\x)/dimension(\x))^(1/2))</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
     </category>
@@ -1892,6 +2077,7 @@
         <expression>abs(varp(\x)^(1/2))</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1900,6 +2086,7 @@
         <expression>abs(var(\x)^(1/2))</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1909,6 +2096,7 @@
         <expression>csum(1,-1,0,"y"+("x"-\1)^2,"x","y",\x)/dimension(\x)</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1918,6 +2106,7 @@
         <expression>csum(1,-1,0,"y"+("x"-\1)^2,"x","y",\x)/(dimension(\x)-1)</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1926,6 +2115,7 @@
         <expression>abs((var(\x)/dimension(\x))^(1/2))</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1935,6 +2125,7 @@
         <expression>csum(1,-1,0,"y"+abs("x"-\1),"x","y",\x)/dimension(\x)</expression>
         <argument type="vector" index="1">
           <_title>Data</_title>
+          <handle_vector>true</handle_vector>
         </argument>
       </function>
       <function>
@@ -1973,8 +2164,8 @@
         <_names>r:linearfit</_names>
         <_description>Returns the linear function, for a set of x and y values, estimated using simple linear regression with a single explanatory variable using the ordinary least squares method. If the vector of y values is empty, the first argument is used for sequential y values (with x values 1, 2, ..., n). It is possible to pass both x and y values in a two column matrix as the first argument.</_description>
         <condition>dimension(\x)=dimension(\y) || dimension(\y)=0</condition>
-        <subfunction precalculate="true">if([dimension(\Y{[]})>0,rows(\x)>1&amp;&amp;columns(\x)=2],[\x,column(\x,1)],genvector("i",1,dimension(\x),1,"i",1))</subfunction>
-        <subfunction precalculate="true">if([dimension(\y)>0,rows(\x)>1&amp;&amp;columns(\x)=2],[\y,column(\x,2)],\x)</subfunction>
+        <subfunction precalculate="true">if((dimension(\Y{[]})>0,rows(\x)>1&amp;&amp;columns(\x)=2),(\x,column(\x,1)),genvector("i",1,dimension(\x),1,"i",1))</subfunction>
+        <subfunction precalculate="true">if((dimension(\y)>0,rows(\x)>1&amp;&amp;columns(\x)=2),(\y,column(\x,2)),\x)</subfunction>
         <expression>((covar(\1,\2)/varp(\1))*(x-mean(\1)))+mean(\2)</expression>
         <argument type="vector" index="1">
           <_title>X Values</_title>
@@ -1988,9 +2179,9 @@
         <_names>r:quadraticfit</_names>
         <_description>Fit data to a polynomial of degree 2, using least-squares method. If the vector of y values is empty, the first argument is used for sequential y values (with x values 1, 2, ..., n). It is possible to pass both x and y values in a two column matrix as the first argument.</_description>
         <condition>dimension(\x)=dimension(\y) || dimension(\y)=0</condition>
-        <subfunction precalculate="true">if([dimension(\Y{[]})>0,rows(\x)>1&amp;&amp;columns(\x)=2],[\x,column(\x,1)],genvector("i",1,dimension(\x),1,"i",1))</subfunction>
-        <subfunction precalculate="true">if([dimension(\y)>0,rows(\x)>1&amp;&amp;columns(\x)=2],[\y,column(\x,2)],\x)</subfunction>
-        <subfunction precalculate="true">multisolve(["a"*total(\1.^4)+"b"*total(\1.^3)+"c"*total(\1.^2)=total((\1.^2).*\2),"a"*total(\1.^3)+"b"*total(\1.^2)+"c"*total(\1)=total(\1.*\2),"a"*total(\1.^2)+"b"*total(\1)+"c"*dimension(\1)=total(\2)],["a","b","c"])</subfunction>
+        <subfunction precalculate="true">if((dimension(\Y{[]})>0,rows(\x)>1&amp;&amp;columns(\x)=2),(\x,column(\x,1)),genvector("i",1,dimension(\x),1,"i",1))</subfunction>
+        <subfunction precalculate="true">if((dimension(\y)>0,rows(\x)>1&amp;&amp;columns(\x)=2),(\y,column(\x,2)),\x)</subfunction>
+        <subfunction precalculate="true">multisolve(("a"*total(\1.^4)+"b"*total(\1.^3)+"c"*total(\1.^2)=total((\1.^2).*\2),"a"*total(\1.^3)+"b"*total(\1.^2)+"c"*total(\1)=total(\1.*\2),"a"*total(\1.^2)+"b"*total(\1)+"c"*dimension(\1)=total(\2)),("a","b","c"))</subfunction>
         <expression>element(\3,1)*x^2+element(\3,2)*x+element(\3,3)</expression>
         <argument type="vector" index="1">
           <_title>X Values</_title>
@@ -2003,10 +2194,10 @@
         <_title>Cubic Fit</_title>
         <_names>r:cubicfit</_names>
         <_description>Fit data to a polynomial of degree 3, using least-squares method. If the vector of y values is empty, the first argument is used for sequential y values (with x values 1, 2, ..., n). It is possible to pass both x and y values in a two column matrix as the first argument.</_description>
-        <condition>dimension(\x)=dimension(\y)</condition>
-        <subfunction precalculate="true">if([dimension(\Y{[]})>0,rows(\x)>1&amp;&amp;columns(\x)=2],[\x,column(\x,1)],genvector("i",1,dimension(\x),1,"i",1))</subfunction>
-        <subfunction precalculate="true">if([dimension(\y)>0,rows(\x)>1&amp;&amp;columns(\x)=2],[\y,column(\x,2)],\x)</subfunction>
-        <subfunction precalculate="true">multisolve(["a"*total(\1.^6)+"b"*total(\1.^5)+"c"*total(\1.^4)+"d"*total(\1.^3)=total((\1.^3).*\2),"a"*total(\1.^5)+"b"*total(\1.^4)+"c"*total(\1.^3)+"d"*total(\1.^2)=total((\1.^2).*\2),"a"*total(\1.^4)+"b"*total(\1.^3)+"c"*total(\1.^2)+"d"*total(\1)=total(\1.*\2),"a"*total(\1.^3)+"b"*total(\1.^2)+"c"*total(\1)+"d"*dimension(\1)=total(\2)],["a","b","c","d"])</subfunction>
+        <condition>dimension(\x)=dimension(\y) || dimension(\y)=0</condition>
+        <subfunction precalculate="true">if((dimension(\Y{[]})>0,rows(\x)>1&amp;&amp;columns(\x)=2),(\x,column(\x,1)),genvector("i",1,dimension(\x),1,"i",1))</subfunction>
+        <subfunction precalculate="true">if((dimension(\y)>0,rows(\x)>1&amp;&amp;columns(\x)=2),(\y,column(\x,2)),\x)</subfunction>
+        <subfunction precalculate="true">multisolve(("a"*total(\1.^6)+"b"*total(\1.^5)+"c"*total(\1.^4)+"d"*total(\1.^3)=total((\1.^3).*\2),"a"*total(\1.^5)+"b"*total(\1.^4)+"c"*total(\1.^3)+"d"*total(\1.^2)=total((\1.^2).*\2),"a"*total(\1.^4)+"b"*total(\1.^3)+"c"*total(\1.^2)+"d"*total(\1)=total(\1.*\2),"a"*total(\1.^3)+"b"*total(\1.^2)+"c"*total(\1)+"d"*dimension(\1)=total(\2)),("a","b","c","d"))</subfunction>
         <expression>element(\3,1)*x^3+element(\3,2)*x^2+element(\3,3)*x+element(\3,4)</expression>
         <argument type="vector" index="1">
           <_title>X Values</_title>
@@ -2307,7 +2498,7 @@
         <_title>Inverse of Chi-Square Cumulative Distribution</_title>
         <_names>r:chisqdistinv</_names>
         <subfunction precalculate="true">(probit(\x)+sqrt(2*\y-1)^2)/2</subfunction>
-        <expression>if([\x=0,\x=1],[0,plus_infinity],newtonsolve(1-igamma(\y/2,"x"/2)/gamma(\y/2)=\x,if(\1&lt;=0,1e-6,\1),"x"))</expression>
+        <expression>if((\x=0,\x=1),(0,plus_infinity),newtonsolve(1-igamma(\y/2,"x"/2)/gamma(\y/2)=\x,if(\1&lt;=0,1e-6,\1),"x"))</expression>
         <argument type="number" index="1">
           <_title>P</_title>
           <min include_equals="true">0</min>
@@ -2399,7 +2590,7 @@
         <_title>Inverse Cumulative Student's t-distribution</_title>
         <_names>r:tdistinv</_names>
         <subfunction precalculate="true">betaincinv(if(\x&lt;0.5,2*\x,2*(1-\x)),\y/2,1/2)</subfunction>
-        <expression>if([\x=0,\x=1,\x&lt;0.5],[minus_infinity,plus_infinity,-sqrt((\y-\1*\y)/\1)],sqrt((\y-\1*\y)/\1))</expression>
+        <expression>if((\x=0,\x=1,\x&lt;0.5),(minus_infinity,plus_infinity,-sqrt((\y-\1*\y)/\1)),sqrt((\y-\1*\y)/\1))</expression>
         <argument type="number" index="1">
           <_title>P</_title>
           <min include_equals="true">0</min>
@@ -2689,7 +2880,7 @@
       <_names>r:daysInMonth</_names>
       <subfunction precalculate="true">month(\X{today})</subfunction>
       <subfunction precalculate="true">year(\x)</subfunction>
-      <expression>if([\1=2,\1=4||\1=6||\1=9||\1=11],[if(\2%4=0&amp;&amp;(\2%100!=0||\2%400==0),29,28),30],31)</expression>
+      <expression>if((\1=2,\1=4||\1=6||\1=9||\1=11),(if(\2%4=0&amp;&amp;(\2%100!=0||\2%400==0),29,28),30),31)</expression>
       <argument type="date" index="1">
         <_title>Date</_title>
       </argument>
@@ -2697,6 +2888,69 @@
   </category>
   <category>
     <_title>Utilities</_title>
+      <category>
+      <_title>Intervals &amp; Uncertainties</_title>
+      <builtin_function name="interval">
+        <_title>Interval</_title>
+        <_names>r:interval</_names>
+	<_description>Returns a closed interval with the specified endpoints.</_description>
+        <argument index="1">
+          <_title>Lower endpoint</_title>
+        </argument>
+        <argument index="2">
+          <_title>Upper endpoint</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="uncertainty">
+        <_title>Uncertainty</_title>
+        <_names>r:uncertainty</_names>
+	<_description>Specifies the absolute or relative (default) uncertainty/error of a value.</_description>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+        <argument index="2">
+          <_title>Uncertainty</_title>
+        </argument>
+        <argument index="3">
+          <_title>Uncertainty is relative</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="lowerEndpoint">
+        <_title>Lower Endpoint (interval)</_title>
+        <_names>r:lowerEndpoint</_names>
+	<_description>Returns the lower endpoint of a numerical interval.</_description>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="upperEndpoint">
+        <_title>Upper Endpoint (interval)</_title>
+        <_names>r:upperEndpoint</_names>
+	<_description>Returns the upper endpoint of a numerical interval.</_description>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="midpoint">
+        <_title>Midpoint (interval)</_title>
+        <_names>r:midpoint,valuePart</_names>
+	<_description>Returns the midpoint between the endpoints of a numerical interval, or the value part of a value with uncertainty/error.</_description>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+      </builtin_function>
+      <builtin_function name="errorPart">
+        <_title>Get Uncertainty</_title>
+        <_names>r:errorPart</_names>
+	<_description>Returns the absolute (default) or relative uncertainty/error of a numerical value.</_description>
+        <argument index="1">
+          <_title>Value</_title>
+        </argument>
+        <argument index="2">
+          <_title>Uncertainty is relative</_title>
+        </argument>
+      </builtin_function>
+    </category>
     <builtin_function name="plot">
       <_title>Plot Functions and Vectors</_title>
       <_names>r:plot</_names>
@@ -2710,19 +2964,8 @@
         <_title>Maximum x value</_title>
       </argument>
       <argument index="4">
-        <_title>Number of samples / Step size</_title>
+        <_title>Options</_title>
       </argument>
-      <argument index="5">
-        <_title>X variable</_title>
-      </argument>
-      <argument index="6">
-        <_title>Use step size</_title>
-      </argument>
-      <argument index="7">
-        <_title>Persistent</_title>
-      </argument>
-      <_description>Plots one or more expressions or vectors. Use a vector for the first argument to plot multiple series. Only the first argument is used for vector series. It is also possible to plot a matrix where each row is a pair of x and y values.</_description>
-      <example>$name([x^2, 2x, [0,1,4,8,16]], 0, 4).</example>
     </builtin_function>
     <builtin_function name="code">
       <_title>Unicode Value</_title>
@@ -2844,10 +3087,10 @@
         <_title>Function</_title>
       </argument>
       <argument index="5">
-        <_title>Value variable</_title>
+        <_title>Element variable</_title>
       </argument>
       <argument index="6">
-        <_title>Element variable</_title>
+        <_title>Value variable</_title>
       </argument>
       <argument index="7">
         <_title>Vector</_title>
@@ -3002,29 +3245,6 @@
         <_title>Value</_title>
       </argument>
     </builtin_function>
-    <builtin_function name="interval">
-      <_title>Interval</_title>
-      <_names>r:interval</_names>
-      <argument index="1">
-        <_title>Lower endpoint</_title>
-      </argument>
-      <argument index="2">
-        <_title>Upper endpoint</_title>
-      </argument>
-    </builtin_function>
-    <builtin_function name="uncertainty">
-      <_title>Uncertainty</_title>
-      <_names>r:uncertainty</_names>
-      <argument index="1">
-        <_title>Value</_title>
-      </argument>
-      <argument index="2">
-        <_title>Uncertainty</_title>
-      </argument>
-      <argument index="3">
-        <_title>Uncertainty is relative</_title>
-      </argument>
-    </builtin_function>
     <builtin_function name="command">
       <_title>External Command</_title>
       <_names>r:command</_names>
@@ -3041,7 +3261,7 @@
     <builtin_function name="for">
       <_title>For...Do</_title>
       <_names>r:for</_names>
-      <example>$name(1, x, x &lt; 10, x + 1, 2, y * x, y) = 72 576</example>
+      <example>$name(1, x, x &lt; 10, x + 1, 2, y * x, y) = 725 760</example>
       <argument index="1">
         <_title>Initial value of counter</_title>
       </argument>
@@ -3875,7 +4095,7 @@
     </function>
     <function>
       <_title>Present Value</_title>
-      <_names>r:pv</_names>
+      <_names>ra:pv</_names>
       <_description>Returns the present value of an investment.&#10;&#10;If type = 1 then the payment is made at the beginning of the period. If type = 0 (or omitted) it is made at the end of each period.</_description>
       <expression>(-\A{0}-\z*(1+\x*\B{0})*(((1+\x)^\y-1)/\x))/((1+\x)^\y)</expression>
       <argument type="free" index="1">
@@ -4009,6 +4229,33 @@
       </argument>
     </function>
     <function>
+      <_title>Rate of investment</_title>
+      <_names>r:rate</_names>
+      <_description>Calculates the rate of return. &#10;&#10;If type = 1 then the payment is made at the beginning of the period. If type = 0 (or omitted) it is made at the end of each period.&#10;&#10;Note that the optional guess is needed because there can be more than one valid result. It defaults to 10%.</_description>
+      <example>$name(10, -1500, 10000) ≈ 0.0814</example>
+      <subfunction precalculate="true">newtonsolve(pmt("rate",\x,\z,\A{0},\B{0})=\y,\C{0.1},"rate",0,20)</subfunction>
+      <expression>if(isNumber(\1),\1,undefined)</expression>
+      <argument type="number" index="1">
+        <_title>Number of periods</_title>
+        <min include_equals="false">0</min>
+      </argument>
+      <argument type="free" index="2">
+        <_title>Payment made each period</_title>
+      </argument>
+      <argument type="free" index="3">
+        <_title>Present value</_title>
+      </argument>
+      <argument type="free" index="4">
+        <_title>Future value</_title>
+      </argument>
+      <argument type="boolean" index="5">
+        <_title>Type</_title>
+      </argument>
+      <argument type="number" index="6">
+        <_title>Guess</_title>
+      </argument>
+    </function>
+    <function>
       <_title>Periods of an investment</_title>
       <_names>r:nper</_names>
       <_description>Calculates number of periods of an investment based on periodic constant payments and a constant interest rate.&#10;&#10;Type defines the due date. 1 for payment at the beginning of a period and 0 (default) for payment at the end of a period.</_description>
@@ -4084,7 +4331,7 @@
     </function>
     <function>
       <_title>Future Value</_title>
-      <_names>r:fv</_names>
+      <_names>ra:fv,a:FV</_names>
       <_description>Computes the future value of an investment. This is based on periodic, constant payments and a constant interest rate.&#10;&#10;If type = 1 then the payment is made at the beginning of the period. If type = 0 (or omitted) it is made at the end of each period.</_description>
       <expression>-(\A{0}*((1+\x)^\y)+\z*(1+\x*\B{0})*(((1+\x)^\y-1)/\x))</expression>
       <argument type="free" index="1">

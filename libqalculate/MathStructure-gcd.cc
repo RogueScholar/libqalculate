@@ -210,7 +210,7 @@ bool heur_gcd(const MathStructure &m1, const MathStructure &m2, MathStructure &m
 
 	if(m1.isNumber() && m2.isNumber()) {
 		mgcd = m1;
-		if(!mgcd.number().gcd(m2.number())) mgcd.set(1, 1, 0);
+		if(!m1.isInteger() || !m2.isInteger() || !mgcd.number().gcd(m2.number())) mgcd.set(1, 1, 0);
 		if(ca) {
 			*ca = m1;
 			ca->number() /= mgcd.number();
@@ -298,6 +298,7 @@ bool heur_gcd(const MathStructure &m1, const MathStructure &m2, MathStructure &m
 bool MathStructure::lcm(const MathStructure &m1, const MathStructure &m2, MathStructure &mlcm, const EvaluationOptions &eo, bool check_args) {
 	if(m1.isNumber() && m2.isNumber()) {
 		mlcm = m1;
+		if(!mlcm.isInteger() || !m2.isInteger()) return mlcm.number().multiply(m2.number());
 		return mlcm.number().lcm(m2.number());
 	}
 	if(check_args && (!m1.isRationalPolynomial() || !m2.isRationalPolynomial())) {
@@ -335,7 +336,7 @@ bool MathStructure::gcd(const MathStructure &m1, const MathStructure &m2, MathSt
 	}
 	if(m1.isNumber() && m2.isNumber()) {
 		mresult = m1;
-		if(!mresult.number().gcd(m2.number())) mresult.set(1, 1, 0);
+		if(!m1.isInteger() || !m2.isInteger() || !mresult.number().gcd(m2.number())) mresult.set(1, 1, 0);
 		if(ca || cb) {
 			if(mresult.isZero()) {
 				if(ca) ca->clear();
@@ -382,7 +383,8 @@ bool MathStructure::gcd(const MathStructure &m1, const MathStructure &m2, MathSt
 		lcm_of_coefficients_denominators(m1, nlcm1);
 		Number nlcm2;
 		lcm_of_coefficients_denominators(m2, nlcm2);
-		nlcm1.lcm(nlcm2);
+		if(!nlcm1.isInteger() || !nlcm2.isInteger()) nlcm1.multiply(nlcm2);
+		else nlcm1.lcm(nlcm2);
 		if(!nlcm1.isOne()) {
 			MathStructure mtmp1, mtmp2;
 			multiply_lcm(m1, nlcm1, mtmp1, eo);
@@ -766,6 +768,8 @@ bool restore_fracpow(MathStructure &mstruct, UnknownVariable *uv, const Evaluati
 		if(mstruct[0][1].number().numeratorIsOne()) {
 			mstruct[0][1].number() *= mstruct[1].number();
 			mstruct.setToChild(1, true);
+			if(mstruct[1].number().isOne()) mstruct.setToChild(1, true);
+			else if(mstruct[0].isNumber()) mstruct.calculateRaiseExponent(eo);
 		}
 		return true;
 	} else if(mstruct.isVariable() && mstruct.variable() == uv) {
@@ -799,7 +803,10 @@ bool do_simplification(MathStructure &mstruct, const EvaluationOptions &eo, bool
 				uv[i]->destroy();
 			}
 			mstruct.evalSort(true);
-			if(b) b_ret = true;
+			if(b) {
+				b_ret = true;
+				if(mstruct.calculatesub(eo, eo)) do_simplification(mstruct, eo, combine_divisions, only_gcd, combine_only, recursive, limit_size, -1);
+			}
 		}
 		return b_ret;
 	}
@@ -1173,6 +1180,7 @@ bool do_simplification(MathStructure &mstruct, const EvaluationOptions &eo, bool
 					MathStructure mcomps;
 					mcomps.resizeVector(nums[0].isAddition() ? nums[0].size() : 1, m_zero);
 					if(nums[0].isAddition()) {
+						if(mcomps.size() < nums[0].size()) {if(mstruct.size() == 1) mstruct.setToChild(1); return false;}
 						for(size_t i = 0; i < nums[0].size(); i++) {
 							if((b_unknown && nums[0][i].containsUnknowns()) || (!b_unknown && !nums[0][i].isNumber())) {
 								mcomps[i].setType(STRUCT_MULTIPLICATION);
@@ -1419,6 +1427,7 @@ bool do_simplification(MathStructure &mstruct, const EvaluationOptions &eo, bool
 	// combine numerators with same denominator
 	MathStructure nums, numleft, mleft;
 	nums.resizeVector(divs.size(), m_zero);
+	if(nums.size() < divs.size()) return false;
 	for(size_t i = 0; i < mstruct.size(); i++) {
 		bool b = false;
 		if(mstruct[i].isMultiplication()) {
@@ -1519,12 +1528,12 @@ bool do_simplification(MathStructure &mstruct, const EvaluationOptions &eo, bool
 	if(!b) return false;
 
 	if(b_ready_candidate) {
-		// remove polynomial divisions that inrease complexity
+		// remove polynomial divisions that increase complexity
 		for(size_t i = 0; i < nums.size(); i++) {
 			if(!nums[i].isZero() && points[i] < 0) nums[i].clear();
 		}
 	} else {
-		// no simplying polynomial division found; see if result can be combined with other terms
+		// no simplifying polynomial division found; see if result can be combined with other terms
 		b = false;
 		for(size_t i = 0; i < nums.size(); i++) {
 			if(!nums[i].isZero()) {

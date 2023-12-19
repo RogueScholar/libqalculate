@@ -79,9 +79,14 @@ std::string utf8_encode(const std::wstring &wstr);
 char *locale_to_utf8(const char *str);
 char *locale_from_utf8(const char *str);
 char *utf8_strdown(const char *str, int l = -1);
+char *utf8_strup(const char *str, int l = -1);
 size_t unicode_length(const std::string &str);
 size_t unicode_length(const char *str);
+size_t unicode_length(const std::string &str, size_t l);
+size_t unicode_length(const char *str, size_t l);
 bool text_length_is_one(const std::string &str);
+std::string sub_suffix_html(const std::string &name);
+std::string sub_suffix(const std::string &name, const std::string &tag_begin, const std::string &tag_end);
 bool equalsIgnoreCase(const std::string &str1, const std::string &str2);
 bool equalsIgnoreCase(const std::string &str1, const char *str2);
 
@@ -104,7 +109,7 @@ bool recursiveMakeDir(std::string dirpath);
 bool removeDir(std::string dirpath);
 bool move_file(const char *from_file, const char *to_file);
 
-int checkAvailableVersion(const char *version_id, const char *current_version, std::string *avaible_version = NULL, int timeout = 5);
+int checkAvailableVersion(const char *version_id, const char *current_version, std::string *available_version = NULL, int timeout = 5);
 
 class Thread {
 public:

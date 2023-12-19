@@ -24,11 +24,11 @@ using std::cout;
 using std::vector;
 using std::endl;
 
-bool combine_powers(MathStructure &m, const MathStructure &x_var, const EvaluationOptions &eo) {
+bool combine_powers(MathStructure &m, const MathStructure &x_var, const EvaluationOptions &eo, const EvaluationOptions &feo) {
 	bool b_ret = false;
 	if(!m.isMultiplication()) {
 		for(size_t i = 0; i < m.size(); i++) {
-			if(combine_powers(m[i], x_var, eo)) {
+			if(combine_powers(m[i], x_var, eo, feo)) {
 				m.childUpdated(i + 1);
 				b_ret = true;
 			}
@@ -44,13 +44,16 @@ bool combine_powers(MathStructure &m, const MathStructure &x_var, const Evaluati
 						if(!m[i2][0].isVariable() || m[i2][0].variable()->id() != VARIABLE_ID_E) {
 							MathStructure mln(m[i2][0]);
 							mln.transformById(FUNCTION_ID_LOG);
+							mln.calculateFunctions(feo);
 							m[i2][1].calculateMultiply(mln, eo);
 						}
 						if(!m[i][0].isVariable() || m[i][0].variable()->id() != VARIABLE_ID_E) {
 							MathStructure mln(m[i][0]);
 							mln.transformById(FUNCTION_ID_LOG);
+							mln.calculateFunctions(feo);
 							m[i][1].calculateMultiply(mln, eo);
 							m[i][0] = CALCULATOR->getVariableById(VARIABLE_ID_E);
+							m[i][0].calculatesub(eo, feo);
 							m[i].childrenUpdated();
 						}
 					}
@@ -377,7 +380,7 @@ int newton_raphson(const MathStructure &mstruct, MathStructure &x_value, const M
 		return 1;
 	}
 
-	if(!mstruct.isAddition()) return -1;
+	if(CALCULATOR->aborted() || !mstruct.isAddition() || mstruct.size() > 200) return -1;
 	if(mstruct.size() == 2) {
 		if(mstruct[1] == x_var && mstruct[0].isNumber() && mstruct[0].number().isReal()) {
 			x_value = mstruct[0];
@@ -1187,7 +1190,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 			// a*b^(dx)+cx=0 => -lambertw(a*d*log(b)/c)/(d*log(b))
 			// a*b^(dx)+cx=y => (y*d*log(b)-c*lambertw(a*b^(y*d/c)*log(b)/c))/(c*d*log(b))
 			if((ct_comp == COMPARISON_EQUALS || ct_comp == COMPARISON_NOT_EQUALS) && CHILD(0).size() > 1) {
-				combine_powers(*this, x_var, eo2);
+				combine_powers(*this, x_var, eo2, eo);
 				size_t i_px = 0, i_mpx = 0;
 				MathStructure mbak(*this);
 				MathStructure *mvar = NULL, *m_b_p;
@@ -1242,7 +1245,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 						}
 					}
 					MathStructure m_c;
-					if(mvar && get_multiplier(CHILD(0), *mvar, m_c, i_px) && m_c.representsNonZero() && m_c.contains(x_var) == 0) {
+					if(mvar && get_multiplier(CHILD(0), *mvar, m_c, i_px) && m_c.representsNonZero() && m_c.contains(x_var) == 0 && m_b.representsNonZero()) {
 						MathStructure mlogb(CALCULATOR->getFunctionById(FUNCTION_ID_LOG), &m_b, NULL);
 						if(mlogb.calculateFunctions(eo)) mlogb.calculatesub(eo2, eo, true);
 						MathStructure *marg = NULL;
@@ -1286,12 +1289,12 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 								if(CHILD(1).isZero()) {
 									marg2->calculateDivide(mlogb, eo2);
 								} else {
-									if(!m_c.isOne()) marg->calculateMultiply(m_c, eo2);
+									if(!m_c.isOne()) marg2->calculateMultiply(m_c, eo2);
 									marg2->add(CHILD(1));
 									marg2->last().calculateMultiply(mlogb, eo);
 									marg2->calculateAddLast(eo2);
 									marg2->calculateDivide(mlogb, eo2);
-									if(!m_c.isOne()) marg->calculateDivide(m_c, eo2);
+									if(!m_c.isOne()) marg2->calculateDivide(m_c, eo2);
 								}
 								mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, CALCULATOR->getVariableById(VARIABLE_ID_E));
 								mreq1->last().calculateRaise(m_minus_one, eo2);
@@ -1362,7 +1365,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					}
 				}
 				if(i_px == 0) {
-					// a^(2x)+a^x, a^(-x)+a^x
+					// a^(2x)+a^x, a^(3x)+a^x, a^(3x)+a^(2x), a^(-x)+a^x
 					MathStructure *mvar1 = NULL, *mvar2 = NULL;
 					b = true;
 					for(size_t i = 0; i < CHILD(0).size() && b; i++) {
@@ -1406,15 +1409,12 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 						}
 					}
 					if(b && mvar2 && mvar1->base()->representsPositive()) {
-						bool b_two = false, b_m_one = false;
+						bool b_two = false, b_three = false, b_m_one = false;
 						if(mvar1->base()->equals(*mvar2->base())) {
 							MathStructure m1m2((*mvar1)[1]);
 							m1m2.calculateMultiply(nr_two, eo2);
 							if(m1m2.equals((*mvar2)[1])) {
 								b_two = true;
-								MathStructure *mtmp = mvar2;
-								mvar2 = mvar1;
-								mvar1 = mtmp;
 							}
 							if(!b_two && !b_m_one) {
 								MathStructure m1mm1((*mvar1)[1]);
@@ -1431,6 +1431,9 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 								m2m2.calculateMultiply(nr_two, eo2);
 								if(m2m2.equals((*mvar1)[1])) {
 									b_two = true;
+									MathStructure *mtmp = mvar2;
+									mvar2 = mvar1;
+									mvar1 = mtmp;
 								}
 							}
 							if(!b_two && !b_m_one) {
@@ -1440,9 +1443,50 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 									b_m_one = true;
 								}
 							}
+							if(!b_two && !b_m_one && !b_three) {
+								MathStructure m1m3((*mvar1)[1]);
+								m1m3.calculateMultiply(nr_three, eo2);
+								if(m1m3.equals((*mvar2)[1])) {
+									b_three = true;
+								}
+							}
+							if(!b_two && !b_m_one && !b_three) {
+								MathStructure m2m3((*mvar2)[1]);
+								m2m3.calculateMultiply(nr_three, eo2);
+								if(m2m3.equals((*mvar1)[1])) {
+									b_three = true;
+									MathStructure *mtmp = mvar2;
+									mvar2 = mvar1;
+									mvar1 = mtmp;
+								}
+							}
+							if(!b_two && !b_m_one && !b_three) {
+								MathStructure m1m3((*mvar1)[1]);
+								m1m3.calculateMultiply(Number(3, 2), eo2);
+								if(m1m3.equals((*mvar2)[1])) {
+									b_three = true;
+									b_two = true;
+								}
+							}
+							if(!b_two && !b_m_one && !b_three) {
+								MathStructure m2m3((*mvar2)[1]);
+								m2m3.calculateMultiply(Number(3, 2), eo2);
+								if(m2m3.equals((*mvar1)[1])) {
+									b_three = true;
+									b_two = true;
+									MathStructure *mtmp = mvar2;
+									mvar2 = mvar1;
+									mvar1 = mtmp;
+								}
+							}
 						} else if(mvar1->base()->isNumber() && mvar2->base()->isNumber() && !mvar1->base()->number().isInterval() && !mvar2->base()->number().isInterval()) {
 							if(mvar1->base()->number() < mvar2->base()->number()) {
 								if(mvar2->base()->number() == (mvar1->base()->number() ^ 2)) {
+									b_two = true;
+								} else if(mvar2->base()->number() == (mvar1->base()->number() ^ 3)) {
+									b_three = true;
+								} else if(mvar2->base()->number() == (mvar1->base()->number() ^ Number(3, 2))) {
+									b_three = true;
 									b_two = true;
 								} else if(mvar1->base()->number() == (mvar2->base()->number() ^ -1)) {
 									b_m_one = true;
@@ -1456,26 +1500,302 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 									MathStructure *mtmp = mvar2;
 									mvar2 = mvar1;
 									mvar1 = mtmp;
+								} else if(mvar1->base()->number() == (mvar2->base()->number() ^ 3)) {
+									b_three = true;
+									MathStructure *mtmp = mvar2;
+									mvar2 = mvar1;
+									mvar1 = mtmp;
+								} else if(mvar1->base()->number() == (mvar2->base()->number() ^ Number(3, 2))) {
+									b_three = true;
+									b_two = true;
+									MathStructure *mtmp = mvar2;
+									mvar2 = mvar1;
+									mvar1 = mtmp;
 								} else if(mvar2->base()->number() == (mvar1->base()->number() ^ -1)) {
 									b_m_one = true;
 								}
 							}
 						}
-						if(b_two || b_m_one) {
+						if(b_two || b_three || b_m_one) {
 							MathStructure mv(*mvar1);
+							if(b_three && b_two) {
+								if(mvar1->base()->equals(*mvar2->base())) mv[1].calculateMultiply(nr_half, eo2);
+								else mv[0].number().sqrt();
+							}
 							MathStructure mv2(*mvar2);
 							UnknownVariable *var = new UnknownVariable("", format_and_print(mv));
 							var->setInterval(mv);
 							MathStructure u_var(var);
-							replace(mv, u_var);
+							if(b_three && b_two) {
+								MathStructure mv1(*mvar1);
+								MathStructure u_var1(var);
+								u_var1.raise(nr_two);
+								replace(mv1, u_var1);
+							} else {
+								replace(mv, u_var);
+							}
 							MathStructure u_var2(var);
-							u_var2.raise(b_two ? nr_two : nr_minus_one);
+							u_var2.raise(b_three ? nr_three : (b_two ? nr_two : nr_minus_one));
 							replace(mv2, u_var2);
 							b = isolate_x_sub(eo, eo2, u_var);
 							calculateReplace(u_var, mv, eo2);
 							var->destroy();
+							if(b && contains(mbak)) {
+								set(mbak);
+								return false;
+							}
 							if(b) isolate_x(eo, eo2, x_var);
 							return b;
+						}
+					}
+				}
+				if(i_px == 0) {
+					// a^x+b^x+...
+					mvar = NULL;
+					int i_neg = 0, i_pos = 0;
+					bool neg_first = true, pos_first = true;
+					bool b_mul = false, b_mulnum = true;
+					Number mulsum, basesum;
+					for(size_t i = 0; i < CHILD(0).size(); i++) {
+						if(CHILD(0)[i].isMultiplication() && CHILD(0)[i].size() == 2 && CHILD(0)[i][0].isNumber() && CHILD(0)[i][0].number().isReal() && CHILD(0)[i][1].isPower() && ((i == 0 && CHILD(0)[i][1][1].contains(x_var)) || (i > 0 && CHILD(0)[i][1][1] == *mvar)) && CHILD(0)[i][1][0].isNumber() && CHILD(0)[i][1][0].number().isPositive()) {
+							if(CHILD(0)[i][0].number().isPositive()) {
+								if(!i_neg) neg_first = false;
+								if(i_neg) pos_first = false;
+								i_pos++;
+								b_mul = true;
+							} else if(CHILD(0)[i][0].number().isNegative()) {
+								if(i_pos) neg_first = false;
+								if(!i_pos) pos_first = false;
+								i_neg++;
+								if(!b_mul && !CHILD(0)[i][0].number().isMinusOne()) b_mul = true;
+							} else {
+								mvar = NULL;
+								break;
+							}
+							mulsum += CHILD(0)[i][0].number();
+							basesum += CHILD(0)[i][1][0].number() * CHILD(0)[i][0].number();
+							if(i == 0) {
+								if(!CHILD(0)[i][1][1].representsReal()) break;
+								mvar = &CHILD(0)[i][1][1];
+							}
+						} else if(CHILD(0)[i].isMultiplication() && CHILD(1).isZero()) {
+							b_mulnum = false;
+							bool b = false;
+							size_t i_x = 0;
+							for(size_t i2 = 0; i2 < CHILD(0)[i].size(); i2++) {
+								if(!b && CHILD(0)[i][i2].isPower() && ((i == 0 && CHILD(0)[i][i2][1].contains(x_var)) || (i > 0 && CHILD(0)[i][i2][1] == *mvar)) && CHILD(0)[i][i2][0].isNumber() && CHILD(0)[i][i2][0].number().isPositive()) {
+									i_x = i2;
+									b = true;
+								} else if(CHILD(0)[i][i2].contains(x_var)) {
+									b = false;
+									break;
+								}
+							}
+							if(b) {
+								MathStructure *m_i = &CHILD(0)[i][i_x];
+								m_i->ref();
+								CHILD(0)[i].delChild(i_x + 1);
+								if(CHILD(0)[i].representsPositive()) {
+									if(!i_neg) neg_first = false;
+									if(i_neg) pos_first = false;
+									i_pos++;
+									b_mul = true;
+								} else if(CHILD(0)[i].representsNegative()) {
+									if(i_pos) neg_first = false;
+									if(!i_pos) pos_first = false;
+									i_neg++;
+									b_mul = true;
+								} else {
+									b = false;
+								}
+								CHILD(0)[i].insertChild_nocopy(m_i, i_x + 1);
+							}
+							if(b && i == 0) {
+								if(!CHILD(0)[i][i_x][1].representsReal()) break;
+								mvar = &CHILD(0)[i][i_x][1];
+							}
+							if(!b) {
+								mvar = NULL;
+								break;
+							}
+						} else if(CHILD(0)[i].isPower() && ((i == 0 && CHILD(0)[i][1].contains(x_var)) || (i > 0 && CHILD(0)[i][1] == *mvar)) && CHILD(0)[i][0].isNumber() && CHILD(0)[i][0].number().isPositive()) {
+							if(!i_neg) neg_first = false;
+							if(i_neg) pos_first = false;
+							i_pos++;
+							mulsum++;
+							basesum += CHILD(0)[i][0].number();
+							if(i == 0) {
+								if(!CHILD(0)[i][1].representsReal()) break;
+								mvar = &CHILD(0)[i][1];
+							}
+						} else {
+							mvar = NULL;
+							break;
+						}
+					}
+					if(mvar) {
+						if((pos_first && !i_neg && CHILD(1).representsNonPositive()) || (neg_first && !i_pos && CHILD(1).representsNonNegative())) {
+							if(ct_comp == COMPARISON_EQUALS) {
+								clear(true);
+							} else {
+								set(1, 1, 0, true);
+							}
+							return true;
+						}
+						if((neg_first || pos_first) && b_mulnum && CHILD(1) == mulsum && (CHILD(1).isZero() || ((pos_first && CHILD(1).representsNonNegative()) || (neg_first && CHILD(1).representsNonPositive())))) {
+							CHILD(1).clear();
+							if(!mvar->equals(x_var)) {
+								MathStructure mx(*mvar);
+								CHILD(0) = mx;
+								isolate_x(eo, eo2, x_var);
+							} else {
+								CHILD(0) = x_var;
+							}
+							return true;
+						}
+						if((neg_first || pos_first) && b_mulnum && CHILD(1) == basesum && ((CHILD(1).representsNonNegative() && pos_first) || (CHILD(1).representsNonPositive() && neg_first))) {
+							CHILD(1).set(1, 1, 0);
+							if(!mvar->equals(x_var)) {
+								MathStructure mx(*mvar);
+								CHILD(0) = mx;
+								isolate_x(eo, eo2, x_var);
+							} else {
+								CHILD(0) = x_var;
+							}
+							return true;
+						}
+						if(CHILD(1).isZero() && i_pos && i_neg && !containsInterval()) {
+							MathStructure mtest(*this);
+							mtest[0].calculateDivide(CHILD(0).last(), eo);
+							mtest.childUpdated(1);
+							if(mtest.isolate_x_sub(eo, eo2, x_var, morig)) {
+								mtest.calculatesub(eo, eo2, true);
+								if(mtest.isComparison() && mtest[0] == x_var) {
+									set(mtest);
+									return true;
+								}
+							}
+						}
+						if(eo2.expand && eo.approximation != APPROXIMATION_EXACT && (neg_first || pos_first) && b_mulnum) {
+							MathFunction *f = CALCULATOR->getFunctionById(FUNCTION_ID_NEWTON_RAPHSON);
+							if(f) {
+								UnknownVariable *var = NULL;
+								MathStructure mx;
+								if(!mvar->equals(x_var)) {
+									var = new UnknownVariable("", string(LEFT_PARENTHESIS) + format_and_print(*mvar) + RIGHT_PARENTHESIS);
+									var->setInterval(*mvar);
+									mx.set(var);
+								} else {
+									mx = x_var;
+								}
+								if((neg_first && i_pos && !CHILD(1).representsNonPositive()) || (pos_first && i_neg && !CHILD(1).representsNonNegative())) {
+									MathStructure mdiff(CHILD(0));
+									if(var) mdiff.replace(*mvar, mx);
+									if(mdiff.differentiate(mx, eo)) {
+										MathStructure msolve(f, NULL);
+										msolve.addChild(mdiff);
+										msolve.addChild(nr_two);
+										msolve.addChild(mx);
+										msolve.addChild(Number(-10, 1, 0));
+										msolve.addChild(Number(20, 1, 0));
+										CALCULATOR->beginTemporaryStopMessages();
+										msolve.calculateFunctions(eo, true);
+										bool b = msolve.isNumber();
+										if(b) {
+											MathStructure mdiffy(CHILD(0));
+											MathStructure mvar_copy(*mvar);
+											mdiffy.replace(mvar_copy, msolve);
+											mdiffy.eval(eo);
+											b = mdiffy.isNumber();
+											if(b) {
+												ComparisonResult cr = mdiffy.compare(CHILD(1));
+												if((cr == COMPARISON_RESULT_GREATER && neg_first) || (cr == COMPARISON_RESULT_LESS && pos_first)) {
+													if(ct_comp == COMPARISON_EQUALS) {
+														clear(true);
+													} else {
+														set(1, 1, 0, true);
+													}
+													return true;
+												}
+											}
+										}
+										if(b) {
+											CALCULATOR->endTemporaryStopMessages(true);
+											MathStructure msolve1(f, NULL);
+											msolve1.addChild(*this);
+											msolve1.addChild(msolve.number() + 1);
+											if(var) msolve1[0].replace(*mvar, mx);
+											msolve1.addChild(mx);
+											msolve1.addChild(Number(-10, 1, 0));
+											msolve1.addChild(Number(20, 1, 0));
+											CALCULATOR->beginTemporaryStopMessages();
+											msolve1.calculateFunctions(eo, true);
+											if(msolve1.isNumber()) {
+												MathStructure msolve2(f, NULL);
+												msolve2.addChild(*this);
+												msolve2.addChild(msolve.number() - 1);
+												if(var) msolve2[0].replace(*mvar, mx);
+												msolve2.addChild(mx);
+												msolve2.addChild(Number(-10, 1, 0));
+												msolve2.addChild(Number(20, 1, 0));
+												msolve2.calculateFunctions(eo, true);
+												if(msolve2.isNumber() && msolve2.number() < msolve1.number()) {
+													CALCULATOR->endTemporaryStopMessages(true);
+													CHILD(1) = msolve1;
+													ComparisonType cmp_type = ct_comp;
+													if(var) {
+														mx = *mvar;
+														CHILD(0) = mx;
+														CHILDREN_UPDATED;
+														isolate_x(eo, eo2, x_var);
+													} else {
+														CHILD(0) = x_var;
+													}
+													MathStructure *malt = new MathStructure(x_var);
+													malt->transform(cmp_type, msolve2);
+													if(var) {
+														(*malt)[0] = mx;
+														malt->childUpdated(1);
+														malt->isolate_x(eo, eo2, x_var);
+													}
+													add_nocopy(malt, ct_comp == COMPARISON_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND);
+													calculatesub(eo2, eo, false);
+													if(var) var->destroy();
+													return true;
+												}
+											}
+											CALCULATOR->endTemporaryStopMessages();
+										}
+										CALCULATOR->endTemporaryStopMessages();
+									}
+								} else {
+									MathStructure msolve(f, NULL);
+									msolve.addChild(*this);
+									msolve.addChild(nr_two);
+									if(var) msolve[0].replace(*mvar, mx);
+									msolve.addChild(mx);
+									msolve.addChild(Number(-10, 1, 0));
+									msolve.addChild(Number(20, 1, 0));
+									CALCULATOR->beginTemporaryStopMessages();
+									msolve.calculateFunctions(eo, true);
+									if(msolve.isNumber()) {
+										CALCULATOR->endTemporaryStopMessages(true);
+										CHILD(1) = msolve;
+										if(var) {
+											mx = *mvar;
+											CHILD(0) = mx;
+											CHILDREN_UPDATED;
+											isolate_x(eo, eo2, x_var);
+										} else {
+											CHILD(0) = x_var;
+										}
+										if(var) var->destroy();
+										return true;
+									}
+									CALCULATOR->endTemporaryStopMessages();
+								}
+								if(var) var->destroy();
+							}
 						}
 					}
 				}
@@ -1754,6 +2074,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					}
 				}
 				if(i_root) {
+					CALCULATOR->beginTemporaryStopMessages();
 					MathStructure mtest(*this);
 					MathStructure msub;
 					if(mtest[0].size() == 2) {
@@ -1766,20 +2087,34 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					mtest[1].calculateSubtract(msub, eo2);
 					if(mtest[0].calculateRaise(i_root, eo2) && mtest[1].calculateRaise(i_root, eo2)) {
 						mtest.childrenUpdated();
-						if(mtest.isolate_x(eo2, eo, x_var)) {
+						if(eo2.expand && morig) {
+							MathStructure mtest2(mtest[0]);
+							mtest2.calculateSubtract(mtest[1], eo2);
+							if(mtest2.factorize(eo2, false, false, 0, false, false, NULL, m_undefined, false, false, 3) && mtest2.isMultiplication()) {
+								for(size_t i = 0; i < mtest2.size(); i++) {
+									if(mtest2[i].equals(CHILD(0), true, true)) {
+										i_root = 0;
+										break;
+									}
+								}
+							}
+						}
+						if(i_root && mtest.isolate_x(eo2, eo, x_var)) {
 							if((mtest.isLogicalAnd() || mtest.isLogicalOr() || mtest.isComparison()) && test_comparisons(*this, mtest, x_var, eo, false, eo2.expand ? 1 : 2) < 0) {
 								if(eo2.expand) {
+									CALCULATOR->endTemporaryStopMessages(true);
 									add(mtest, ct_comp == COMPARISON_EQUALS ? OPERATION_LOGICAL_AND : OPERATION_LOGICAL_OR);
 									calculatesub(eo2, eo, false);
 									return true;
 								}
 							} else {
+								CALCULATOR->endTemporaryStopMessages(true);
 								set(mtest);
 								return true;
 							}
 						}
 					}
-
+					CALCULATOR->endTemporaryStopMessages();
 				}
 			}
 
@@ -1829,6 +2164,8 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 				EvaluationOptions eo3 = eo2;
 				eo3.expand = true;
 				bool b2 = false;
+				MathStructure mbak(*this);
+				bool strict_check = false;
 				for(size_t i3 = 0; i3 < CHILD(0).size(); i3++) {
 					bool b = false;
 					if(!b2 || !mdiv.containsInterval()) {
@@ -1849,6 +2186,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					}
 					if(!b) {
 						CHILD(0)[i3].calculateMultiply(mdiv_inv, eo3);
+						strict_check = true;
 					} else {
 						b2 = true;
 					}
@@ -1860,14 +2198,21 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 				CHILDREN_UPDATED
 				if(ct_comp == COMPARISON_EQUALS || ct_comp == COMPARISON_NOT_EQUALS) {
 					bool not_equals = ct_comp == COMPARISON_NOT_EQUALS;
-					isolate_x(eo, eo2, x_var, morig);
-					if(!mdiv[0].representsNonZero(true)) {
-						MathStructure *mtest = new MathStructure(mdiv[0]);
-						mtest->add(m_zero, not_equals ? OPERATION_EQUALS : OPERATION_NOT_EQUALS);
-						mtest->isolate_x_sub(eo, eo2, x_var);
-						add_nocopy(mtest, not_equals ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND);
-						calculatesub(eo2, eo, false);
+					CALCULATOR->beginTemporaryStopMessages();
+					isolate_x(eo, eo2, x_var);
+					if(!strict_check || eo2.expand || ((m_type != STRUCT_COMPARISON || CHILD(0) == x_var || !CHILD(0).isAddition() || CHILD(0).size() < 3) && ((m_type != STRUCT_LOGICAL_AND && m_type != STRUCT_LOGICAL_OR) || SIZE == 0 || !CHILD(0).isComparison() || CHILD(0)[0] == x_var || !CHILD(0)[0].isAddition() || CHILD(0)[0].size() < 3))) {
+						if(!mdiv[0].representsNonZero(true)) {
+							MathStructure *mtest = new MathStructure(mdiv[0]);
+							mtest->add(m_zero, not_equals ? OPERATION_EQUALS : OPERATION_NOT_EQUALS);
+							mtest->isolate_x_sub(eo, eo2, x_var);
+							add_nocopy(mtest, not_equals ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND);
+							calculatesub(eo2, eo, false);
+						}
+						CALCULATOR->endTemporaryStopMessages(true);
+						return true;
 					}
+					set(mbak);
+					CALCULATOR->endTemporaryStopMessages();
 				} else {
 					MathStructure *malt = new MathStructure(*this);
 					if(ct_comp == COMPARISON_EQUALS_GREATER) {
@@ -1879,7 +2224,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					} else if(ct_comp == COMPARISON_LESS) {
 						ct_comp = COMPARISON_GREATER;
 					}
-					isolate_x(eo, eo2, x_var, morig);
+					isolate_x(eo, eo2, x_var);
 					MathStructure *mtest = new MathStructure(mdiv);
 					mtest->add(m_zero, OPERATION_LESS);
 					MathStructure *mtest_alt = new MathStructure(*mtest);
@@ -1887,7 +2232,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					mtest->isolate_x_sub(eo, eo2, x_var);
 					add_nocopy(mtest, OPERATION_LOGICAL_AND);
 					calculatesub(eo2, eo, false);
-					malt->isolate_x(eo, eo2, x_var, morig);
+					malt->isolate_x(eo, eo2, x_var);
 					mtest_alt->isolate_x_sub(eo, eo2, x_var);
 					malt->add_nocopy(mtest_alt, OPERATION_LOGICAL_AND);
 					malt->calculatesub(eo2, eo, false);
@@ -1895,7 +2240,6 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					calculatesub(eo2, eo, false);
 					return true;
 				}
-				return true;
 			}
 
 			// x^a+x^(b/c)=d => x^(1/c)^(a*c)+x^(1/c)^b=d; f(x)^a+f(x)^b=c => u^a+u^b=c
@@ -2073,9 +2417,14 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					b = isolate_x_sub(eo, eo2, u_var);
 					calculateReplace(u_var, mvar, eo2);
 					var->destroy();
+					if(b && contains(mbak)) {
+						set(mbak);
+						return false;
+					}
 					if(b) isolate_x(eo, eo2, x_var);
 					return b;
 				} else if(mvar != x_var) {
+					MathStructure mbak(*this);
 					MathStructure u_var(var);
 					replace(mvar, u_var);
 					CHILD(0).calculatesub(eo2, eo2, true);
@@ -2083,6 +2432,10 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					b = isolate_x_sub(eo, eo2, u_var);
 					calculateReplace(u_var, mvar, eo2);
 					var->destroy();
+					if(b && contains(mbak)) {
+						set(mbak);
+						return false;
+					}
 					if(b) isolate_x(eo, eo2, x_var);
 					return b;
 				}
@@ -2717,16 +3070,16 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					(*malt)[0].calculatesub(eo2, eo, true);
 					malt->childUpdated(1);
 					MathStructure *mcheck = new MathStructure(mabs[0]);
-					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? ((*m)[1].isMinusOne() ? OPERATION_GREATER : OPERATION_EQUALS_GREATER) : ((*m)[1].isMinusOne() ? OPERATION_EQUALS_LESS : OPERATION_LESS));
+					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? (mabs[1].isMinusOne() ? OPERATION_GREATER : OPERATION_EQUALS_GREATER) : (mabs[1].isMinusOne() ? OPERATION_EQUALS_LESS : OPERATION_LESS));
 					mcheck->isolate_x_sub(eo, eo2, x_var);
 					malt->isolate_x_sub(eo, eo2, x_var);
 					malt->add_nocopy(mcheck, cmp_type == COMPARISON_NOT_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND, true);
 					malt->calculatesub(eo2, eo, false);
 
 					MathStructure *malt0 = NULL;
-					if(!(*m)[1].isOne() && !(*m)[1].isMinusOne()) {
+					if(!mabs[1].isOne() && !mabs[1].isMinusOne()) {
 						malt0 = new MathStructure(*this);
-						(*malt0)[0].replace(mabs, (*m)[1], mabs.containsInterval());
+						(*malt0)[0].replace(mabs, mabs[1], mabs.containsInterval());
 						(*malt0)[0].calculatesub(eo2, eo, true);
 						malt0->childUpdated(1);
 						mcheck = new MathStructure(mabs[0]);
@@ -2741,7 +3094,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					CHILD(0).replace(mabs, m_one, mabs.containsInterval());
 					CHILD(0).calculatesub(eo2, eo, true);
 					CHILD_UPDATED(0)
-					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? ((*m)[1].isOne() ? OPERATION_LESS : OPERATION_EQUALS_LESS) : ((*m)[1].isOne() ? OPERATION_EQUALS_GREATER : OPERATION_GREATER));
+					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? (mabs[1].isOne() ? OPERATION_LESS : OPERATION_EQUALS_LESS) : (mabs[1].isOne() ? OPERATION_EQUALS_GREATER : OPERATION_GREATER));
 					mcheck->isolate_x_sub(eo, eo2, x_var);
 					isolate_x_sub(eo, eo2, x_var);
 					add_nocopy(mcheck, cmp_type == COMPARISON_NOT_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND, true);
@@ -2885,7 +3238,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 						} else {
 							CHILD(i).transform(STRUCT_COMPARISON, m_zero);
 							CHILD(i).setComparisonType(ct);
-							CHILD(i).isolate_x_sub(eo, eo2, x_var);
+							CHILD(i).isolate_x_sub(eo, eo2, x_var, morig);
 							CHILD_UPDATED(i)
 							i++;
 						}
@@ -3194,7 +3547,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					b = true;
 				}
 			}
-			if(combine_powers(*this, x_var, eo2) && m_type != STRUCT_MULTIPLICATION) return isolate_x_sub(eo, eo2, x_var, morig);
+			if(combine_powers(*this, x_var, eo2, eo) && m_type != STRUCT_MULTIPLICATION) return isolate_x_sub(eo, eo2, x_var, morig);
 			if(!b && (ct_comp == COMPARISON_EQUALS || ct_comp == COMPARISON_NOT_EQUALS) && CHILD(0).size() >= 2) {
 				// (x+a)*b^(c*x)=d => x=(lambertw(b^(a*c)*c*d*ln(b))-a*c*ln(b)))/(c*ln(b))
 				if(CALCULATOR->aborted()) {
@@ -3672,19 +4025,19 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					(*malt)[0].calculatesub(eo2, eo, true);
 					MathStructure *mcheck = new MathStructure(mabs[0]);
 					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? OPERATION_EQUALS_GREATER : OPERATION_LESS);
-					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? ((*m)[1].isMinusOne() ? OPERATION_GREATER : OPERATION_EQUALS_GREATER) : ((*m)[1].isMinusOne() ? OPERATION_EQUALS_LESS : OPERATION_LESS));
+					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? (mabs[1].isMinusOne() ? OPERATION_GREATER : OPERATION_EQUALS_GREATER) : (mabs[1].isMinusOne() ? OPERATION_EQUALS_LESS : OPERATION_LESS));
 					mcheck->isolate_x_sub(eo, eo2, x_var);
 					malt->isolate_x_sub(eo, eo2, x_var);
 					malt->add_nocopy(mcheck, cmp_type == COMPARISON_NOT_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND, true);
 					malt->calculatesub(eo2, eo, false);
 
 					MathStructure *malt0 = NULL;
-					if(!(*m)[1].isOne() && !(*m)[1].isMinusOne()) {
+					if(!mabs[1].isOne() && !mabs[1].isMinusOne()) {
 						malt0 = new MathStructure(*this);
-						(*malt0)[0].replace(mabs, (*m)[1], mabs.containsInterval());
+						(*malt0)[0].replace(mabs, mabs[1], mabs.containsInterval());
 						(*malt0)[0].calculatesub(eo2, eo, true);
 						mcheck = new MathStructure(mabs[0]);
-						mcheck->add((*m)[1], cmp_type == COMPARISON_NOT_EQUALS ? OPERATION_NOT_EQUALS : OPERATION_EQUALS);
+						mcheck->add(mabs[1], cmp_type == COMPARISON_NOT_EQUALS ? OPERATION_NOT_EQUALS : OPERATION_EQUALS);
 						mcheck->isolate_x_sub(eo, eo2, x_var);
 						malt0->isolate_x_sub(eo, eo2, x_var);
 						malt0->add_nocopy(mcheck, cmp_type == COMPARISON_NOT_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND, true);
@@ -3694,7 +4047,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					mcheck = new MathStructure(mabs[0]);
 					CHILD(0).replace(mabs, m_one, mabs.containsInterval());
 					CHILD(0).calculatesub(eo2, eo, true);
-					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? ((*m)[1].isOne() ? OPERATION_LESS : OPERATION_EQUALS_LESS) : ((*m)[1].isOne() ? OPERATION_EQUALS_GREATER : OPERATION_GREATER));
+					mcheck->add(m_zero, cmp_type == COMPARISON_NOT_EQUALS ? (mabs[1].isOne() ? OPERATION_LESS : OPERATION_EQUALS_LESS) : (mabs[1].isOne() ? OPERATION_EQUALS_GREATER : OPERATION_GREATER));
 					mcheck->isolate_x_sub(eo, eo2, x_var);
 					isolate_x_sub(eo, eo2, x_var);
 					add_nocopy(mcheck, cmp_type == COMPARISON_NOT_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND, true);
@@ -4254,11 +4607,11 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 								} else {
 									marg.set(CALCULATOR->getFunctionById(FUNCTION_ID_ARG), &CHILD(1), NULL);
 									marg.calculateFunctions(eo);
-									switch(eo2.parse_options.angle_unit) {
-										case ANGLE_UNIT_DEGREES: {marg.multiply(Number(1, 180, 0)); marg.multiply(CALCULATOR->getVariableById(VARIABLE_ID_PI)); break;}
-										case ANGLE_UNIT_GRADIANS: {marg.multiply(Number(1, 200, 0)); marg.multiply(CALCULATOR->getVariableById(VARIABLE_ID_PI)); break;}
-										case ANGLE_UNIT_RADIANS: {break;}
-										default: {if(CALCULATOR->getRadUnit()) marg /= CALCULATOR->getRadUnit();}
+									if(DEFAULT_RADIANS(eo.parse_options.angle_unit)) {
+										if(NO_DEFAULT_ANGLE_UNIT(eo.parse_options.angle_unit)) marg /= CALCULATOR->getRadUnit();
+									} else {
+										marg.multiply(angle_units_in_turn(eo2, 2, 1, true));
+										marg.multiply(CALCULATOR->getVariableById(VARIABLE_ID_PI));
 									}
 									marg.calculatesub(eo2, eo, true);
 								}
@@ -4669,10 +5022,12 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					}
 				} else {
 					CHILD(1).set(CALCULATOR->getFunctionById(FUNCTION_ID_LOG), &msave, NULL);
-					CHILD(1) += nr_one_i;
-					CHILD(1)[1] *= nr_two;
-					CHILD(1)[1].multiply(CALCULATOR->getVariableById(VARIABLE_ID_PI), true);
-					CHILD(1)[1].multiply(CALCULATOR->getVariableById(VARIABLE_ID_N), true);
+					if(!msave.isZero()) {
+						CHILD(1) += nr_one_i;
+						CHILD(1)[1] *= nr_two;
+						CHILD(1)[1].multiply(CALCULATOR->getVariableById(VARIABLE_ID_PI), true);
+						CHILD(1)[1].multiply(CALCULATOR->getVariableById(VARIABLE_ID_N), true);
+					}
 					CHILD(1).divide_nocopy(new MathStructure(CALCULATOR->getFunctionById(FUNCTION_ID_LOG), &CHILD(0)[0], NULL));
 					CHILD(1).evalSort(true);
 					bool b = CHILD(1).calculateFunctions(eo);
@@ -5003,6 +5358,19 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 						CHILD(1) += Number(200, 1);
 						break;
 					}
+					case ANGLE_UNIT_CUSTOM: {
+						if(CALCULATOR->customAngleUnit()) {
+							EvaluationOptions eo3 = eo2;
+							eo3.sync_units = true;
+							CHILD(0) /= CALCULATOR->customAngleUnit();
+							CHILD(0).calculatesub(eo3, eo, true);
+							CHILD(1) += angle_units_in_turn(eo3, 1, 2);
+						} else {
+							CHILD(1) += CALCULATOR->getVariableById(VARIABLE_ID_PI);
+							CHILD(1)[1] *= CALCULATOR->getRadUnit();
+						}
+						break;
+					}
 					case ANGLE_UNIT_RADIANS: {
 						CHILD(0).calculateDivide(CALCULATOR->getRadUnit(), eo2);
 						CHILD(1) += CALCULATOR->getVariableById(VARIABLE_ID_PI);
@@ -5015,22 +5383,12 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 				}
 				CHILD(1)[1] *= CALCULATOR->getVariableById(VARIABLE_ID_N);
 				if(b_zero && f->id() == FUNCTION_ID_COS) {
-					switch(eo.parse_options.angle_unit) {
-						case ANGLE_UNIT_DEGREES: {CHILD(1).add(Number(-90, 1), true); break;}
-						case ANGLE_UNIT_GRADIANS: {CHILD(1).add(Number(-100, 1), true); break;}
-						case ANGLE_UNIT_RADIANS: {CHILD(1).add(CALCULATOR->getVariableById(VARIABLE_ID_PI), true); CHILD(1).last() *= nr_minus_half; break;}
-						default: {CHILD(1).add(CALCULATOR->getVariableById(VARIABLE_ID_PI), true); CHILD(1).last() *= nr_minus_half; CHILD(1).last() *= CALCULATOR->getRadUnit();}
-					}
+					add_fraction_of_turn(CHILD(1), eo2, -1, 4, true);
 				}
 				if(b_one) {
 					CHILD(1)[1] *= 2;
 					if(f->id() == FUNCTION_ID_SIN) {
-						switch(eo.parse_options.angle_unit) {
-							case ANGLE_UNIT_DEGREES: {CHILD(1).add(Number(90, 1), true); break;}
-							case ANGLE_UNIT_GRADIANS: {CHILD(1).add(Number(100, 1), true); break;}
-							case ANGLE_UNIT_RADIANS: {CHILD(1).add(CALCULATOR->getVariableById(VARIABLE_ID_PI), true); CHILD(1).last() *= nr_half; break;}
-							default: {CHILD(1).add(CALCULATOR->getVariableById(VARIABLE_ID_PI), true); CHILD(1).last() *= nr_half; CHILD(1).last() *= CALCULATOR->getRadUnit();}
-						}
+						add_fraction_of_turn(CHILD(1), eo2, 1, 4, true);
 					}
 				}
 				if(!b_one && !b_zero && (f->id() == FUNCTION_ID_SIN || f->id() == FUNCTION_ID_COS)) {
@@ -5038,12 +5396,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					MathStructure *malt = new MathStructure(*this);
 					(*malt)[1][0].negate();
 					if(f->id() == FUNCTION_ID_SIN) {
-						switch(eo.parse_options.angle_unit) {
-							case ANGLE_UNIT_DEGREES: {(*malt)[1].add(Number(180, 1), true); break;}
-							case ANGLE_UNIT_GRADIANS: {(*malt)[1].add(Number(200, 1), true); break;}
-							case ANGLE_UNIT_RADIANS: {(*malt)[1].add(CALCULATOR->getVariableById(VARIABLE_ID_PI), true); break;}
-							default: {(*malt)[1].add(CALCULATOR->getVariableById(VARIABLE_ID_PI), true); (*malt)[1].last() *= CALCULATOR->getRadUnit();}
-						}
+						add_fraction_of_turn((*malt)[1], eo2, 1, 2, true);
 					}
 					CHILD(1).calculatesub(eo2, eo, true);
 					(*malt)[1].calculatesub(eo2, eo, true);
@@ -5142,22 +5495,21 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 				}
 				return true;
 			} else if(CHILD(0).function()->id() == FUNCTION_ID_ASIN && (ct_comp == COMPARISON_NOT_EQUALS || ct_comp == COMPARISON_EQUALS)) {
-				MathStructure m1(CHILD(1)), m2(CHILD(1));
+				MathStructure m1(CHILD(1));
 				CHILD(0).setToChild(1, true);
-				switch(eo.parse_options.angle_unit) {
-					case ANGLE_UNIT_DEGREES: {CHILD(1) *= CALCULATOR->getDegUnit(); break;}
-					case ANGLE_UNIT_GRADIANS: {CHILD(1) *= CALCULATOR->getGraUnit(); break;}
-					case ANGLE_UNIT_RADIANS: {CHILD(1) *= CALCULATOR->getRadUnit(); break;}
-					default: {}
+				Unit *u = default_angle_unit(eo, false);
+				if(u && !contains_angle_unit(CHILD(1), eo.parse_options)) {
+					CHILD(1) *= u;
+				} else {
+					if(!u) u = CALCULATOR->getRadUnit();
+					m1 /= u;
+					m1.convert(u);
 				}
+				MathStructure m2(m1);
 				CHILD(1).transformById(FUNCTION_ID_SIN);
 				if(CHILD(1).calculateFunctions(eo)) CHILD(1).calculatesub(eo2, eo, true);
 				CHILDREN_UPDATED;
 				isolate_x_sub(eo, eo2, x_var, morig);
-				if(eo.parse_options.angle_unit == ANGLE_UNIT_NONE) {
-					m1 /= CALCULATOR->getRadUnit();
-					m1.convert(CALCULATOR->getRadUnit());
-				}
 				m1.transformById(FUNCTION_ID_RE);
 				if(m1.calculateFunctions(eo)) m1.calculatesub(eo2, eo, true);
 				m2.transformById(FUNCTION_ID_IM);
@@ -5175,35 +5527,24 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 						mreq6 = new MathStructure(m2);
 					}
 				}
-				switch(eo.parse_options.angle_unit) {
-					case ANGLE_UNIT_DEGREES: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, Number(90, 1));
-						mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, Number(-90, 1));
-						if(mreq3) mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(-90, 1));
-						if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(90, 1));
-						break;
+				if(DEFAULT_RADIANS(eo.parse_options.angle_unit)) {
+					mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+					mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+					mreq1->last() *= nr_half;
+					mreq2->last() *= nr_minus_half;
+					if(mreq3) {
+						mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+						mreq3->last() *= nr_minus_half;
 					}
-					case ANGLE_UNIT_GRADIANS: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, Number(100, 1));
-						mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, Number(-100, 1));
-						if(mreq3) mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(-100, 1));
-						if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(100, 1));
-						break;
+					if(mreq5) {
+						mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+						mreq5->last() *= nr_half;
 					}
-					default: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-						mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-						mreq1->last() *= nr_half;
-						mreq2->last() *= nr_minus_half;
-						if(mreq3) {
-							mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-							mreq3->last() *= nr_minus_half;
-						}
-						if(mreq5) {
-							mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-							mreq5->last() *= nr_half;
-						}
-					}
+				} else {
+					mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, angle_units_in_turn(eo2, 1, 4));
+					mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, angle_units_in_turn(eo2, -1, 4));
+					if(mreq3) mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, angle_units_in_turn(eo2, -1, 4));
+					if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, angle_units_in_turn(eo2, 1, 4));
 				}
 				if(mreq4) mreq4->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, m_zero);
 				if(mreq6) mreq6->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, m_zero);
@@ -5225,28 +5566,25 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					mreq5->calculatesub(eo2, eo, false);
 					add_nocopy(mreq5, ct_comp == COMPARISON_NOT_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND, true);
 				}
-				if(eo.parse_options.angle_unit == ANGLE_UNIT_NONE) convert(CALCULATOR->getRadUnit());
+				if(NO_DEFAULT_ANGLE_UNIT(eo.parse_options.angle_unit)) convert(CALCULATOR->getRadUnit());
 				calculatesub(eo2, eo, false);
 				return true;
 			} else if(CHILD(0).function()->id() == FUNCTION_ID_ACOS && (ct_comp == COMPARISON_NOT_EQUALS || ct_comp == COMPARISON_EQUALS)) {
-				MathStructure m1(CHILD(1)), m2(CHILD(1));
+				MathStructure m1(CHILD(1));
 				CHILD(0).setToChild(1, true);
-				switch(eo.parse_options.angle_unit) {
-					case ANGLE_UNIT_DEGREES: {CHILD(1) *= CALCULATOR->getDegUnit(); break;}
-					case ANGLE_UNIT_GRADIANS: {CHILD(1) *= CALCULATOR->getGraUnit(); break;}
-					case ANGLE_UNIT_RADIANS: {CHILD(1) *= CALCULATOR->getRadUnit();}
-					default: {}
+				Unit *u = default_angle_unit(eo, false);
+				if(u && !contains_angle_unit(CHILD(1), eo.parse_options)) {
+					CHILD(1) *= u;
+				} else {
+					if(!u) u = CALCULATOR->getRadUnit();
+					m1 /= u;
+					m1.convert(u);
 				}
+				MathStructure m2(m1);
 				CHILD(1).transformById(FUNCTION_ID_COS);
 				if(CHILD(1).calculateFunctions(eo)) CHILD(1).calculatesub(eo2, eo, true);
 				CHILDREN_UPDATED;
 				isolate_x_sub(eo, eo2, x_var, morig);
-				if(eo.parse_options.angle_unit == ANGLE_UNIT_NONE) {
-					m1 /= CALCULATOR->getRadUnit();
-					m1.convert(CALCULATOR->getRadUnit());
-					m2 /= CALCULATOR->getRadUnit();
-					m2.convert(CALCULATOR->getRadUnit());
-				}
 				m2.transformById(FUNCTION_ID_IM);
 				m1.transformById(FUNCTION_ID_RE);
 				if(m1.calculateFunctions(eo)) m1.calculatesub(eo2, eo, true);
@@ -5264,21 +5602,12 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 						mreq6 = new MathStructure(m2);
 					}
 				}
-				switch(eo.parse_options.angle_unit) {
-					case ANGLE_UNIT_DEGREES: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, Number(180, 1));
-						if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(180, 1));
-						break;
-					}
-					case ANGLE_UNIT_GRADIANS: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, Number(200, 1));
-						if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(200, 1));
-						break;
-					}
-					default: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-						if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-					}
+				if(DEFAULT_RADIANS(eo.parse_options.angle_unit)) {
+					mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+					if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+				} else {
+					mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, angle_units_in_turn(eo2, 1, 2));
+					if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, angle_units_in_turn(eo2, 1, 2));
 				}
 				if(mreq3) mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, m_zero);
 				if(mreq4) mreq4->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, m_zero);
@@ -5302,26 +5631,25 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					mreq5->calculatesub(eo2, eo, false);
 					add_nocopy(mreq5, ct_comp == COMPARISON_NOT_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND, true);
 				}
-				if(eo.parse_options.angle_unit == ANGLE_UNIT_NONE) convert(CALCULATOR->getRadUnit());
+				if(NO_DEFAULT_ANGLE_UNIT(eo.parse_options.angle_unit)) convert(CALCULATOR->getRadUnit());
 				calculatesub(eo2, eo, false);
 				return true;
 			} else if(CHILD(0).function()->id() == FUNCTION_ID_ATAN && (ct_comp == COMPARISON_NOT_EQUALS || ct_comp == COMPARISON_EQUALS)) {
-				MathStructure m1(CHILD(1)), m2(CHILD(1));
+				MathStructure m1(CHILD(1));
 				CHILD(0).setToChild(1, true);
-				switch(eo.parse_options.angle_unit) {
-					case ANGLE_UNIT_DEGREES: {CHILD(1) *= CALCULATOR->getDegUnit(); break;}
-					case ANGLE_UNIT_GRADIANS: {CHILD(1) *= CALCULATOR->getGraUnit(); break;}
-					case ANGLE_UNIT_RADIANS: {CHILD(1) *= CALCULATOR->getRadUnit();}
-					default: {}
+				Unit *u = default_angle_unit(eo, false);
+				if(u && !contains_angle_unit(CHILD(1), eo.parse_options)) {
+					CHILD(1) *= u;
+				} else {
+					if(!u) u = CALCULATOR->getRadUnit();
+					m1 /= u;
+					m1.convert(u);
 				}
+				MathStructure m2(m1);
 				CHILD(1).transformById(FUNCTION_ID_TAN);
 				if(CHILD(1).calculateFunctions(eo)) CHILD(1).calculatesub(eo2, eo, true);
 				CHILDREN_UPDATED;
 				isolate_x_sub(eo, eo2, x_var, morig);
-				if(eo.parse_options.angle_unit == ANGLE_UNIT_NONE) {
-					m1 /= CALCULATOR->getRadUnit();
-					m1.convert(CALCULATOR->getRadUnit());
-				}
 				m2.transformById(FUNCTION_ID_IM);
 				m1.transformById(FUNCTION_ID_RE);
 				if(m1.calculateFunctions(eo)) m1.calculatesub(eo2, eo, true);
@@ -5339,35 +5667,24 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 						mreq6 = new MathStructure(m2);
 					}
 				}
-				switch(eo.parse_options.angle_unit) {
-					case ANGLE_UNIT_DEGREES: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, Number(90, 1));
-						mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, Number(-90, 1));
-						if(mreq3) mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(-90, 1));
-						if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(90, 1));
-						break;
+				if(DEFAULT_RADIANS(eo.parse_options.angle_unit)) {
+					mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+					mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+					mreq1->last() *= nr_half;
+					mreq2->last() *= nr_minus_half;
+					if(mreq3) {
+						mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+						mreq3->last() *= nr_minus_half;
 					}
-					case ANGLE_UNIT_GRADIANS: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, Number(100, 1));
-						mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, Number(-100, 1));
-						if(mreq3) mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(-100, 1));
-						if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, Number(100, 1));
-						break;
+					if(mreq5) {
+						mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
+						mreq5->last() *= nr_half;
 					}
-					default: {
-						mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-						mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-						mreq1->last() *= nr_half;
-						mreq2->last() *= nr_minus_half;
-						if(mreq3) {
-							mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-							mreq3->last() *= nr_minus_half;
-						}
-						if(mreq5) {
-							mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, CALCULATOR->getVariableById(VARIABLE_ID_PI));
-							mreq5->last() *= nr_half;
-						}
-					}
+				} else {
+					mreq1->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_GREATER : COMPARISON_EQUALS_LESS, angle_units_in_turn(eo2, 1, 4));
+					mreq2->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_LESS : COMPARISON_EQUALS_GREATER, angle_units_in_turn(eo2, -1, 4));
+					if(mreq3) mreq3->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, angle_units_in_turn(eo2, -1, 4));
+					if(mreq5) mreq5->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS : COMPARISON_NOT_EQUALS, angle_units_in_turn(eo2, 1, 4));
 				}
 				if(mreq4) mreq4->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS_GREATER : COMPARISON_LESS, m_zero);
 				if(mreq6) mreq6->transform(ct_comp == COMPARISON_NOT_EQUALS ? COMPARISON_EQUALS_LESS : COMPARISON_GREATER, m_zero);
@@ -5389,7 +5706,7 @@ bool MathStructure::isolate_x_sub(const EvaluationOptions &eo, EvaluationOptions
 					mreq5->calculatesub(eo2, eo, false);
 					add_nocopy(mreq5, ct_comp == COMPARISON_NOT_EQUALS ? OPERATION_LOGICAL_OR : OPERATION_LOGICAL_AND, true);
 				}
-				if(eo.parse_options.angle_unit == ANGLE_UNIT_NONE) convert(CALCULATOR->getRadUnit());
+				if(NO_DEFAULT_ANGLE_UNIT(eo.parse_options.angle_unit)) convert(CALCULATOR->getRadUnit());
 				calculatesub(eo2, eo, false);
 				return true;
 			} else if(CHILD(0).function()->id() == FUNCTION_ID_ASINH && (ct_comp == COMPARISON_NOT_EQUALS || ct_comp == COMPARISON_EQUALS)) {
@@ -5768,6 +6085,7 @@ bool MathStructure::isolate_x(const EvaluationOptions &eo, const MathStructure &
 bool MathStructure::isolate_x(const EvaluationOptions &eo, const EvaluationOptions &feo, const MathStructure &x_varp, bool check_result) {
 	if(isProtected()) return false;
 	if(!isComparison()) {
+		if(m_type == STRUCT_FUNCTION && o_function->id() == FUNCTION_ID_D_SOLVE) return false;
 		bool b = false;
 		for(size_t i = 0; i < SIZE; i++) {
 			if(CHILD(i).isolate_x(eo, feo, x_varp, check_result)) {

@@ -41,6 +41,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <limits.h>
 
 #include "MathStructure-support.h"
 
@@ -233,15 +234,15 @@ bool Calculator::loadLocalDefinitions() {
 
 #define X_SET_BEST_NAMES(validation, x) \
 	size_t names_i = 0, i2 = 0; \
-	string *str_names; \
+	string *str_names = NULL; \
 	if(best_names == "-") {best_names = ""; nextbest_names = "";} \
 	if(!best_names.empty()) {str_names = &best_names;} \
 	else if(!nextbest_names.empty()) {str_names = &nextbest_names;} \
-	else {str_names = &default_names;} \
-	if(!str_names->empty() && (*str_names)[0] == '!') { \
+	else if(!require_translation || best_title || next_best_title) {str_names = &default_names;} \
+	if(str_names && !str_names->empty() && (*str_names)[0] == '!') { \
 		names_i = str_names->find('!', 1) + 1; \
 	} \
-	while(true) { \
+	while(str_names != NULL) { \
 		size_t i3 = names_i; \
 		names_i = str_names->find(",", i3); \
 		if(i2 == 0) { \
@@ -592,7 +593,7 @@ bool Calculator::loadLocalDefinitions() {
 					}
 
 #define ITEM_SET_DTH\
-					item->setDescription(description);\
+					if(!description.empty()) item->setDescription(description);\
 					if(!title.empty() && title[0] == '!') {\
 						size_t i = title.find('!', 1);\
 						if(i == string::npos) {\
@@ -719,7 +720,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 	xmlNodePtr cur, child, child2, child3;
 	string version, stmp, name, uname, type, svalue, sexp, plural, countries, singular, category_title, category, description, title, inverse, suncertainty, base, argname, usystem;
 	bool unc_rel;
-	bool best_title, next_best_title, best_category_title, next_best_category_title, best_description, next_best_description;
+	bool best_title = false, next_best_title = false, best_category_title, next_best_category_title, best_description, next_best_description;
 	bool best_plural, next_best_plural, best_singular, next_best_singular, best_argname, next_best_argname, best_countries, next_best_countries;
 	bool best_proptitle, next_best_proptitle, best_propdescr, next_best_propdescr;
 	string proptitle, propdescr;
@@ -736,8 +737,23 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 
 	string locale;
 #ifdef _WIN32
-	WCHAR wlocale[LOCALE_NAME_MAX_LENGTH];
-	if(LCIDToLocaleName(LOCALE_CUSTOM_UI_DEFAULT, wlocale, LOCALE_NAME_MAX_LENGTH, 0) != 0) locale = utf8_encode(wlocale);
+	size_t n = 0;
+	getenv_s(&n, NULL, 0, "LANG");
+	if(n > 0) {
+		char *c_lang = (char*) malloc(n * sizeof(char));
+		getenv_s(&n, c_lang, n, "LANG");
+		locale = c_lang;
+		free(c_lang);
+	} else {
+		ULONG nlang = 0;
+		DWORD n = 0;
+		if(GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &nlang, NULL, &n)) {
+			WCHAR wlocale[n];
+			if(GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &nlang, wlocale, &n)) {
+				locale = utf8_encode(wlocale);
+			}
+		}
+	}
 	gsub("-", "_", locale);
 #else
 	char *clocale = setlocale(LC_MESSAGES, NULL);
@@ -773,6 +789,8 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 
 	int exponent = 1, litmp = 0, mix_priority = 0, mix_min = 0;
 	bool active = false, b = false, require_translation = false, use_with_prefixes = false, use_with_prefixes_set = false;
+	bool b_currency = false;
+	int max_prefix = INT_MAX, min_prefix = INT_MIN, default_prefix = 0;
 	int hidden = -1;
 	Number nr;
 	ExpressionItem *item;
@@ -791,15 +809,11 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 	xmlChar *value, *lang, *value2;
 	int in_unfinished = 0;
 	bool done_something = false;
-#ifdef COMPILED_DEFINITIONS
 	if(strlen(file_name) > 1 && file_name[0] == '<') {
 		doc = xmlParseMemory(file_name, strlen(file_name));
 	} else {
 		doc = xmlParseFile(file_name);
 	}
-#else
-	doc = xmlParseFile(file_name);
-#endif
 	if(doc == NULL) {
 		return false;
 	}
@@ -820,11 +834,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 		xmlFreeDoc(doc);
 		return false;
 	}
-	int version_numbers[] = {3, 21, 0};
+	int version_numbers[] = {4, 9, 0};
 	parse_qalculate_version(version, version_numbers);
 
 	bool new_names = version_numbers[0] > 0 || version_numbers[1] > 9 || (version_numbers[1] == 9 && version_numbers[2] >= 4);
 	bool new_prefix_names = version_numbers[0] > 3 || (version_numbers[0] == 3 && version_numbers[1] > 18);
+	bool old_names = VERSION_BEFORE(0, 6, 3);
 
 	ParseOptions po;
 
@@ -856,6 +871,8 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 			}
 			if(!category.empty()) {
 				category += "/";
+			} else if(category_title == "Temporary") {
+				category_title = temporaryCategory();
 			}
 			if(!category_title.empty() && category_title[0] == '!') {\
 				size_t i = category_title.find('!', 1);
@@ -888,7 +905,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 					done_something = true;
 				}
 			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "function")) {
-				if(VERSION_BEFORE(0, 6, 3)) {
+				if(old_names) {
 					XML_GET_STRING_FROM_PROP(cur, "name", name)
 				} else {
 					name = "";
@@ -1456,7 +1473,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 								} else {
 									f->getArgumentDefinition(itmp)->setName(argname);
 								}
-							} else if(itmp <= f->maxargs() || itmp <= f->minargs()) {
+							} else if(f->maxargs() < 0 || itmp <= f->maxargs()) {
 								if(!argname.empty() && argname[0] == '!') {
 									size_t i = argname.find('!', 1);
 									if(i == string::npos) {
@@ -1493,7 +1510,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 					done_something = true;
 				}
 			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "unknown")) {
-				if(VERSION_BEFORE(0, 6, 3)) {
+				if(old_names) {
 					XML_GET_STRING_FROM_PROP(cur, "name", name)
 				} else {
 					name = "";
@@ -1574,7 +1591,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 					v->setChanged(false);
 				}
 			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "variable")) {
-				if(VERSION_BEFORE(0, 6, 3)) {
+				if(old_names) {
 					XML_GET_STRING_FROM_PROP(cur, "name", name)
 				} else {
 					name = "";
@@ -1667,7 +1684,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 			} else if(!xmlStrcmp(cur->name, (const xmlChar*) "unit")) {
 				XML_GET_STRING_FROM_PROP(cur, "type", type)
 				if(type == "base") {
-					if(VERSION_BEFORE(0, 6, 3)) {
+					if(old_names) {
 						XML_GET_STRING_FROM_PROP(cur, "name", name)
 					} else {
 						name = "";
@@ -1680,6 +1697,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 					plural = ""; best_plural = false; next_best_plural = false;
 					countries = "", best_countries = false, next_best_countries = false;
 					use_with_prefixes_set = false;
+					max_prefix = INT_MAX, min_prefix = INT_MIN, default_prefix = 0;
 					ITEM_INIT_DTH
 					ITEM_INIT_NAME
 					while(child != NULL) {
@@ -1687,13 +1705,16 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 							XML_DO_FROM_TEXT(child, u->setSystem)
 						} else if(!xmlStrcmp(child->name, (const xmlChar*) "use_with_prefixes")) {
 							XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
+							XML_GET_INT_FROM_PROP(child, "max", max_prefix)
+							XML_GET_INT_FROM_PROP(child, "min", min_prefix)
+							XML_GET_INT_FROM_PROP(child, "default", default_prefix)
 							use_with_prefixes_set = true;
-						} else if((VERSION_BEFORE(0, 6, 3)) && !xmlStrcmp(child->name, (const xmlChar*) "singular")) {
+						} else if(old_names && !xmlStrcmp(child->name, (const xmlChar*) "singular")) {
 							XML_GET_LOCALE_STRING_FROM_TEXT(child, singular, best_singular, next_best_singular)
 							if(!unitNameIsValid(singular, version_numbers, is_user_defs)) {
 								singular = "";
 							}
-						} else if((VERSION_BEFORE(0, 6, 3)) && !xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlGetProp(child, (xmlChar*) "index")) {
+						} else if(old_names && !xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlHasProp(child, (xmlChar*) "index")) {
 							XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural, next_best_plural)
 							if(!unitNameIsValid(plural, version_numbers, is_user_defs)) {
 								plural = "";
@@ -1721,6 +1742,9 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 					ITEM_SET_DTH
 					if(use_with_prefixes_set) {
 						u->setUseWithPrefixesByDefault(use_with_prefixes);
+						u->setMaxPreferredPrefix(max_prefix);
+						u->setMinPreferredPrefix(min_prefix);
+						u->setDefaultPrefix(default_prefix);
 					}
 					if(check_duplicates && !is_user_defs) {
 						for(size_t i = 1; i <= u->countNames();) {
@@ -1739,7 +1763,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 					}
 					done_something = true;
 				} else if(type == "alias") {
-					if(VERSION_BEFORE(0, 6, 3)) {
+					if(old_names) {
 						XML_GET_STRING_FROM_PROP(cur, "name", name)
 					} else {
 						name = "";
@@ -1750,8 +1774,9 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 					singular = ""; best_singular = false; next_best_singular = false;
 					plural = ""; best_plural = false; next_best_plural = false;
 					countries = "", best_countries = false, next_best_countries = false;
-					bool b_currency = false;
+					b_currency = false;
 					use_with_prefixes_set = false;
+					max_prefix = INT_MAX, min_prefix = INT_MIN, default_prefix = 0;
 					usystem = "";
 					prec = -1;
 					ITEM_INIT_DTH
@@ -1770,11 +1795,10 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 							while(child2 != NULL) {
 								if(!xmlStrcmp(child2->name, (const xmlChar*) "unit")) {
 									XML_GET_STRING_FROM_TEXT(child2, base);
-									u = getUnit(base);
+									u = getActiveUnit(base);
+									if(!u) u = getCompositeUnit(base);
+									if(!u) getUnit(base);
 									b_currency = (!is_user_defs && u && u == u_euro);
-									if(!u) {
-										u = getCompositeUnit(base);
-									}
 								} else if(!xmlStrcmp(child2->name, (const xmlChar*) "relation")) {
 									XML_GET_STRING_FROM_TEXT(child2, svalue);
 									XML_GET_APPROX_FROM_PROP(child2, b)
@@ -1808,13 +1832,16 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 							XML_GET_STRING_FROM_TEXT(child, usystem);
 						} else if(!xmlStrcmp(child->name, (const xmlChar*) "use_with_prefixes")) {
 							XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
+							XML_GET_INT_FROM_PROP(child, "max", max_prefix)
+							XML_GET_INT_FROM_PROP(child, "min", min_prefix)
+							XML_GET_INT_FROM_PROP(child, "default", default_prefix)
 							use_with_prefixes_set = true;
-						} else if((VERSION_BEFORE(0, 6, 3)) && !xmlStrcmp(child->name, (const xmlChar*) "singular")) {
+						} else if(old_names && !xmlStrcmp(child->name, (const xmlChar*) "singular")) {
 							XML_GET_LOCALE_STRING_FROM_TEXT(child, singular, best_singular, next_best_singular)
 							if(!unitNameIsValid(singular, version_numbers, is_user_defs)) {
 								singular = "";
 							}
-						} else if((VERSION_BEFORE(0, 6, 3)) && !xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlGetProp(child, (xmlChar*) "index")) {
+						} else if(old_names && !xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlHasProp(child, (xmlChar*) "index")) {
 							XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural, next_best_plural)
 							if(!unitNameIsValid(plural, version_numbers, is_user_defs)) {
 								plural = "";
@@ -1849,6 +1876,9 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 						au->setSystem(usystem);
 						if(use_with_prefixes_set) {
 							au->setUseWithPrefixesByDefault(use_with_prefixes);
+							au->setMaxPreferredPrefix(max_prefix);
+							au->setMinPreferredPrefix(min_prefix);
+							au->setDefaultPrefix(default_prefix);
 						}
 						item = au;
 						if(new_names) {
@@ -1889,7 +1919,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 						done_something = true;
 					}
 				} else if(type == "composite") {
-					if(VERSION_BEFORE(0, 6, 3)) {
+					if(old_names) {
 						XML_GET_STRING_FROM_PROP(cur, "name", name)
 					} else {
 						name = "";
@@ -1897,6 +1927,8 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 					XML_GET_FALSE_FROM_PROP(cur, "active", active)
 					child = cur->xmlChildrenNode;
 					usystem = "";
+					use_with_prefixes_set = false;
+					max_prefix = INT_MAX, min_prefix = INT_MIN, default_prefix = 0;
 					cu = NULL;
 					ITEM_INIT_DTH
 					ITEM_INIT_NAME
@@ -1973,6 +2005,9 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 							XML_GET_STRING_FROM_TEXT(child, usystem);
 						} else if(!xmlStrcmp(child->name, (const xmlChar*) "use_with_prefixes")) {
 							XML_GET_TRUE_FROM_TEXT(child, use_with_prefixes)
+							XML_GET_INT_FROM_PROP(child, "max", max_prefix)
+							XML_GET_INT_FROM_PROP(child, "min", min_prefix)
+							XML_GET_INT_FROM_PROP(child, "default", default_prefix)
 							use_with_prefixes_set = true;
 						} else ITEM_READ_NAME(unitNameIsValid)
 						 else ITEM_READ_DTH
@@ -1985,9 +2020,12 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 						item = cu;
 						cu->setCategory(category);
 						cu->setSystem(usystem);
-						/*if(use_with_prefixes_set) {
+						if(use_with_prefixes_set) {
 							cu->setUseWithPrefixesByDefault(use_with_prefixes);
-						}*/
+							cu->setMaxPreferredPrefix(max_prefix);
+							cu->setMinPreferredPrefix(min_prefix);
+							cu->setDefaultPrefix(default_prefix);
+						}
 						if(new_names) {
 							ITEM_SET_BEST_NAMES(unitNameIsValid)
 							ITEM_SET_REFERENCE_NAMES(unitNameIsValid)
@@ -2039,7 +2077,7 @@ int Calculator::loadDefinitions(const char* file_name, bool is_user_defs, bool c
 							if(!unitNameIsValid(singular, version_numbers, is_user_defs)) {
 								singular = "";
 							}
-						} else if(!xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlGetProp(child, (xmlChar*) "index")) {
+						} else if(!xmlStrcmp(child->name, (const xmlChar*) "plural") && !xmlHasProp(child, (xmlChar*) "index")) {
 							XML_GET_LOCALE_STRING_FROM_TEXT(child, plural, best_plural, next_best_plural)
 							if(!unitNameIsValid(plural, version_numbers, is_user_defs)) {
 								plural = "";
@@ -2329,23 +2367,48 @@ string Calculator::temporaryCategory() const {
 	return _("Temporary");
 }
 
-int Calculator::saveVariables(const char* file_name, bool save_global) {
-	string str;
-	const ExpressionName *ename;
+string Calculator::saveTemporaryDefinitions() {
 	xmlDocPtr doc = xmlNewDoc((xmlChar*) "1.0");
-	xmlNodePtr cur, newnode, newnode2;
 	doc->children = xmlNewDocNode(doc, NULL, (xmlChar*) "QALCULATE", NULL);
 	xmlNewProp(doc->children, (xmlChar*) "version", (xmlChar*) VERSION);
+	saveVariables(doc, false, true);
+	saveFunctions(doc, false, true);
+	saveUnits(doc, false, true);
+	int len = 0;
+	xmlChar *s = NULL;
+	xmlDocDumpMemory(doc, &s, &len);
+	string str = (char*) s;
+	xmlFree(s);
+	xmlFreeDoc(doc);
+	return str;
+}
+int Calculator::saveVariables(const char* file_name, bool save_global) {
+	xmlDocPtr doc = xmlNewDoc((xmlChar*) "1.0");
+	doc->children = xmlNewDocNode(doc, NULL, (xmlChar*) "QALCULATE", NULL);
+	xmlNewProp(doc->children, (xmlChar*) "version", (xmlChar*) VERSION);
+	saveVariables(doc, save_global, false);
+	int returnvalue = xmlSaveFormatFile(file_name, doc, 1);
+	xmlFreeDoc(doc);
+	return returnvalue;
+}
+void Calculator::saveVariables(void *xmldoc, bool save_global, bool save_only_temp) {
+	xmlDocPtr doc = (xmlDocPtr) xmldoc;
+	xmlNodePtr cur, newnode, newnode2;
+	string str;
+	const ExpressionName *ename;
 	node_tree_item top;
 	top.category = "";
 	top.node = doc->children;
 	node_tree_item *item;
 	string cat, cat_sub;
+	bool matlab_matrices_bak = priv->matlab_matrices;
+	priv->matlab_matrices = false;
 	for(size_t i = 0; i < variables.size(); i++) {
-		if((save_global || variables[i]->isLocal() || variables[i]->hasChanged()) && variables[i]->category() != _("Temporary") && variables[i]->category() != "Temporary") {
+		if((save_global || variables[i]->isLocal() || (!save_only_temp && variables[i]->hasChanged())) && (variables[i]->category() != _("Temporary") && variables[i]->category() != "Temporary") == !save_only_temp && (!save_only_temp || !variables[i]->isBuiltin())) {
 			item = &top;
 			if(!variables[i]->category().empty()) {
-				cat = variables[i]->category();
+				if(save_only_temp) cat = "Temporary";
+				else cat = variables[i]->category();
 				size_t cat_i = cat.find("/"); size_t cat_i_prev = 0;
 				bool b = false;
 				while(true) {
@@ -2505,17 +2568,22 @@ int Calculator::saveVariables(const char* file_name, bool save_global) {
 			}
 		}
 	}
+	priv->matlab_matrices = matlab_matrices_bak;
+}
+
+int Calculator::saveUnits(const char* file_name, bool save_global) {
+	xmlDocPtr doc = xmlNewDoc((xmlChar*) "1.0");
+	doc->children = xmlNewDocNode(doc, NULL, (xmlChar*) "QALCULATE", NULL);
+	xmlNewProp(doc->children, (xmlChar*) "version", (xmlChar*) VERSION);
+	saveUnits(doc, save_global, false);
 	int returnvalue = xmlSaveFormatFile(file_name, doc, 1);
 	xmlFreeDoc(doc);
 	return returnvalue;
 }
-
-int Calculator::saveUnits(const char* file_name, bool save_global) {
+void Calculator::saveUnits(void *xmldoc, bool save_global, bool save_only_temp) {
+	xmlDocPtr doc = (xmlDocPtr) xmldoc;
 	string str;
-	xmlDocPtr doc = xmlNewDoc((xmlChar*) "1.0");
 	xmlNodePtr cur, newnode, newnode2, newnode3;
-	doc->children = xmlNewDocNode(doc, NULL, (xmlChar*) "QALCULATE", NULL);
-	xmlNewProp(doc->children, (xmlChar*) "version", (xmlChar*) VERSION);
 	const ExpressionName *ename;
 	CompositeUnit *cu = NULL;
 	AliasUnit *au = NULL;
@@ -2527,10 +2595,11 @@ int Calculator::saveUnits(const char* file_name, bool save_global) {
 	string cat, cat_sub;
 	for(size_t i = 0; i < units.size(); i++) {
 		u = units[i];
-		if(save_global || u->isLocal() || u->hasChanged()) {
+		if((save_global || u->isLocal() || (!save_only_temp && u->hasChanged())) && (u->category() != _("Temporary") && u->category() != "Temporary") == !save_only_temp && (!save_only_temp || !units[i]->isBuiltin())) {
 			item = &top;
 			if(!u->category().empty()) {
-				cat = u->category();
+				if(save_only_temp) cat = "Temporary";
+				else cat = u->category();
 				size_t cat_i = cat.find("/"); size_t cat_i_prev = 0;
 				bool b = false;
 				while(true) {
@@ -2600,8 +2669,11 @@ int Calculator::saveUnits(const char* file_name, bool save_global) {
 				if(!u->system().empty()) {
 					xmlNewTextChild(newnode, NULL, (xmlChar*) "system", (xmlChar*) u->system().c_str());
 				}
-				if(!u->isSIUnit() || !u->useWithPrefixesByDefault()) {
-					xmlNewTextChild(newnode, NULL, (xmlChar*) "use_with_prefixes", u->useWithPrefixesByDefault() ? (xmlChar*) "true" : (xmlChar*) "false");
+				if((u->isSIUnit() && (!u->useWithPrefixesByDefault() || u->maxPreferredPrefix() != INT_MAX || u->minPreferredPrefix() != INT_MIN)) || (u->useWithPrefixesByDefault() && !u->isSIUnit()) || u->defaultPrefix() != 0) {
+					newnode2 = xmlNewTextChild(newnode, NULL, (xmlChar*) "use_with_prefixes", u->useWithPrefixesByDefault() ? (xmlChar*) "true" : (xmlChar*) "false");
+					if(u->minPreferredPrefix() != INT_MIN) xmlNewProp(newnode2, (xmlChar*) "min", (xmlChar*) i2s(u->minPreferredPrefix()).c_str());
+					if(u->maxPreferredPrefix() != INT_MAX) xmlNewProp(newnode2, (xmlChar*) "max", (xmlChar*) i2s(u->maxPreferredPrefix()).c_str());
+					if(u->defaultPrefix() != 0) xmlNewProp(newnode2, (xmlChar*) "default", (xmlChar*) i2s(u->defaultPrefix()).c_str());
 				}
 				if(!u->title(false).empty()) {
 					if(save_global) {
@@ -2675,16 +2747,20 @@ int Calculator::saveUnits(const char* file_name, bool save_global) {
 			}
 		}
 	}
-	int returnvalue = xmlSaveFormatFile(file_name, doc, 1);
-	xmlFreeDoc(doc);
-	return returnvalue;
 }
 
 int Calculator::saveFunctions(const char* file_name, bool save_global) {
 	xmlDocPtr doc = xmlNewDoc((xmlChar*) "1.0");
-	xmlNodePtr cur, newnode, newnode2;
 	doc->children = xmlNewDocNode(doc, NULL, (xmlChar*) "QALCULATE", NULL);
 	xmlNewProp(doc->children, (xmlChar*) "version", (xmlChar*) VERSION);
+	saveFunctions(doc, save_global, false);
+	int returnvalue = xmlSaveFormatFile(file_name, doc, 1);
+	xmlFreeDoc(doc);
+	return returnvalue;
+}
+void Calculator::saveFunctions(void *xmldoc, bool save_global, bool save_only_temp) {
+	xmlDocPtr doc = (xmlDocPtr) xmldoc;
+	xmlNodePtr cur, newnode, newnode2;
 	const ExpressionName *ename;
 	node_tree_item top;
 	top.category = "";
@@ -2696,10 +2772,11 @@ int Calculator::saveFunctions(const char* file_name, bool save_global) {
 	NumberArgument *farg;
 	string str;
 	for(size_t i = 0; i < functions.size(); i++) {
-		if(functions[i]->subtype() != SUBTYPE_DATA_SET && (save_global || functions[i]->isLocal() || functions[i]->hasChanged())) {
+		if(functions[i]->subtype() != SUBTYPE_DATA_SET && (save_global || functions[i]->isLocal() || (!save_only_temp && functions[i]->hasChanged())) && (functions[i]->category() != _("Temporary") && functions[i]->category() != "Temporary") == !save_only_temp && (!save_only_temp || !functions[i]->isBuiltin())) {
 			item = &top;
 			if(!functions[i]->category().empty()) {
-				cat = functions[i]->category();
+				if(save_only_temp) cat = "Temporary";
+				else cat = functions[i]->category();
 				size_t cat_i = cat.find("/"); size_t cat_i_prev = 0;
 				bool b = false;
 				while(true) {
@@ -2887,9 +2964,6 @@ int Calculator::saveFunctions(const char* file_name, bool save_global) {
 			}
 		}
 	}
-	int returnvalue = xmlSaveFormatFile(file_name, doc, 1);
-	xmlFreeDoc(doc);
-	return returnvalue;
 }
 int Calculator::saveDataSets(const char* file_name, bool save_global) {
 	xmlDocPtr doc = xmlNewDoc((xmlChar*) "1.0");
@@ -3570,15 +3644,21 @@ bool Calculator::loadExchangeRates() {
 			ssbuffer2 << file2.rdbuf();
 			string sbuffer = ssbuffer2.str();
 			size_t i = sbuffer.find("\"amount\":");
-			if(i != string::npos) {
+			size_t i3 = sbuffer.find("\"currency\":");
+			if(i != string::npos && i3 != string::npos) {
 				i = sbuffer.find("\"", i + 9);
-				if(i != string::npos) {
+				i3 = sbuffer.find("\"", i3 + 11);
+				if(i != string::npos && i3 != string::npos) {
 					size_t i2 = sbuffer.find("\"", i + 1);
-					((AliasUnit*) u_btc)->setBaseUnit(u_euro);
-					((AliasUnit*) u_btc)->setExpression(sbuffer.substr(i + 1, i2 - (i + 1)));
-					u_btc->setApproximate();
-					u_btc->setPrecision(-2);
-					u_btc->setChanged(false);
+					size_t i4 = sbuffer.find("\"", i3 + 1);
+					u = getActiveUnit(sbuffer.substr(i3 + 1, i4 - (i3 + 1)));
+					if(u && u->isCurrency()) {
+						((AliasUnit*) u_btc)->setBaseUnit(u);
+						((AliasUnit*) u_btc)->setExpression(sbuffer.substr(i + 1, i2 - (i + 1)));
+						u_btc->setApproximate();
+						u_btc->setPrecision(-2);
+						u_btc->setChanged(false);
+					}
 				}
 			}
 			file2.close();
@@ -3593,7 +3673,174 @@ bool Calculator::loadExchangeRates() {
 		if(exchange_rates_time[1] > exchange_rates_check_time[1]) exchange_rates_check_time[1] = exchange_rates_time[1];
 	}
 
-	if(cunits.find(priv->u_byn) == cunits.end()) {
+	string sbuffer;
+	filename = getExchangeRatesFileName(3);
+	ifstream file(filename.c_str());
+	global_file = false;
+	if(file.is_open()) {
+		std::stringstream ssbuffer;
+		ssbuffer << file.rdbuf();
+		sbuffer = ssbuffer.str();
+	}
+	if(sbuffer.empty()) {
+		if(file.is_open()) file.close();
+		file.clear();
+#ifdef COMPILED_DEFINITIONS
+		sbuffer = rates_json;
+#else
+		filename = buildPath(getGlobalDefinitionsDir(), "rates.json");
+		file.open(filename.c_str());
+		if(file.is_open()) {
+			std::stringstream ssbuffer;
+			ssbuffer << file.rdbuf();
+			sbuffer = ssbuffer.str();
+		}
+#endif
+		size_t i = sbuffer.find("\"date\":");
+		if(i != string::npos) {
+			i = sbuffer.find("\"", i + 7);
+			if(i != string::npos) {
+				size_t i2 = sbuffer.find("\"", i + 1);
+				if(i2 != string::npos) {
+					QalculateDateTime qdate;
+					if(qdate.set(sbuffer.substr(i + 1, i2 - (i + 1)))) {
+						exchange_rates_time[2] = (time_t) qdate.timestamp().ulintValue();
+						if(exchange_rates_time[2] > exchange_rates_check_time[2]) exchange_rates_check_time[2] = exchange_rates_time[2];
+						global_file = true;
+					}
+				}
+			}
+		}
+	}
+	int json_variant = 0;
+	size_t i = sbuffer.find("\"currency_code\":");
+	if(i != string::npos) {
+		json_variant = 1;
+	} else {
+		i = sbuffer.find("\"alphaCode\":");
+		if(i != string::npos) {
+			json_variant = 2;
+		} else if(sbuffer.find("exchangerate.host") != string::npos) {
+			i = sbuffer.find("rates");
+		} else {
+			i = sbuffer.find("\"eur\": {");
+			if(i == string::npos) i = sbuffer.find("\"eur\":{");
+			if(i == string::npos) {
+				i = sbuffer.find("\": {");
+				if(i == string::npos) i = sbuffer.find("\":{");
+				if(i != string::npos) i = sbuffer.find("\"", i + 1);
+			} else {
+				i = sbuffer.find("\"", i + 5);
+			}
+		}
+
+	}
+	priv->exchange_rates_url3 = json_variant;
+	bool byn_found = false;
+	string sname;
+	string currency_defs;
+	if(i != string::npos) {
+#ifdef COMPILED_DEFINITIONS
+		currency_defs = currencies_xml;
+#else
+		ifstream cfile(buildPath(getGlobalDefinitionsDir(), "currencies.xml").c_str());
+		if(cfile.is_open()) {
+			std::stringstream ssbuffer;
+			ssbuffer << cfile.rdbuf();
+			currency_defs = ssbuffer.str();
+			cfile.close();
+		}
+#endif
+	}
+	string builtin_str = "<builtin_unit name=\"";
+	while(i != string::npos) {
+		currency = ""; sname = ""; rate = "";
+		size_t i2 = 0, i3 = 0;
+		if(json_variant == 1 || json_variant == 2) {
+			if(json_variant == 1) i += 16;
+			else i += 12;
+			i2 = sbuffer.find("\"", i);
+			if(i2 == string::npos) break;
+			i3 = sbuffer.find("\"", i2 + 1);
+			if(i3 == string::npos) break;
+			currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
+			if(json_variant == 1) i = sbuffer.find("\"currency_code\":", i);
+			else if(json_variant == 2) i = sbuffer.find("\"alphaCode\":", i);
+		} else {
+			i2 = sbuffer.find("\"", i + 1);
+			if(i2 == string::npos) break;
+			currency = sbuffer.substr(i + 1, i2 - (i + 1));
+			remove_blank_ends(currency);
+			for(i = 0; i < currency.size(); i++) {
+				if(currency[i] >= 'a' && currency[i] <= 'z') currency[i] -= 32;
+			}
+			i = sbuffer.find("\"", i2 + 1);
+		}
+		if(currency.length() == 3 && (currency_defs.empty() || currency_defs.find(builtin_str + currency) != string::npos) && currency != "BYR") {
+			if(!byn_found && currency == "BYN") byn_found = true;
+			u = getUnit(currency);
+			if(!u || (u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->isHidden() && u->isBuiltin() && !u->isLocal())) {
+				if(json_variant == 1 || json_variant == 2) {
+					i2 = sbuffer.find("\"rate\":", i3 + 1);
+					size_t i4 = sbuffer.find("}", i3 + 1);
+					if(i2 != string::npos && i2 < i4) {
+						i3 = sbuffer.find(",", i2 + 7);
+						rate = "1/" + sbuffer.substr(i2 + 7, i3 - (i2 + 7));
+						if(!u) {
+							i2 = sbuffer.find("\"name\":\"", i3 + 1);
+							if(i2 != string::npos && i2 < i4) {
+								i3 = sbuffer.find("\"", i2 + 8);
+								if(i3 != string::npos) {
+									sname = sbuffer.substr(i2 + 8, i3 - (i2 + 8));
+									remove_blank_ends(sname);
+								}
+							}
+						}
+					}
+				} else {
+					i2 = sbuffer.find(":", i2 + 1);
+					if(i2 != string::npos) i2 = sbuffer.find_first_not_of(SPACES, i2 + 1);
+					if(i2 != string::npos) {
+						size_t i3 = sbuffer.find_first_not_of(NUMBERS ".", i2);
+						if(i3 != string::npos && i3 != i2 + 1) {
+							rate = "1/" + sbuffer.substr(i2, i3 - i2);
+						}
+					}
+				}
+				if(!rate.empty()) {
+					if(!u) {
+						u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname, u_euro, rate, 1, "", false, true), false, true);
+						if(u) u->setHidden(true);
+					} else {
+						if(cunits.find(u) != cunits.end()) {
+							u = NULL;
+						} else {
+							((AliasUnit*) u)->setBaseUnit(u_euro);
+							((AliasUnit*) u)->setExpression(rate);
+						}
+					}
+					if(u) {
+						u->setApproximate();
+						u->setPrecision(-2);
+						u->setChanged(false);
+					}
+				}
+			}
+		}
+	}
+	if(file.is_open()) file.close();
+	if(!global_file) {
+		struct stat stats;
+		if(stat(filename.c_str(), &stats) == 0) {
+			exchange_rates_time[2] = stats.st_mtime;
+			if(exchange_rates_time[2] > exchange_rates_check_time[2]) exchange_rates_check_time[2] = exchange_rates_time[2];
+		}
+	}
+
+	if(byn_found && !global_file) {
+		priv->exchange_rates_time2[0] = exchange_rates_time[2];
+		priv->exchange_rates_check_time2[0] = exchange_rates_check_time[2];
+	} else if(cunits.find(priv->u_byn) == cunits.end()) {
 		filename = getExchangeRatesFileName(4);
 		ifstream file3(filename.c_str());
 		if(file3.is_open()) {
@@ -3632,148 +3879,6 @@ bool Calculator::loadExchangeRates() {
 		if(priv->exchange_rates_time2[0] > priv->exchange_rates_check_time2[0]) priv->exchange_rates_check_time2[0] = priv->exchange_rates_time2[0];
 	}
 
-	Unit *u_usd = getUnit("USD");
-	if(!u_usd) return true;
-
-	string sbuffer;
-	filename = getExchangeRatesFileName(3);
-	ifstream file(filename.c_str());
-	if(file.is_open()) {
-		std::stringstream ssbuffer;
-		ssbuffer << file.rdbuf();
-		sbuffer = ssbuffer.str();
-	}
-	if(sbuffer.empty()) {
-		if(file.is_open()) file.close();
-		file.clear();
-#ifdef COMPILED_DEFINITIONS
-		sbuffer = rates_json;
-#else
-		filename = buildPath(getGlobalDefinitionsDir(), "rates.json");
-		file.open(filename.c_str());
-		if(!file.is_open()) return true;
-		std::stringstream ssbuffer;
-		ssbuffer << file.rdbuf();
-		sbuffer = ssbuffer.str();
-#endif
-		string sname;
-		size_t i = sbuffer.find("\"currency_code\":");
-		while(i != string::npos) {
-			i += 16;
-			size_t i2 = sbuffer.find("\"", i);
-			if(i2 == string::npos) break;
-			size_t i3 = sbuffer.find("\"", i2 + 1);
-			if(i3 != string::npos && i3 - (i2 + 1) == 3) {
-				currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-				if(currency.length() == 3 && currency[0] >= 'A' && currency[0] <= 'Z') {
-					u = getUnit(currency);
-					if(!u || (u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd)) {
-						i2 = sbuffer.find("\"rate\":", i3 + 1);
-						size_t i4 = sbuffer.find("}", i3 + 1);
-						if(i2 != string::npos && i2 < i4) {
-							i3 = sbuffer.find(",", i2 + 7);
-							rate = sbuffer.substr(i2 + 7, i3 - (i2 + 7));
-							rate = "1/" + rate;
-							if(!u) {
-								i2 = sbuffer.find("\"name\":\"", i3 + 1);
-								if(i2 != string::npos && i2 < i4) {
-									i3 = sbuffer.find("\"", i2 + 8);
-									if(i3 != string::npos) {
-										sname = sbuffer.substr(i2 + 8, i3 - (i2 + 8));
-										remove_blank_ends(sname);
-									}
-								} else {
-									sname = "";
-								}
-								u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname, u_usd, rate, 1, "", false, true), false, true);
-								if(u) u->setHidden(true);
-							} else {
-								if(cunits.find(u) != cunits.end()) {
-									u = NULL;
-								} else {
-									((AliasUnit*) u)->setBaseUnit(u_usd);
-									((AliasUnit*) u)->setExpression(rate);
-								}
-							}
-							if(u) {
-								u->setApproximate();
-								u->setPrecision(-2);
-								u->setChanged(false);
-							}
-						}
-					}
-				}
-			}
-			i = sbuffer.find("\"currency_code\":", i);
-		}
-		if(file.is_open()) file.close();
-		exchange_rates_time[2] = ((time_t) 1527199L) * 1000;
-		if(exchange_rates_time[2] > exchange_rates_check_time[2]) exchange_rates_check_time[2] = exchange_rates_time[2];
-	} else {
-		string sname;
-		size_t i = sbuffer.find("class=\'country\'");
-		while(i != string::npos) {
-			currency = ""; sname = ""; rate = "";
-			i += 15;
-			size_t i2 = sbuffer.find("data-currency-code=\"", i);
-			if(i2 != string::npos) {
-				i2 += 19;
-				size_t i3 = sbuffer.find("\"", i2 + 1);
-				if(i3 != string::npos) {
-					currency = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-					remove_blank_ends(currency);
-				}
-			}
-			i2 = sbuffer.find("data-currency-name=\'", i);
-			if(i2 != string::npos) {
-				i2 += 19;
-				size_t i3 = sbuffer.find("|", i2 + 1);
-				if(i3 != string::npos) {
-					sname = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-					remove_blank_ends(sname);
-				}
-			}
-			i2 = sbuffer.find("data-rate=\'", i);
-			if(i2 != string::npos) {
-				i2 += 10;
-				size_t i3 = sbuffer.find("'", i2 + 1);
-				if(i3 != string::npos) {
-					rate = sbuffer.substr(i2 + 1, i3 - (i2 + 1));
-					remove_blank_ends(rate);
-				}
-			}
-			if(currency.length() == 3 && currency[0] >= 'A' && currency[0] <= 'Z' && !rate.empty()) {
-				u = getUnit(currency);
-				if(!u || (u->subtype() == SUBTYPE_ALIAS_UNIT && ((AliasUnit*) u)->firstBaseUnit() == u_usd)) {
-					rate = "1/" + rate;
-					if(!u) {
-						u = addUnit(new AliasUnit(_("Currency"), currency, "", "", sname, u_usd, rate, 1, "", false, true), false, true);
-						if(u) u->setHidden(true);
-					} else {
-						if(cunits.find(u) != cunits.end()) {
-							u = NULL;
-						} else {
-							((AliasUnit*) u)->setBaseUnit(u_usd);
-							((AliasUnit*) u)->setExpression(rate);
-						}
-					}
-					if(u) {
-						u->setApproximate();
-						u->setPrecision(-2);
-						u->setChanged(false);
-					}
-				}
-			}
-			i = sbuffer.find("class=\'country\'", i);
-		}
-		file.close();
-		struct stat stats;
-		if(stat(filename.c_str(), &stats) == 0) {
-			exchange_rates_time[2] = stats.st_mtime;
-			if(exchange_rates_time[2] > exchange_rates_check_time[2]) exchange_rates_check_time[2] = exchange_rates_time[2];
-		}
-	}
-
 	return true;
 
 }
@@ -3794,8 +3899,7 @@ string Calculator::getExchangeRatesFileName(int index) {
 	switch(index) {
 		case 1: {return buildPath(getLocalDataDir(), "eurofxref-daily.xml");}
 		case 2: {return buildPath(getLocalDataDir(), "btc.json");}
-		//case 3: {return buildPath(getLocalDataDir(), "rates.json");}
-		case 3: {return buildPath(getLocalDataDir(), "rates.html");}
+		case 3: {return buildPath(getLocalDataDir(), "rates.json");}
 		case 4: {return buildPath(getLocalDataDir(), "nrby.json");}
 		default: {}
 	}
@@ -3824,8 +3928,16 @@ string Calculator::getExchangeRatesUrl(int index) {
 	switch(index) {
 		case 1: {return "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";}
 		case 2: {return "https://api.coinbase.com/v2/prices/spot?currency=EUR";}
-		//case 2: {return "http://www.mycurrency.net/US.json";}
-		case 3: {return "https://www.mycurrency.net/=US";}
+		case 3: {
+			if(priv->exchange_rates_url3 == 1) {
+				return "https://www.mycurrency.net/FR.json";
+			} else if(priv->exchange_rates_url3 == 2) {
+				return "https://www.floatrates.com/daily/eur.json";
+			} else {
+				return "https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/eur.json";
+                        }
+
+		}
 		case 4: {return "https://www.nbrb.by/api/exrates/rates/eur?parammode=2";}
 		default: {}
 	}
@@ -3836,10 +3948,29 @@ size_t write_data(void *ptr, size_t size, size_t nmemb, string *sbuffer) {
 	sbuffer->append((char*) ptr, size * nmemb);
 	return size * nmemb;
 }
+
+#define FER_ERROR(x, y, z, u) \
+	if(n <= 0 && strlen(z) > 0) {\
+		char buffer[10000];\
+		int n1 = 0;\
+		if(strlen(u) > 0) n1 = snprintf(buffer, 10000, _("Failed to download exchange rates (%s) from %s: %s."), u, x, y);\
+		else n1 = snprintf(buffer, 10000, _("Failed to download exchange rates from %s: %s."), x, y);\
+		if(n1 > 0 && n1 < 9000) {\
+			buffer[n1] = ' '; n1++;\
+			int n2 = snprintf(buffer + (sizeof(char) * n1), 10000 - n1, _("Exchange rates were successfully downloaded from %s."), z);\
+			if(n2 > 0 && n2 + n1 < 10000) {\
+				error(true, buffer, NULL);\
+			}\
+		}\
+	} else {\
+		if(strlen(u) > 0) error(true, _("Failed to download exchange rates (%s) from %s: %s."), u, x, y, NULL);\
+		else error(true, _("Failed to download exchange rates from %s: %s."), x, y, NULL);\
+	}
+
 #define FETCH_FAIL_CLEANUP curl_easy_cleanup(curl); curl_global_cleanup(); time(&exchange_rates_check_time[0]); time(&exchange_rates_check_time[1]); time(&exchange_rates_check_time[2]); time(&priv->exchange_rates_check_time2[0]);
+
 bool Calculator::fetchExchangeRates(int timeout, int n) {
 #ifdef HAVE_LIBCURL
-
 	recursiveMakeDir(getLocalDataDir());
 	string sbuffer;
 	char error_buffer[CURL_ERROR_SIZE];
@@ -3870,15 +4001,15 @@ bool Calculator::fetchExchangeRates(int timeout, int n) {
 	res = curl_easy_perform(curl);
 
 	if(res != CURLE_OK) {
-		if(strlen(error_buffer)) error(true, _("Failed to download exchange rates from %s: %s."), "ECB", error_buffer, NULL);
-		else error(true, _("Failed to download exchange rates from %s: %s."), "ECB", curl_easy_strerror(res), NULL);
+		if(strlen(error_buffer)) {FER_ERROR("ecb.europa.eu", error_buffer, "", "");}
+		else {FER_ERROR("ecb.europa.eu", curl_easy_strerror(res), "", "");}
 		FETCH_FAIL_CLEANUP;
 		return false;
 	}
-	if(sbuffer.empty()) {error(true, _("Failed to download exchange rates from %s: %s."), "ECB", "Document empty", NULL); FETCH_FAIL_CLEANUP; return false;}
+	if(sbuffer.find("Cube") == string::npos) {FER_ERROR("ecb.europa.eu", "Document empty", "", ""); FETCH_FAIL_CLEANUP; return false;}
 	ofstream file(getExchangeRatesFileName(1).c_str(), ios::out | ios::trunc | ios::binary);
 	if(!file.is_open()) {
-		error(true, _("Failed to download exchange rates from %s: %s."), "ECB", strerror(errno), NULL);
+		FER_ERROR("ecb.europa.eu", strerror(errno), "", "");
 		FETCH_FAIL_CLEANUP
 		return false;
 	}
@@ -3910,11 +4041,16 @@ bool Calculator::fetchExchangeRates(int timeout, int n) {
 
 		res = curl_easy_perform(curl);
 
-		if(res != CURLE_OK) {error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", error_buffer, NULL); FETCH_FAIL_CLEANUP; return false;}
-		if(sbuffer.empty()) {error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", "Document empty", NULL); FETCH_FAIL_CLEANUP; return false;}
+		if(res != CURLE_OK) {
+			if(strlen(error_buffer)) {FER_ERROR("coinbase.com", error_buffer, "ecb.europa.eu", u_btc->title().c_str());}
+			else {FER_ERROR("coinbase.com", curl_easy_strerror(res), "ecb.europa.eu", u_btc->title().c_str());}
+			FETCH_FAIL_CLEANUP;
+			return false;
+		}
+		if(sbuffer.find("\"amount\":") == string::npos || sbuffer.find("\"currency\":") == string::npos) {FER_ERROR("coinbase.com", "Document empty", "ecb.europa.eu", u_btc->title().c_str()); FETCH_FAIL_CLEANUP; return false;}
 		ofstream file3(getExchangeRatesFileName(2).c_str(), ios::out | ios::trunc | ios::binary);
 		if(!file3.is_open()) {
-			error(true, _("Failed to download exchange rates from %s: %s."), "coinbase.com", strerror(errno), NULL);
+			FER_ERROR("coinbase.com", strerror(errno), "ECB", u_btc->title().c_str());
 			FETCH_FAIL_CLEANUP
 			return false;
 		}
@@ -3923,21 +4059,48 @@ bool Calculator::fetchExchangeRates(int timeout, int n) {
 
 	}
 
-	if(n <= 0 || (n >= 3 && n != 4)) {
+	bool mycurrency_net = false;
 
-		sbuffer = "";
-		curl_easy_setopt(curl, CURLOPT_URL, getExchangeRatesUrl(3).c_str());
-		curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sbuffer);
-		curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
-		res = curl_easy_perform(curl);
+	if(n <= 0 || n >= 3) {
+		bool b = false;
+		bool bad_gateway = false;
+		string first_error;
+		for(size_t i = 0; i <= 2 || (bad_gateway && i == 3); i++) {
+			sbuffer = "";
+			if(i == 0) curl_easy_setopt(curl, CURLOPT_URL, "https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/eur.json");
+			else if(i == 2) curl_easy_setopt(curl, CURLOPT_URL, "https://www.floatrates.com/daily/eur.json");
+			else curl_easy_setopt(curl, CURLOPT_URL, "https://www.mycurrency.net/FR.json");
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sbuffer);
+			curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
+			if(i == 3) curl_easy_setopt(curl, CURLOPT_USERAGENT, (string("libqalculate/") + VERSION).c_str());
 
-		if(res != CURLE_OK) {error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", error_buffer, NULL); FETCH_FAIL_CLEANUP; return false;}
-		if(sbuffer.empty() || sbuffer.find("Internal Server Error") != string::npos) {error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", "Document empty", NULL); FETCH_FAIL_CLEANUP; return false;}
+			res = curl_easy_perform(curl);
+
+			if(res == CURLE_OK) {
+				if((i == 0 && (sbuffer.find(": {") != string::npos || sbuffer.find(":{") != string::npos) && (sbuffer.find("\"eur\": 1,") != string::npos || sbuffer.find("\"eur\":1,") != string::npos || sbuffer.find("\"EUR\": 1,") != string::npos || sbuffer.find("\"EUR\":1,") != string::npos)) || ((i == 1 || i == 3) && sbuffer.find("\"currency_code\":") != string::npos && sbuffer.find("\"baseCurrency\":\"EUR\"") != string::npos) || (i == 2 && sbuffer.find("\"alphaCode\":") != string::npos)) {
+					if(i > 2) priv->exchange_rates_url3 = 1;
+					else priv->exchange_rates_url3 = i;
+					b = true;
+					mycurrency_net = (i == 1 || i == 3);
+					break;
+				}
+				if(i == 1 && sbuffer.find("Bad Gateway") != string::npos) bad_gateway = true;
+				if(i == 0) first_error = "Document empty";
+			} else if(i == 0) {
+				if(strlen(error_buffer)) first_error = error_buffer;
+				else first_error = curl_easy_strerror(res);
+			}
+		}
+		if(!b) {
+			FER_ERROR("floatrates.com", first_error.c_str(), "ecb.europa.eu, coinbase.com", "");
+			FETCH_FAIL_CLEANUP;
+			return false;
+		}
 		ofstream file2(getExchangeRatesFileName(3).c_str(), ios::out | ios::trunc | ios::binary);
 		if(!file2.is_open()) {
-			error(true, _("Failed to download exchange rates from %s: %s."), "mycurrency.net", strerror(errno), NULL);
+			FER_ERROR("floatrates.com", strerror(errno), "ecb.europa.eu, coinbase.com", "");
 			FETCH_FAIL_CLEANUP
 			return false;
 		}
@@ -3946,22 +4109,31 @@ bool Calculator::fetchExchangeRates(int timeout, int n) {
 
 	}
 
-	if(n <= 0 || n >= 4) {
+	if(n >= 4 && mycurrency_net) {
 
 		sbuffer = "";
 		curl_easy_setopt(curl, CURLOPT_URL, getExchangeRatesUrl(4).c_str());
-		curl_easy_setopt(curl, CURLOPT_TIMEOUT, (timeout > 4 && n <= 0) ? 4 : timeout);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, (timeout > 1 && n <= 0) ? 1 : timeout);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &sbuffer);
 		curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
 
 		res = curl_easy_perform(curl);
 
-		if(res != CURLE_OK) {error(true, _("Failed to download exchange rates from %s: %s."), "nbrb.by", error_buffer, NULL); FETCH_FAIL_CLEANUP; return false;}
-		if(sbuffer.empty()) {error(true, _("Failed to download exchange rates from %s: %s."), "nbrb.by", "Document empty", NULL); FETCH_FAIL_CLEANUP; return false;}
+		if(res != CURLE_OK) {
+			if(strlen(error_buffer)) {FER_ERROR("nbrb.by", error_buffer, "ecb.europa.eu, coinbase.com, mycurrency.net", priv->u_byn->title().c_str());}
+			else {FER_ERROR("nbrb.by", curl_easy_strerror(res), "ecb.europa.eu, coinbase.com, mycurrency.net", priv->u_byn->title().c_str());}
+			FETCH_FAIL_CLEANUP;
+			return false;
+		}
+		if(sbuffer.find("\"Cur_OfficialRate\":") == string::npos) {
+			FER_ERROR("nbrb.by", "Document empty", "ecb.europa.eu, coinbase.com, mycurrency.net", priv->u_byn->title().c_str());
+			FETCH_FAIL_CLEANUP;
+			return false;
+		}
 		ofstream file4(getExchangeRatesFileName(4).c_str(), ios::out | ios::trunc | ios::binary);
 		if(!file4.is_open()) {
-			error(true, _("Failed to download exchange rates from %s: %s."), "nbrb.by", strerror(errno), NULL);
+			FER_ERROR("nbrb.by", strerror(errno), "ecb.europa.eu, coinbase.com, mycurrency.net", priv->u_byn->title().c_str());
 			FETCH_FAIL_CLEANUP
 			return false;
 		}
@@ -3980,17 +4152,17 @@ bool Calculator::fetchExchangeRates(int timeout, int n) {
 bool Calculator::checkExchangeRatesDate(unsigned int n_days, bool force_check, bool send_warning, int n) {
 	if(n <= 0) n = 5;
 	time_t extime = exchange_rates_time[0];
-	for(int i = 1; i < (n > 5 ? 4 : n); i++) {
+	for(int i = 1; i < (n > 4 ? 4 : n); i++) {
 		if(i > 2 && priv->exchange_rates_time2[i - 3] < extime) extime = priv->exchange_rates_time2[i - 3];
 		else if(i <= 2 && (i != 2 || n != 4) && exchange_rates_time[i] < extime) extime = exchange_rates_time[i];
 	}
 	time_t cextime = exchange_rates_check_time[0];
-	for(int i = 1; i < (n > 5 ? 4 : n); i++) {
+	for(int i = 1; i < (n > 4 ? 4 : n); i++) {
 		if(i > 2 && priv->exchange_rates_check_time2[i - 3] < cextime) cextime = priv->exchange_rates_check_time2[i - 3];
 		else if(i <= 2 && (i != 2 || n != 4) && exchange_rates_check_time[i] < cextime) cextime = exchange_rates_check_time[i];
 	}
 	if(extime > 0 && ((!force_check && cextime > 0 && difftime(time(NULL), cextime) < 86400 * n_days) || difftime(time(NULL), extime) < (86400 * n_days) + 3600)) return true;
-	for(int i = 0; i < (n > 5 ? 4 : n); i++) {
+	for(int i = 0; i < (n > 4 ? 4 : n); i++) {
 		if(i <= 2 && (i != 2 || n != 4)) time(&exchange_rates_check_time[i]);
 		else if(i > 2) time(&priv->exchange_rates_check_time2[i - 3]);
 	}
@@ -4005,13 +4177,26 @@ bool Calculator::exchangeRatesWarningEnabled() const {
 	return b_exchange_rates_warning_enabled;
 }
 int Calculator::exchangeRatesUsed() const {
-	return b_exchange_rates_used;
+	if(b_exchange_rates_used > 100) return b_exchange_rates_used - 100;
+	if(b_exchange_rates_used & 0b1000) {
+		if(b_exchange_rates_used & 0b0100) return 5;
+		return 4;
+	} else if(b_exchange_rates_used & 0b0100) return 3;
+	else if(b_exchange_rates_used & 0b0010) return 2;
+	else if(b_exchange_rates_used & 0b0001) return 1;
+	return 0;
 }
 void Calculator::resetExchangeRatesUsed() {
 	b_exchange_rates_used = 0;
 }
 void Calculator::setExchangeRatesUsed(int index) {
-	if(index > b_exchange_rates_used) b_exchange_rates_used = index;
-	if(b_exchange_rates_warning_enabled) checkExchangeRatesDate(7, false, true);
+	if(index == -100) {
+		if(b_exchange_rates_used == 0) return;
+		if(b_exchange_rates_used > 100) b_exchange_rates_used -= 100;
+		else b_exchange_rates_used += 100;
+		return;
+	}
+	b_exchange_rates_used = b_exchange_rates_used | index;
+	if(b_exchange_rates_warning_enabled) checkExchangeRatesDate(7, false, true, exchangeRatesUsed());
 }
 

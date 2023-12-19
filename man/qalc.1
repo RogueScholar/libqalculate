@@ -132,6 +132,14 @@ number, real, rational, integer, boolean).
 Sets the result number base (equivalent to set base).
 .PP
 .TP 8
+.B clear
+Clears the screen
+.PP
+.TP 8
+.B clear history
+Clears the expression history
+.PP
+.TP 8
 .B delete \fIname\fP
 Removes the user-defined variable or function with the specified name.
 .br
@@ -284,8 +292,12 @@ switches between fraction modes (simple, decimal, auto)
 .TP 8
 .B Ctrl+A
 saves the current result in a temporary variable
+.PP
+.TP 8
+.B Ctrl+L
+clears the screen
 .SH "SETTINGS"
-These settings are changed using the \fIset\fP command (e.g. set base 16) or the \fI\-s, \-\-set\fP command line option (e.g. qalc -s "base 16"). Possible values are shown in parenthesis. 1 and 0 can be used instead of on and off. If the value is left out, a value of 1 is generally assumed. The default value is marked with '*'.
+These settings are changed using the \fIset\fP command (e.g. set base 16) or the \fI\-s, \-\-set\fP command line option (e.g. qalc -s "base 16"). Possible values are shown in parenthesis. 1 and 0 can be used instead of on and off, yes and no. If the value is left out, a value of 1 is generally assumed. The default value is marked with '*'.
 .PP
 Algebraic mode:
 .PP
@@ -356,7 +368,7 @@ Interpret undefined symbols in expressions as unknown variables.
 .B variables, var \fI(on*, off)\fP
 .PP
 .TP 8
-.B variable units, varunit \fI(on*, off)\fP
+.B variable units, varunits \fI(on*, off)\fP
 If activated physical constants include units (e.g. c = 299 792 458 m∕s).
 .PP
 Generic display options:
@@ -397,6 +409,10 @@ Add extra space around operators.
 Display Unicode characters.
 .PP
 .TP 8
+.B unicode exponents, uniexp \fI(0 = off, 1= on*, 2 = units)\fP
+Display exponents 0-9 using Unicode superscript characters.
+.PP
+.TP 8
 .B vertical space, vspace \fI(on*, off)\fP
 Add empty lines before and after result.
 .PP
@@ -419,7 +435,7 @@ Determines the default decimal separator.
 .B digit grouping, group \fI(0* = off, 1 = standard, 2 = locale)\fP
 .PP
 .TP 8
-.B fractions, fr \fI(-1* = auto, 0 = off, 1 = exact, 2 = on, 3 = mixed, 4 = long, 5 = dual)\fP
+.B fractions, fr \fI(-1* = auto, 0 = off, 1 = exact, 2 = on, 3 = mixed, 4 = long, 5 = dual, 1/n)\fP
 Determines how rational numbers are displayed (e.g. 5/4 = 1 + 1/4 = 1.25). 'long' removes limits on the size of the numerator and denonimator.
 .PP
 .TP 8
@@ -431,7 +447,7 @@ Enables two's complement representation for display of negative hexadecimal numb
 Use 'j' (instead of 'i') as default symbol for the imaginary unit.
 .PP
 .TP 8
-.B interval display, ivdisp \fI(0* = adaptive, 1 = significant, 2 = interval, 3 = plusminus, 4 = midpoint, 5 = upper, 6 = lower)\fP
+.B interval display, ivdisp \fI(0* = adaptive, 1 = significant, 2 = interval, 3 = plusminus, 4 = midpoint, 5 = lower, 6 = upper, 7 = concise, 8 = relative)\fP
 .PP
 .TP 8
 .B lowercase e, lowe \fI(on, off*)\fP
@@ -442,14 +458,15 @@ Use lowercase e for E-notation (5e2 = 5 * 10^2).
 Use lowercase letters for number bases > 10.
 .PP
 .TP 8
-.B max decimals, maxdeci \fI(off*, >= 0)\fP
+.B max decimals, maxdeci \fI(-1 = off*, >= 0)\fP
 .PP
 .TP 8
-.B min decimals, mindeci \fI(off*, >= 0)\fP
+.B min decimals, mindeci \fI(-1 = off*, >= 0)\fP
 .PP
 .TP 8
-.B round to even, rndeven \fI(on, off*)\fP
-Determines whether halfway numbers are rounded upwards or towards the nearest even integer.
+.B rounding \fI(0 = standard*, 1 = even, 2 = truncate)\fP
+Determines whether how approximate numbers are rounded (round halfway numbers away from zero or towards the nearest even digit, or round all numbers
+towards zero).
 .PP
 .TP 8
 .B scientific notation, exp \fI(0 = off, -1 = auto*, -3 = engineering, 1 = pure, 3 = scientific, >= 0)\fP
@@ -463,11 +480,19 @@ If actived, zeroes are kept at the end of approximate numbers.
 .B two's complement, twos \fI(on*, off)\fP
 Enables two's complement representation for display of negative binary numbers.
 .PP
+.TP 8
+.B duodecimal symbols, duosyms \fI(on, off*)\fP
+Use special symbols for digits 10 and 11 in numbers with base 12.
+.PP
 Parsing:
 .PP
 .TP 8
 .B caret as xor, xor^ \fI(on, off*)\fP
 Use ^ as bitwise exclusive OR operator.
+.PP
+.TP 8
+.B concise uncertainty, concise \fI(on, off*)\fP
+Allow input of uncertainty using concise notation.
 .PP
 .TP 8
 .B decimal comma \fI(locale*, off, on)\fP
@@ -506,7 +531,7 @@ Units:
 Enables automatic use of hecto, deca, deci, and centi.
 .PP
 .TP 8
-.B autoconversion, conv \fI(none, optimal*, base, optimalsi, mixed)\fP
+.B autoconversion, conv \fI(0 = none, 1 = optimal*, 2 = base, 3 = optimalsi, 4 = mixed)\fP
 Controls automatic unit conversion of the result. 'optimalsi' always converts non-SI units, while 'optimal' only converts to more optimal unit
 expressions, with less units and exponents.
 .PP
@@ -538,13 +563,17 @@ Use negative exponents instead of division for units in result (m/s = m*s^-1).
 .B sync units, sync \fI(on*, off)\fP
 .PP
 .TP 8
-.B temperature units, temp \fI(hybrid*, absolute, relative)\fP
+.B temperature units, temp \fI(0 = hybrid*, 1 = absolute, 2 = relative)\fP
 Determines how expressions with temperature units are calculated (hybrid acts as absolute if the expression contains different temperature units, otherwise as relative).
 .PP
 .TP 8
 .B update exchange rates, upxrates \fI(-1 = ask*, 0 = never, > 0 = days)\fP
 .PP
 Other:
+.PP
+.TP 8
+.B clear history \fI(yes, no*)\fP
+Do not save expression history on exit.
 .PP
 .TP 8
 .B ignore locale \fI(yes, no*)\fP
@@ -579,7 +608,7 @@ A number interval can be entered using the interval() function, the uncertainty(
 .PP
 .B Vectors and Matrices
 .br
-A matrix is a two-dimensional rectangular array of mathematical objects. Vectors are matrices with only one row or column, and thus one-dimensional sequences of objects. Vectors and matrices are generated by various functions, or using syntax in the form of [1, 2, 3, 4] and [[1, 2], [3, 4]].
+A matrix is a two-dimensional rectangular array of mathematical objects. Vectors are matrices with only one row or column, and thus one-dimensional sequences of objects. Vectors and matrices are generated by various functions, or using syntax in the form of [1 2 3 4] and [1 2; 3 4], with columns separated by space or comma and rows separated by semi-colon, or (1, 2, 3, 4) and ((1, 2), (3, 4)).
 .PP
 .B Variables/Constants
 .br
@@ -608,7 +637,7 @@ This category represent a number of different function argument types, such as r
 .PP
 .B Comments
 .br
-All text after a hashtag (e.g. (5*2)/2 #calculating triangle area) is treated as a comment, which are added to the history.
+All text after a hashtag (e.g. (5*2)/2 #calculating triangle area) is treated as a comment.
 .RE
 .PP
 Operations and operators (word operators such as AND must be surrounded by space):
@@ -638,6 +667,10 @@ Note that x^y^z equals x^(y^z), and not (x^y)^z. Note also that for non-integer 
 .PP
 .B Parenthesis ((, ))
 .PP
+.B Parellel sum (∥, ||)
+.br
+Returns the the reciprocal value of a sum of reciprocal values. || is interpreted as parallel if units are used, otherwise as logical OR.
+.PP
 .B Logical operators (!, NOT, ||, OR, &&, AND, XOR, NOR, NAND)
 .PP
 .B Bitwise operators (~, |, &, <<, >>, XOR)
@@ -650,19 +683,19 @@ Returns 1 if expression is true and 0 if false. The x variable is isolated if th
 .PP
 .B Element-wise operators (.*, ./, .^)
 .PP
-.B Save operator (:=)
+.B Save operator (:=, =)
 .br
-Saves the expression to the right of the operator as a variable or function (e.g. var1:=5, func1():=x+y).
+Saves the expression to the right of the operator as a variable or function (e.g. var1:=5, func1():=x+y, var1=ln(5)+2). If the colon is omitted the expression is calculated before it is assigned to the variable.
 .RE
 .PP
 .B Evaluation priority order:
-parenthesis, 10^x, exponentiation, functions, bitwise NOT, logical NOT, multiplication/division/remainder, addition/subtraction, bitwise NOT, bitwise shift, comparisons, bitwise AND, bitwise XOR, bitwise OR, logical AND, logical OR.
+parenthesis, 10^x, exponentiation, functions, bitwise NOT, logical NOT, multiplication/division/remainder, parallel sum, addition/subtraction, bitwise NOT, bitwise shift, comparisons, bitwise AND, bitwise XOR, bitwise OR, logical AND, logical OR.
 .PP
 The evaluation of \fIshort/implicit multiplication\fP without any multiplication sign (e.g. 5x, 5(2+3)), differs depending on the parsing mode. In the \fIconventional mode\fP implicit multiplication does not differ from explicit multiplication (12/2(1+2) = 12/2*3 = 18, 5x/5y = 5 * x/5 * y = xy). In the parse \fIimplicit multiplication first\fP mode, implicit multiplication is parsed before explicit multiplication (12/2(1+2) = 12/(2 * 3) = 2, 5x/5y = (5 * x)/(5 * y) = x/y). The default \fIadaptive mode\fP works as the parse implicit multiplication first mode, unless spaces are found (1/5x = 1/(5 * x), but 1/5 x = (1/5) * x). In the adaptive mode unit expressions are parsed separately (5 m/5 m/s = (5 * m)/(5 * (m/s)) = 1 s). Function arguments without parentheses are an exception, where implicit multiplication in front of variables and units is parsed first regardless of mode (sqrt 2x = sqrt(2x)).
 .PP
 In \fIchain mode\fP, expressions are calculated from left to right, ignoring standard order of operations, like the immediate execution mode of a traditional calculator (1+2*3 = (1+2)*3 = 9).
 .PP
-The \fI"to"-operator\fP is used for unit conversion and manipulation of how the result is presented. Place " to " or a right arrow (e.g. "->") followed by one of expressions/commands the below, at the end of an expression.
+The \fI"to"-operator\fP is used for unit conversion and manipulation of how the result is presented. Place " to " or a right arrow (e.g. "->") followed by one of expressions/commands listed below, at the end of an expression.
 .PP
 .TP 8
 .B Unit conversion
@@ -704,6 +737,8 @@ prepend with + or - to force/disable use of mixed units
 .br
 - fp16, fp32, fp64, fp80, fp128 (show in binary floating-point format)
 .br
+- bcd (show as binary-coded decimal)
+.br
 - roman (show as roman numerals)
 .br
 - time (show in time format)
@@ -736,12 +771,21 @@ prepend with + or - to force/disable use of mixed units
 - calendars
 .PP
 .TP 8
-.B Other conversion commands
-- fraction (show result as mixed fraction)
+.B Fractions
+- fraction (show result as mixed, or simple if prepended with '-', fraction)
+show as mixed fraction with specified denominator
 .br
+- 1/# (show as mixed, or simple if prepended with '-', fraction with specified denominator)
+.br
+prepend with - to show as simple fraction
+.PP
+.TP 8
+.B Other conversion commands
 - factors (factorize result)
 .PP
 Similarly \fIwhere\fP (or alternatively "/.") can be used at the end (but before "to"), for variable assignments, function replacements, etc. (e.g. "x+y where x=1 and y=2", "x^2=4 where x>0", and "sin(5) where sin()=cos()").
+.PP
+Note that \fIto\fP and \fIwhere\fP can only be applied to the whole expression. Everything before the operator is always treated as the expression to convert (or apply replacement to), and everything after as the conversion/replacement expression, regardless of any parentheses.
 .SH EXAMPLES
 Note that semicolon can be replaced with comma, if comma is not used as decimal or thousands separator.
 .PP
@@ -759,7 +803,7 @@ sqrt 4
 .PP
 .TP 8
 sqrt(25; 16; 9; 4)
-= [5; 4; 3; 2]
+= [5  4  3  2]
 .PP
 .TP 8
 sqrt(32)
@@ -1007,8 +1051,8 @@ solve2(5x=2y^2; sqrt(y)=2; x; y)
 = 32/5
 .PP
 .TP 8
-multisolve([5x=2y+32; y=2z; z=2x]; [x; y; z])
-= [-32/3; -128/3; -64/3]
+multisolve([5x=2y+32, y=2z, z=2x]; [x, y, z])
+= [-32/3  -128/3  -64/3]
 .PP
 .TP 8
 dsolve(diff(y; x) - 2y = 4x; 5)
@@ -1047,38 +1091,42 @@ limit(ln(1 + 4x)/(3^x - 1); 0)
 .B Matrices and vectors
 .PP
 .TP 8
-((1; 2; 3); (4; 5; 6))
-= [[1; 2; 3]; [4; 5; 6]] \fI(2x3 matrix)\fP
+[1, 2, 3; 4, 5, 6]
+= ((1; 2; 3); (4; 5; 6))
+.br
+= [1  2  3; 4  5  6] \fI(2x3 matrix)\fP
 .PP
 .TP 8
 (1; 2; 3) * 2 - 2
-= [1 * 2 - 2; 2 * 2 - 2; 3 * 2 - 2]
+= [(1 * 2 - 2), (2 * 2 - 2), (3 * 2 - 2)]
 .br
-= [0; 2; 4]
+= [0  2  4]
 .PP
 .TP 8
-(1; 2; 3).(4; 5; 6)
-= dot((1; 2; 3); (4; 5; 6))
+[1 2 3].[4 5 6]
+= dot([1 2 3]; [4 5 6])
 .br
 = 32 \fI(dot product)\fP
 .PP
 .TP 8
-cross((1; 2; 3); (4; 5; 6))
-= [-3; 6; -3] \fI(cross product)\fP
+cross([1 2 3]; [4 5 6])
+= [-3  6  -3] \fI(cross product)\fP
 .PP
 .TP 8
-hadamard([[1; 2; 3]; [4; 5; 6]]; [[7; 8; 9]; [10; 11; 12]])
-= [[7; 16; 27]; [40; 55; 72]] \fI(hadamard product)\fP
-.PP
-.TP 8
-((1; 2; 3); (4; 5; 6)) * ((7; 8); (9; 10); (11; 12))
-= [[58; 64]; [139; 154]] \fI(matrix multiplication)\fP
-.PP
-.TP 8
-((1; 2); (3; 4))^-1
-= inverse([[1; 2]; [3; 4]])
+[1 2 3; 4 5 6].*[7 8 9; 10 11 12]
+= hadamard([1 2 3; 4 5 6]; [7 8 9; 10 11 12])
 .br
-= [[-2; 1]; [1.5; -0.5]]
+= [7  16  27; 40  55  72] \fI(hadamard product)\fP
+.PP
+.TP 8
+[1 2 3; 4 5 6] * [7 8; 9 10; 11 12]
+= [58  64; 139  154] \fI(matrix multiplication)\fP
+.PP
+.TP 8
+[1 2; 3 4]^-1
+= inverse([1 2; 3 4])
+.br
+= [-2  1; 1.5  -0.5]
 .PP
 .B Statistics
 .PP
@@ -1091,8 +1139,8 @@ stdev(5; 6; 4; 2; 3; 7)
 = 1.87
 .PP
 .TP 8
-quartile((5; 6; 4; 2; 3; 7); 1)
-= percentile([5; 6; 4; 2; 3; 7]; 25)
+quartile([5 6 4 2 3 7]; 1)
+= percentile((5; 6; 4; 2; 3; 7); 25)
 .br
 = 2.9166667
 .PP

@@ -1012,7 +1012,7 @@ string rnd_var() {
 	else return "pi";*/
 	while(true) {
 		int r = rand() % CALCULATOR->variables.size();
-		if(CALCULATOR->variables[r]->isKnown()) return CALCULATOR->variables[r]->name();
+		if(CALCULATOR->variables[r]->isKnown() && CALCULATOR->variables[r]->referenceName() != "uptime") return CALCULATOR->variables[r]->name();
 	}
 	return "";
 }
@@ -1035,10 +1035,13 @@ string rnd_number(bool use_par = true, bool only_integers = false, bool only_pos
 		if(!started) r = r % (only_positive ? 9 + 1 : 10 + 1);
 		else if(str.back() == '.') r = r % 10;
 		else r = r % ((dot ? 19 : 20) + str.length() * 10);
-		if(r > (dot ? 9 : 15)) break;
-		if((r >= 10 && r <= 15) || (!dot && !started && r == 0)) {if(!started) str += '0'; str += '.'; dot = true;}
-		else str += char('0' + r);
-		started = true;
+		if(r > (dot ? 9 : 15)) {
+			if(started) break;
+		} else {
+			if((r >= 10 && r <= 15) || (!dot && !started && r == 0)) {if(!started) str += '0'; str += '.'; dot = true;}
+			else str += char('0' + r);
+			started = true;
+		}
 	}
 	if(allow_complex && !only_integers && rand() % 10 == 0) {str += 'i'; par = true;}
 	else if(allow_interval && rand() % 2 == 0 && str.find(".") == string::npos) {str += "+/-4E-8"; /*str += rnd_number(false, true, true, false, false);*/}
@@ -1187,6 +1190,16 @@ string rnd_expression(int allow_unknowns, bool allow_functions, int length_facto
 
 KnownVariable *v;
 
+bool contains_division_by_zero(const MathStructure &mstruct) {
+	if(mstruct.isPower() && mstruct[0].isNumber() && !mstruct[0].number().isNonZero() && mstruct[1].representsNegative()) return true;
+	for(size_t i = 0; i < mstruct.size(); i++) {
+		if(contains_division_by_zero(mstruct[i])) return true;
+	}
+	return false;
+}
+
+extern bool testComplex(Number *this_nr, Number *i_nr);
+
 int rt1 = 0, rt2 = 0, rt3 = 0, rt4 = 0, rt5 = 0, rt6 = 0, rt7 = 0, rt8 = 0, rt9 = 0;
 void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bool test_interval = true, bool test_equation = true, bool allow_unit = false, bool allow_variable = false, bool allow_interval = false) {
 	bool b_iv = CALCULATOR->usesIntervalArithmetic();
@@ -1286,7 +1299,9 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 			cout << str << " => " << mp << ":" << nr << endl;
 			cout << "UNEQUAL2a: " << m1.print(po) << ":" << m3.print(po) << endl;
 		}*/
-		if(COMPARISON_IS_NOT_EQUAL(m1.compare(m4))) {
+		if(m4.isNumber()) testComplex(&m4.number(), m4.number().internalImaginary());
+		if(m1.isNumber()) testComplex(&m1.number(), m1.number().internalImaginary());
+		if(COMPARISON_IS_NOT_EQUAL(m1.compare(m4)) && !m1.containsInfinity() && !m4.containsInfinity() && !contains_division_by_zero(m1) && !contains_division_by_zero(m4)) {
 			rt5++;
 			cout << str << " => " << mp << ":" << nr << endl;
 			cout << "UNEQUAL2b: " << m1.print(po) << ":" << m4.print(po) << endl;
@@ -1579,7 +1594,9 @@ void rnd_test(EvaluationOptions eo, int allow_unknowns, bool allow_functions, bo
 			cout << str << " => " << mp << ":" << nr << endl;
 			cout << "UNEQUAL2a: " << m1.print(po) << ":" << m3.print(po) << endl;
 		}*/
-		if(COMPARISON_IS_NOT_EQUAL(m1.compare(m4))) {
+		if(m4.isNumber()) testComplex(&m4.number(), m4.number().internalImaginary());
+		if(m1.isNumber()) testComplex(&m1.number(), m1.number().internalImaginary());
+		if(COMPARISON_IS_NOT_EQUAL(m1.compare(m4)) && !m1.containsInfinity() && !m4.containsInfinity() && !contains_division_by_zero(m1) && !contains_division_by_zero(m4)) {
 			rt5++;
 			cout << str << " => " << mp << ":" << nr << endl;
 			cout << "UNEQUAL2b: " << m1.print(po) << ":" << m4.print(po) << endl;
@@ -1851,12 +1868,23 @@ bool test_float(const Number &nr) {
 	return true;
 }
 
+bool contains_abs_or_currency(const MathStructure &m) {
+	if(m.isUnit() && (m.unit()->isCurrency() || m.unit()->baseUnit()->referenceName() == "K")) return true;
+	if(m.isFunction() && (m.function()->id() == FUNCTION_ID_ABS || m.function()->id() == FUNCTION_ID_BIN || m.function()->id() == FUNCTION_ID_DEC || m.function()->id() == FUNCTION_ID_HEX || m.function()->id() == FUNCTION_ID_BASE || m.function()->id() == FUNCTION_ID_OCT)) return true;
+	for(size_t i = 0; i < m.size(); i++) {
+		if(contains_abs_or_currency(m[i])) return true;
+	}
+	return false;
+}
+
+#include "libqalculate/MathStructure-support.h"
 int main(int argc, char *argv[]) {
 
 	new Calculator(false);
+	//CALCULATOR->loadExchangeRates();
 	CALCULATOR->loadGlobalDefinitions();
 	CALCULATOR->loadLocalDefinitions();
-	CALCULATOR->setPrecision(8);
+	CALCULATOR->setPrecision(10);
 
 	CALCULATOR->useIntervalArithmetic();
 	PrintOptions po = CALCULATOR->messagePrintOptions();
@@ -1874,6 +1902,7 @@ int main(int argc, char *argv[]) {
 	CALCULATOR->setMessagePrintOptions(po);
 
 	EvaluationOptions evalops;
+	//evalops.parse_options.unknowns_enabled = false;
 	/*evalops.sync_units = true;
 	evalops.parse_options.unknowns_enabled = false;
 	evalops.parse_options.read_precision = DONT_READ_PRECISION;*/
@@ -1934,7 +1963,7 @@ int main(int argc, char *argv[]) {
 	cout << mstruct << endl;*/
 	//speed_test();
 	test_integration();
-	//cout << successes << ":" << imaginary << endl;
+	cout << successes << ":" << imaginary << endl;
 	return 0;
 	//test_intervals(true);
 
@@ -2060,25 +2089,94 @@ int main(int argc, char *argv[]) {
 		cout << mstruct.print() << endl;
 		if(mstruct.isAborted()) break;*/
 		//if(mstruct.isPower() || (mstruct.isMultiplication() && !mstruct.containsType(STRUCT_DIVISION))) cout << str << "\n" << mstruct << endl;
-		/*rnd_test(evalops, 4, true, false, true, false, false, false);
+	/*	rnd_test(evalops, 4, true, false, true, false, true, false);
 		if(i % 1000 == 0) cout << endl << rt1 << ":" << rt2 << ":" << rt3 << ":" << rt4 << ":" << rt5 << ":" << rt6 << ":" << rt7 << ":" << rt8 << ":" << rt9 << endl << endl;
 	}
 	cout << endl << endl << "-----------------------------------------" << endl << endl << endl;
 
 	return 0;*/
-
-	for(size_t i2 = 0; i2 <= 100000; i2++) {
-		string str;
-		size_t n = rand() % 10;
+	evalops.parse_options.units_enabled = true;
+	evalops.parse_options.unknowns_enabled = false;
+	size_t ni = 0;
+	for(size_t i2 = 0; i2 <= 10000000L; i2++) {
+		str = "";
+		size_t n = rand() % 200;
 		for(size_t i = 0; i <= n; i++) {
 			str += (char) (rand() % (126 - 32) + 32);
 			//if(str[i] == '{' || str[i] == '}') str[i] = '+';
 		}
-		str = "}!{1";
-		cout << str << endl;
+		while(true) {
+			n = rand() % 12;
+			if(n > 6) break;
+			size_t i = rand() % str.length();
+			if(n == 0) str.insert(i, "(");
+			if(n == 1) str.insert(i, ")");
+			if(n == 2) str.insert(i, "+");
+			if(n == 3) str.insert(i, "*");
+			if(n == 4) str.insert(i, "/");
+			if(n == 5) str.insert(i, "^");
+			if(n == 6) str.insert(i, "-");
+			//if(n == 7) str.insert(i, "~");
+		}
+		gsub("!", " ", str);
+		/*gsub("{", " ", str);
+		gsub("}", " ", str);*/
+		gsub("~", " ", str);
+		gsub(":=", "=", str);
+		gsub("=:", "=", str);
+		gsub(">", " ", str);
+		gsub("<", " ", str);
+		gsub(":", " ", str);
+		gsub("=", " ", str);
+		remove_blank_ends(str);
+		while(str[0] == '/') {str.erase(0, 1); remove_blank_ends(str);}
+		cout << "\n\n\n\n\n" << str << endl;
+		int max_length = 100 - unicode_length(str);
+		if(max_length < 50) max_length = 50;
+		string parsed;
 		MathStructure mstruct;
+		//CALCULATOR->parse(&mstruct, str, evalops.parse_options);
+		//mstruct.eval(evalops);
+		//if(CALCULATOR->idCount() > 0) break;
+		//cout << mstruct.print() << endl;
+		str = CALCULATOR->calculateAndPrint(str, 100, evalops, default_print_options, AUTOMATIC_FRACTION_AUTO, AUTOMATIC_APPROXIMATION_AUTO, &parsed, max_length);
+		/*CALCULATOR->startControl(1000);
+		CALCULATOR->calculate(str, evalops);
+		CALCULATOR->stopControl();*/
+		if(str.find("tiden rann ut") != string::npos) {
+			if(str != "tiden rann ut") {
+				cout << str << endl;
+				break;
+			}
+			ni++;
+		}
+		//cout << parsed << endl;
+		/*n = rand() % (str.length() + 1);
+		if(n < str.length()) str.insert(n, "=");
+		for(size_t i3 = 0; i3 < 7; i3++) {
+			n = rand() % 3;
+			if(n == 0) {
+				size_t n2 = rand() % 4;
+				n = rand() % str.length();
+				while(n > 0 && n < str.length() - 1 && (signed char) str[n] < 0 && (signed char) str[n - 1] < 0) n--;
+				if(n2 == 0) str.insert(n, "\"");
+				if(n2 == 1) str.insert(n, "\'");
+				if(n2 == 2) str.insert(n, "«");
+				if(n2 == 3) str.insert(n, "›");
+			}
+		}*/
 		/*CALCULATOR->parse(&mstruct, str, evalops.parse_options);
-		cout << "A" << endl;
+		bool b_out = true;
+		if(expression_contains_save_function(str, evalops.parse_options, false)) b_out = false;
+		if(mstruct.isSymbolic() || contains_abs_or_currency(mstruct)) b_out = false;
+		while(CALCULATOR->message()) {
+			if(CALCULATOR->message()->message().find("is not a valid") != string::npos || CALCULATOR->message()->message().find("Trailing") != string::npos || CALCULATOR->message()->message().find("Misplaced") != string::npos || CALCULATOR->message()->message().find("ignored") != string::npos) {b_out = false; break;}
+			if(!CALCULATOR->nextMessage()) break;
+		}
+		if(b_out && !str.empty()) cout << str << endl;*/
+		CALCULATOR->clearMessages();
+		//cerr << str << endl;
+		/*cout << mstruct.print() << endl;
 		mstruct.eval(evalops);
 		cout << "B" << endl;
 		cout << "C" << endl;
@@ -2086,11 +2184,26 @@ int main(int argc, char *argv[]) {
 		cout << "D" << endl;
 		CALCULATOR->convertToOptimalUnit(mstruct, evalops, true);
 		cout << "E" << endl;*/
-		CALCULATOR->calculate(&mstruct, str, 10000, evalops);
+		/*expression_contains_save_function(str, evalops.parse_options);
+		if(transform_expression_for_equals_save(str, evalops.parse_options)) {
+			ni++;
+			cout << "SAVE:" << str << endl;
+		}*/
+		/*CALCULATOR->calculate(&mstruct, str, 10000, evalops);
+		if(mstruct.isAborted()) {cerr << "aborted: " << i2 << endl; break;}
+		display_errors(true);
 		mstruct.format(po);
-		cout << mstruct.print() << endl;
-		if(mstruct.isAborted()) break;
+		cerr << mstruct.print() << endl;
+		if(mstruct.isAborted()) break;*/
+		/*for(size_t i = 0; i < CALCULATOR->variables.size(); i++) {
+			if(CALCULATOR->variables[i]->isLocal()) {
+				cout << "G" << endl;
+				CALCULATOR->variables[i]->destroy();
+			}
+		}*/
+		cout << i2 << endl;
 	}
+	cerr << ni<< endl;
 	return 0;
 
 }

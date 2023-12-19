@@ -57,20 +57,30 @@ class Calculator_p {
 	public:
 		unordered_map<size_t, MathStructure*> id_structs;
 		unordered_map<size_t, bool> ids_p;
-		vector<size_t> freed_ids;
+		unordered_map<size_t, size_t> ids_ref;
+		std::vector<size_t> ufvl_us;
+		std::vector<size_t> ufv_us[4][20];
+		std::vector<size_t> freed_ids;
 		size_t ids_i;
 		Number custom_input_base, custom_output_base;
 		long int custom_input_base_i;
 		Unit *local_currency;
 		int use_binary_prefixes;
-		MathFunction *f_cis, *f_erfi, *f_fresnels, *f_fresnelc, *f_dot, *f_times, *f_rdivide, *f_power;
+		MathFunction *f_cis, *f_erfi, *f_fresnels, *f_fresnelc, *f_dot, *f_times, *f_rdivide, *f_power, *f_parallel, *f_vertcat, *f_horzcat, *f_secant, *f_newton;
 		Unit *u_byn;
 		Unit *u_kelvin, *u_rankine, *u_celsius, *u_fahrenheit;
+		Unit *custom_angle_unit;
 		unordered_map<int, MathFunction*> id_functions;
 		unordered_map<int, Variable*> id_variables;
 		unordered_map<int, Unit*> id_units;
+		unordered_map<Unit*, MathStructure*> composite_unit_base;
 		time_t exchange_rates_time2[1], exchange_rates_check_time2[1];
 		TemperatureCalculationMode temperature_calculation;
+		bool matlab_matrices;
+		bool persistent_plot;
+		bool concise_uncertainty_input;
+		int exchange_rates_url3;
+		long int fixed_denominator;
 };
 
 class CalculateThread : public Thread {
